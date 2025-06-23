@@ -119,6 +119,7 @@ glinet,gl-mt3000)
 	ubootenv_add_uci_config "/dev/mtd1" "0x0" "0x80000" "0x20000"
 	;;
 cudy,tr3000-v1|\
+cudy,tr3000-v1-256mb|\
 cudy,tr3000-v1-ubootmod|\
 ikuai,q6000|\
 netcore,n60-pro-512rom|\
