@@ -310,10 +310,6 @@
 	};
 };
 
-&serial0 {
-	status = "okay";
-};
-
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_flash_pins>;
