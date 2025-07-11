@@ -67,6 +67,7 @@ ikuai,q6000-emmc|\
 jdcloud,re-cp-03|\
 sl,3000|\
 sl,3000-emmc|\
+umi,uax3000e|\
 huasifei,wh3000-emmc)
 	local envdev=$(find_mmc_part "u-boot-env")
 	ubootenv_add_uci_config "$envdev" "0x0" "0x80000"
