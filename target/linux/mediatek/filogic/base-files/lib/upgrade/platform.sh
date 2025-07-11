@@ -107,6 +107,11 @@ platform_do_upgrade() {
 	zyxel,ex5601-t0-ubootmod)
 		CI_UBIPART="ubi0"
 		nand_do_upgrade "$1"
+	tplink,tl-7dr7230-v1|\
+	tplink,tl-7dr7230-v2|\
+	tplink,tl-7dr7250-v1)
+		fit_do_upgrade "$1"
+		;;
 	acer,predator-w6|\
 	acer,predator-w6d|\
 	acer,vero-w6m|\
