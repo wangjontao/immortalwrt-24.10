@@ -1104,6 +1104,19 @@ define Device/huasifei_wh3000-emmc
 endef
 TARGET_DEVICES += huasifei_wh3000-emmc
 
+define Device/huasifei_wh3000-pro
+  DEVICE_VENDOR := Huasifei
+  DEVICE_MODEL := WH3000 Pro
+  DEVICE_DTS := mt7981b-huasifei-wh3000-pro
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware kmod-hwmon-pwmfan kmod-usb3 f2fsck mkf2fs
+  KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += huasifei_wh3000-pro
+
 define Device/ikuai_q6000
   DEVICE_VENDOR := iKuai
   DEVICE_MODEL := Q6000

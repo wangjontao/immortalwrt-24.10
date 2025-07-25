@@ -119,6 +119,7 @@ platform_do_upgrade() {
 	glinet,gl-x3000|\
 	glinet,gl-xe3000|\
 	huasifei,wh3000-emmc|\
+	huasifei,wh3000-pro|\
         ikuai,q6000-emmc|\
 	jdcloud,re-cp-03|\
         sl,3000|\
@@ -240,6 +241,7 @@ platform_copy_config() {
 	glinet,gl-x3000|\
 	glinet,gl-xe3000|\
 	huasifei,wh3000-emmc|\
+	huasifei,wh3000-pro|\
         ikuai,q6000-emmc|\
 	jdcloud,re-cp-03|\
         sl,3000|\
