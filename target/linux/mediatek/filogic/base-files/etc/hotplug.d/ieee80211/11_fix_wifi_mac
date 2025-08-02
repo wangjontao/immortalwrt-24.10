@@ -62,7 +62,7 @@ case "$board" in
 		[ "$PHYNBR" = "2" ] && macaddr_add $addr 4 > /sys${DEVPATH}/macaddress
 		;;
 	cmcc,rax3000m)
- 		addr=$(mtd_get_mac_binary factory 0xa)
+ 		addr=$(mtd_get_mac_binary Factory 0xa)
  		[ "$PHYNBR" = "0" ] && macaddr_add $addr > /sys${DEVPATH}/macaddress
 		[ "$PHYNBR" = "1" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
 		;;
@@ -72,7 +72,7 @@ case "$board" in
 		[ "$PHYNBR" = "1" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
 		;;
 	cmcc,rax3000me)
- 		addr=$(mtd_get_mac_binary factory 0xa)
+ 		addr=$(mtd_get_mac_binary Factory 0xa)
  		[ "$PHYNBR" = "0" ] && macaddr_add $addr > /sys${DEVPATH}/macaddress
 		[ "$PHYNBR" = "1" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
 		;;
