@@ -10,6 +10,7 @@ mediatek_setup_interfaces()
 	case $board in
 	abt,asr3000|\
 	cmcc,rax3000m|\
+        cmcc,rax3000m-emmc|\
 	cmcc,rax3000me|\
 	h3c,magic-nx30-pro|\
 	h3c,magic-nx30-pro-nmbm|\
@@ -192,13 +193,14 @@ mediatek_setup_macs()
 		wan_mac=$(macaddr_add $(cat /sys/class/net/eth0/address) 1)
 		;;
 	cmcc,rax3000m)
- 		case "$(cmdline_get_var root)" in
- 		/dev/mmc*)
- 			wan_mac=$(mmc_get_mac_binary factory 0x2a)
- 			lan_mac=$(mmc_get_mac_binary factory 0x24)
- 			label_mac=$wan_mac
+ 		wan_mac=$(mtd_get_mac_binary Factory 0x2a)
+ 		lan_mac=$(mtd_get_mac_binary Factory 0x24)
+ 		label_mac=$wan_mac
  		;;
- 		esac
+	cmcc,rax3000m-emmc)
+ 		wan_mac=$(mmc_get_mac_binary factory 0x2a)
+ 		lan_mac=$(mmc_get_mac_binary factory 0x24)
+ 		label_mac=$wan_mac
  		;;
 	h3c,magic-nx30-pro|\
 	h3c,magic-nx30-pro-nmbm)
