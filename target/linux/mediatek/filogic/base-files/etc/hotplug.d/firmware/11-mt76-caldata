@@ -13,7 +13,7 @@ case "$FIRMWARE" in
 		ln -sf /tmp/tp_data/MT7981_EEPROM.bin \
 			/lib/firmware/$FIRMWARE
 		;;
-        cmcc,rax3000m|\
+        cmcc,rax3000m-emmc|\
         sl,3000-emmc|\
         umi,uax3000e|\
 	ubnt,unifi-6-plus)
