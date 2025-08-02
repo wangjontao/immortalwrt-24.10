@@ -5,7 +5,7 @@
 
 / {
 	model = "CMCC RAX3000M eMMC version";
-	compatible = "cmcc,rax3000m-emmc-ubootmod", "mediatek,mt7981";
+	compatible = "cmcc,rax3000m-emmc", "mediatek,mt7981";
 
 	chosen {
 		bootargs = "root=PARTLABEL=rootfs rootwait rootfstype=squashfs,f2fs";
