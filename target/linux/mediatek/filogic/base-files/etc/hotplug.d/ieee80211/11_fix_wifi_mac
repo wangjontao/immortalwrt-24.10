@@ -61,17 +61,16 @@ case "$board" in
 		[ "$PHYNBR" = "1" ] && macaddr_add $addr 3 > /sys${DEVPATH}/macaddress
 		[ "$PHYNBR" = "2" ] && macaddr_add $addr 4 > /sys${DEVPATH}/macaddress
 		;;
-	*cmcc,rax3000m*)
- 		case "$(cmdline_get_var root)" in
- 		/dev/mmc*)
- 			addr=$(mmc_get_mac_binary factory 0xa)
- 			;;
- 		*)
- 			addr=$(mtd_get_mac_binary factory 0xa)
- 			;;
- 		esac
- 		[ "$PHYNBR" = "1" ] && echo "$addr" > /sys${DEVPATH}/macaddress
- 		;;
+	cmcc,rax3000m)
+ 		addr=$(mtd_get_mac_binary factory 0xa)
+ 		[ "$PHYNBR" = "0" ] && macaddr_add $addr > /sys${DEVPATH}/macaddress
+		[ "$PHYNBR" = "1" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
+		;;
+	cmcc,rax3000m-emmc)
+ 		addr=$(mmc_get_mac_binary factory 0xa)
+ 		[ "$PHYNBR" = "0" ] && macaddr_add $addr > /sys${DEVPATH}/macaddress
+		[ "$PHYNBR" = "1" ] && macaddr_add $addr 1 > /sys${DEVPATH}/macaddress
+		;;
 	clx,s20p)
 		addr=$(mmc_get_mac_binary factory 0x4)
 		[ "$PHYNBR" = "0" ] && $addr > /sys${DEVPATH}/macaddress
