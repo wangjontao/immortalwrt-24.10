@@ -608,7 +608,7 @@ TARGET_DEVICES += clx_s20p
 define Device/cmcc_rax3000m
   DEVICE_VENDOR := CMCC
   DEVICE_MODEL := RAX3000M NAND
-  DEVICE_DTS := mt7981b-cmcc-rax3000m-nand
+  DEVICE_DTS := mt7981b-cmcc-rax3000m
   DEVICE_DTS_DIR := ../dts
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware \
 	kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-usb-serial-option \
