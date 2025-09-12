@@ -15,7 +15,7 @@ define Device/ariaboard_photonicat
   DEVICE_MODEL := Photonicat
   SOC := rk3568
   BOOT_FLOW := pine64-img
-  DEVICE_PACKAGES := kmod-ath10k-sdio ath10k-firmware-qca9377-sdio wpad-openssl \
+  DEVICE_PACKAGES := pcat-mgr kmod-ath10k-sdio ath10k-firmware-qca9377-sdio wpad-openssl \
 	kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-usb-serial-option uqmi
 endef
 TARGET_DEVICES += ariaboard_photonicat
@@ -325,6 +325,22 @@ define Device/radxa_rock-3c
 endef
 TARGET_DEVICES += radxa_rock-3c
 
+define Device/radxa_rock-4c-plus
+  DEVICE_VENDOR := Radxa
+  DEVICE_MODEL := ROCK 4C+
+  SOC := rk3399
+  BOOT_FLOW := pine64-bin
+endef
+TARGET_DEVICES += radxa_rock-4c-plus
+
+define Device/radxa_rock-4se
+  DEVICE_VENDOR := Radxa
+  DEVICE_MODEL := ROCK 4SE
+  SOC := rk3399
+  BOOT_FLOW := pine64-bin
+endef
+TARGET_DEVICES += radxa_rock-4se
+
 define Device/radxa_rock-5a
   DEVICE_VENDOR := Radxa
   DEVICE_MODEL := ROCK 5A
@@ -365,7 +381,7 @@ define Device/radxa_rock-pi-e
   SOC := rk3328
   SUPPORTED_DEVICES := radxa,rockpi-e
   BOOT_FLOW := pine64-bin
-  DEVICE_PACKAGES := kmod-rtw88-8723du kmod-usb-net-cdc-ncm kmod-usb-net-rndis wpad-openssl
+  DEVICE_PACKAGES := kmod-rtw88-8723du kmod-rtw88-8821cu kmod-usb-net-cdc-ncm kmod-usb-net-rndis wpad-openssl
 endef
 TARGET_DEVICES += radxa_rock-pi-e
 
