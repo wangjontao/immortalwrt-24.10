@@ -10,13 +10,13 @@ mediatek_setup_interfaces()
 	case $board in
 	abt,asr3000|\
 	cmcc,rax3000m*|\
-        cmcc,rax3000me|\
+	cmcc,rax3000me|\
 	h3c,magic-nx30-pro|\
 	h3c,magic-nx30-pro-nmbm|\
 	imou,lc-hx3001|\
 	konka,komi-a31|\
-        netis,nx31|\
-        newland,nl-wr8103|\
+	netis,nx31|\
+	newland,nl-wr8103|\
 	nokia,ea0326gmp|\
 	mercusys,mr80x-v3|\
 	routerich,ax3000-v1|\
@@ -51,9 +51,9 @@ mediatek_setup_interfaces()
 	livinet,zr-3020-ubootmod|\
 	qihoo,360t7|\
 	routerich,ax3000|\
-        sl,3000|\
-        sl,3000-emmc|\
-        tplink,tl-7dr7250-v1|\
+	sl,3000|\
+	sl,3000-emmc|\
+	tplink,tl-7dr7250-v1|\
 	routerich,ax3000-ubootmod)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan
 		;;
@@ -134,7 +134,7 @@ mediatek_setup_interfaces()
 	yuncore,ax835)
 		ucidef_set_interfaces_lan_wan lan wan
 		;;
-        ikuai,q6000-emmc|\
+	ikuai,q6000-emmc|\
 	ikuai,q6000)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" eth1
 		;;
@@ -247,7 +247,7 @@ mediatek_setup_macs()
  		wan_mac=$(macaddr_add "$lan_mac" -2)
  		label_mac=$lan_mac
  		;;
-        sl,3000-emmc)
+	sl,3000-emmc)
  		lan_mac=$(mmc_get_mac_binary factory 0x04)		
  		wan_mac=$(macaddr_add "$lan_mac" -2)
  		label_mac=$lan_mac
