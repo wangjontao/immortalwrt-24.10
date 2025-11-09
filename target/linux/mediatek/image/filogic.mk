@@ -1931,6 +1931,48 @@ define Device/tplink_tl-xtr8488
 endef
 TARGET_DEVICES += tplink_tl-xtr8488
 
+define Device/tplink_tl-7dr7230-v1
+  DEVICE_MODEL := TL-7DR7230
+  DEVICE_VARIANT := v1
+  DEVICE_DTS := mt7988d-tplink-tl-7dr7230-v1
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := mt7988-2p5g-phy-firmware kmod-mt7992-firmware mt7988-wo-firmware
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  KERNEL_IN_UBI := 1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += tplink_tl-7dr7230-v1
+
+define Device/tplink_tl-7dr7230-v2
+  DEVICE_MODEL := TL-7DR7230
+  DEVICE_VARIANT := v2
+  DEVICE_DTS := mt7988d-tplink-tl-7dr7230-v2
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := mt7988-2p5g-phy-firmware kmod-mt7992-firmware mt7988-wo-firmware
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  KERNEL_IN_UBI := 1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += tplink_tl-7dr7230-v2
+
+define Device/tplink_tl-7dr7250-v1
+  DEVICE_MODEL := TL-7DR7250
+  DEVICE_VARIANT := v1
+  DEVICE_DTS := mt7988d-tplink-tl-7dr7250-v1
+  DEVICE_PACKAGES := mt7988-2p5g-phy-firmware kmod-mt7992-firmware mt7988-wo-firmware kmod-phy-airoha-en8811h airoha-en8811h-firmware
+  DEVICE_DTS_DIR := ../dts
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  KERNEL_IN_UBI := 1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += tplink_tl-7dr7250-v1
+
 define Device/ubnt_unifi-6-plus
   DEVICE_VENDOR := Ubiquiti
   DEVICE_MODEL := UniFi U6+
