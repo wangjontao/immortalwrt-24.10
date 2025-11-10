@@ -104,6 +104,7 @@ platform_do_upgrade() {
 	tplink,tl-7dr7230-v1|\
 	tplink,tl-7dr7230-v2|\
 	tplink,tl-7dr7250-v1|\
+	tplink,tl-7dr7230-v1sp2|\
 	xiaomi,mi-router-ax3000t-ubootmod|\
         xiaomi,redmi-router-ax6000|\
 	xiaomi,redmi-router-ax6000-512rom|\

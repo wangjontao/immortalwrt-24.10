@@ -82,6 +82,9 @@ mediatek_setup_interfaces()
 	tplink,tl-7dr7230-v2)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" wan
 		;;
+	tplink,tl-7dr7230-v1sp2)
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan
+		;;
 	bananapi,bpi-r3)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4 sfp2" "eth1 wan"
 		;;
