@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (C) 2025 Tianling Shen <cnsztl@immortalwrt.org>
+ * Modified by dailook
  */
 
 /dts-v1/;
