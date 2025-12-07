@@ -48,21 +48,21 @@
 		compatible = "gpio-leds";
 
 		led_green: green {
- 			label = "green:status";
- 			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
- 		};
+			label = "green:status";
+			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
+		};
 
- 		led_blue: blue {
- 			label = "blue:status";
- 			gpios = <&pio 2 GPIO_ACTIVE_LOW>;
- 		};
- 			
+		led_blue: blue {
+			label = "blue:status";
+			gpios = <&pio 2 GPIO_ACTIVE_LOW>;
+		};
+
 		led_red: red {
- 			label = "red:status";
+			label = "red:status";
 			gpios = <&pio 21 GPIO_ACTIVE_LOW>;
 		};
 	};
-	
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -93,10 +93,10 @@
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
 		phy-mode = "2500base-x";
-		
+
 		nvmem-cells = <&macaddr_factory_4 0>;
 		nvmem-cell-names = "mac-address";
-		
+
 		fixed-link {
 			speed = <2500>;
 			full-duplex;
@@ -109,7 +109,7 @@
 		reg = <1>;
 		phy-handle = <&phy7>;
 		phy-mode = "2500base-x";
-		
+
 		nvmem-cells = <&macaddr_factory_10048 0>;
 		nvmem-cell-names = "mac-address";
 	};
@@ -117,54 +117,55 @@
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-				
+
 		phy7: phy@7 {
-		      compatible = "ethernet-phy-ieee802.3-c45";
-		      reg = <3>;
-		      reset-delay-us = <600>;
-		      reset-assert-us = <100000>;
-		      reset-deassert-us = <100000>;
-		      reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <3>;
+			reset-delay-us = <600>;
+			reset-assert-us = <100000>;
+			reset-deassert-us = <100000>;
+			reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
 		};
-		
+
 		switch@0 {
-		      compatible = "mediatek,mt7531";
-		      reg = <31>;
-		      reset-gpios = <&pio 5 GPIO_ACTIVE_HIGH>;
-		      
-                   ports {
-                   #address-cells = <1>;
-                   #size-cells = <0>;
-	                        
-                   port@2 {
-			                reg = <2>;
-			                label = "lan3";
-                   };
+			compatible = "mediatek,mt7531";
+			reg = <31>;
+			reset-gpios = <&pio 5 GPIO_ACTIVE_HIGH>;
 
-                   port@3 {
-			                reg = <3>;
-			                label = "lan2";
-                   };
-		
-                   port@4 {
-			                reg = <4>;
-			                label = "lan1";
-                   };
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-                   port@6 {
-			                reg = <6>;
-			                label = "cpu";
-			                ethernet = <&gmac0>;
-			                phy-mode = "2500base-x";
+				port@2 {
+					reg = <2>;
+					label = "lan3";
+				};
 
-			                fixed-link {
-				                speed = <2500>;
-				                full-duplex;
-				                pause;
-                   };
-		      };
-		 };
-	};;
+				port@3 {
+					reg = <3>;
+					label = "lan2";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "lan1";
+				};
+
+				port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "2500base-x";
+
+					fixed-link {
+						speed = <2500>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
+		};
+	};
 };
 
 &pio {
@@ -293,13 +294,13 @@
 							reg = <0x4 0x6>;
 							#nvmem-cell-cells = <1>;
 						};
-						
+
 						macaddr_factory_a: macaddr@a {
 							compatible = "mac-base";
 							reg = <0xa 0x6>;
 							#nvmem-cell-cells = <1>;
 						};
-						
+
 						macaddr_factory_10048: macaddr@10048 {
 							compatible = "mac-base";
 							reg = <0x10048 0x6>;
@@ -330,12 +331,11 @@
 	nvmem-cell-names = "eeprom";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wf_2g_5g_pins>;
-	
+
 	band@0 {
 		reg = <0>;
 		nvmem-cells = <&macaddr_factory_a 0>;
 		nvmem-cell-names = "mac-address";
-
 	};
 
 	band@1 {
