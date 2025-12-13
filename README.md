@@ -1,5 +1,7 @@
 <img src="https://avatars.githubusercontent.com/u/53193414?s=200&v=4" alt="logo" width="200" height="200" align="right">
 
+# 本源码修改和新加适配机型作者为dailook，请尊重原创，使用此源码请说明出处，fork也一样需要说明出处！
+
 # 本项目fork自 ImmortalWrt 24.10源码
 
 为方便mtk uboot刷入而修改
@@ -74,3 +76,5 @@
   ```
 
 编译完成后输出路径：bin/targets
+
+如使用此源码请注明出处！
