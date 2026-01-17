@@ -116,19 +116,20 @@ platform_do_upgrade() {
 	acer,predator-w6|\
 	acer,predator-w6d|\
 	acer,vero-w6m|\
+	aigo,ags21|\
 	arcadyan,mozart|\
-        clx,s20p|\
-        cmcc,rax3000m|\
+	clx,s20p|\
+	cmcc,rax3000m|\
 	glinet,gl-mt2500|\
 	glinet,gl-mt6000|\
 	glinet,gl-x3000|\
 	glinet,gl-xe3000|\
 	huasifei,wh3000-emmc|\
 	huasifei,wh3000-pro|\
-        ikuai,q6000-emmc|\
+	ikuai,q6000-emmc|\
 	jdcloud,re-cp-03|\
-        sl,3000|\
-        sl,3000-emmc|\
+	sl,3000|\
+	sl,3000-emmc|\
 	smartrg,sdg-8612|\
 	smartrg,sdg-8614|\
 	smartrg,sdg-8622|\
