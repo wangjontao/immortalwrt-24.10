@@ -81,20 +81,20 @@ platform_do_upgrade() {
 	gatonetworks,gdsp|\
 	h3c,magic-nx30-pro|\
 	imou,lc-hx3001|\
-        ikuai,q6000|\
+	ikuai,q6000|\
 	jcg,q30-pro|\	
 	konka,komi-a31|\
 	livinet,zr-3020-ubootmod|\
 	mediatek,mt7981-rfb|\
 	mediatek,mt7988a-rfb|\
 	mercusys,mr90x-v1-ubi|\
-        netis,nx31|\
-        newland,nl-wr8103|\
+	netis,nx31|\
+	newland,nl-wr8103|\
 	nokia,ea0326gmp|\
 	openwrt,one|\
 	netcore,n60|\
 	netcore,n60-pro|\
-        netcore,n60-pro-512rom|\
+	netcore,n60-pro-512rom|\
 	qihoo,360t7|\
 	routerich,ax3000-ubootmod|\
 	tplink,tl-xdr4288|\
@@ -106,7 +106,7 @@ platform_do_upgrade() {
 	tplink,tl-7dr7250-v1|\
 	tplink,tl-7dr7230-v1sp2|\
 	xiaomi,mi-router-ax3000t-ubootmod|\
-        xiaomi,redmi-router-ax6000|\
+	xiaomi,redmi-router-ax6000|\
 	xiaomi,redmi-router-ax6000-512rom|\
 	xiaomi,mi-router-wr30u-ubootmod|\
 	zyxel,ex5601-t0-ubootmod)
@@ -118,6 +118,7 @@ platform_do_upgrade() {
 	acer,vero-w6m|\
 	aigo,ags21|\
 	arcadyan,mozart|\
+	clx,s20l|\
 	clx,s20p|\
 	cmcc,rax3000m|\
 	glinet,gl-mt2500|\
@@ -241,17 +242,18 @@ platform_copy_config() {
 	acer,predator-w6d|\
 	acer,vero-w6m|\
 	arcadyan,mozart|\
-        clx,s20p|\
+	clx,s20l|\
+	clx,s20p|\
 	glinet,gl-mt2500|\
 	glinet,gl-mt6000|\
 	glinet,gl-x3000|\
 	glinet,gl-xe3000|\
 	huasifei,wh3000-emmc|\
 	huasifei,wh3000-pro|\
-        ikuai,q6000-emmc|\
+	ikuai,q6000-emmc|\
 	jdcloud,re-cp-03|\
-        sl,3000|\
-        sl,3000-emmc|\
+	sl,3000|\
+	sl,3000-emmc|\
 	smartrg,sdg-8612|\
 	smartrg,sdg-8614|\
 	smartrg,sdg-8622|\
