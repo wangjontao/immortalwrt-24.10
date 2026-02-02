@@ -82,7 +82,7 @@ platform_do_upgrade() {
 	h3c,magic-nx30-pro|\
 	imou,lc-hx3001|\
 	ikuai,q6000|\
-	jcg,q30-pro|\	
+	jcg,q30-pro|\
 	konka,komi-a31|\
 	livinet,zr-3020-ubootmod|\
 	mediatek,mt7981-rfb|\
@@ -195,7 +195,7 @@ platform_do_upgrade() {
 		esac
 		;;
 	xiaomi,mi-router-ax3000t|\
-	xiaomi,mi-router-wr30u-stock|\)
+	xiaomi,mi-router-wr30u-stock)
 		CI_KERN_UBIPART=ubi_kernel
 		CI_ROOT_UBIPART=ubi
 		nand_do_upgrade "$1"
