@@ -88,11 +88,6 @@
 		reg = <1>;
 		phy-handle = <&phy15>;
 		phy-mode = "2500base-x";
-		fixed-link {
-			speed = <2500>;
-			full-duplex;
-			pause;
-		};
 	};
 
 	mdio: mdio-bus {
@@ -112,14 +107,17 @@
 		interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	phy15: phy@15 {
+	phy15: ethernet-phy@15 {
 		compatible = "ethernet-phy-id03a2.a411";
 		reg = <15>;
 		reset-assert-us = <10000>;
 		reset-deassert-us = <10000>;
 		reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
-		airoha,rx-pol-reverse;
-		airoha,tx-pol-reverse;
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+			pause;
+		};
 	};
 };
 
