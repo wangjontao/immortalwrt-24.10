@@ -62,7 +62,7 @@
 			gpios = <&pio 11 GPIO_ACTIVE_LOW>;
 		};
 
-		mesh_led: led-3 {
+		led_mesh: led-3 {
 			label = "mesh:status";
 			gpios = <&pio 22 GPIO_ACTIVE_LOW>;
 		};
@@ -107,17 +107,12 @@
 		interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	phy15: ethernet-phy@15 {
+	phy15: phy@f {
 		compatible = "ethernet-phy-id03a2.a411";
 		reg = <15>;
+		reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
 		reset-assert-us = <10000>;
 		reset-deassert-us = <10000>;
-		reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
-		fixed-link {
-			speed = <2500>;
-			full-duplex;
-			pause;
-		};
 	};
 };
 
