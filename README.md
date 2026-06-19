@@ -78,3 +78,6 @@
 编译完成后输出路径：bin/targets
 
 如使用此源码请注明出处！
+
+## 许可证
+ImmortalWrt 基于 [GPL-2.0-only](https://spdx.org/licenses/GPL-2.0-only.html ) 发布。
