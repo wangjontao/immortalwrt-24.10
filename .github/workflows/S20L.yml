@@ -249,7 +249,11 @@ jobs:
           find dl -type f -size -1024c -print -delete
 
       - name: Compile S20L firmware
-        run: make -j"$(nproc)" || make -j1 V=s
+        run: |
+          # Rebuild the Go module cache after interrupted sing-box downloads.
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          make -j"$(nproc)" || make -j1 V=s
 
       - name: Verify and collect S20L firmware
         run: |
