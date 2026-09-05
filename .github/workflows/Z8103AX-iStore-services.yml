@@ -2,6 +2,9 @@ name: Z8103AX iStore services
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/z8103ax-istore-services
 
 permissions:
   contents: write
