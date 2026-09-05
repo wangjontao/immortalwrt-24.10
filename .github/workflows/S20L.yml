@@ -1,0 +1,168 @@
+name: S20L-24.10-iStore-Monitor
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - openwrt-24.10
+    paths:
+      - '.github/workflows/S20L.yml'
+      - 'build-configs/S20L.txt'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: s20l-24.10-istore-monitor
+  cancel-in-progress: false
+
+env:
+  PASSWALL_TAG: 26.3.6-1
+  PASSWALL2_TAG: 26.3.5-1
+  PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
+  NPS_OPENWRT_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+
+jobs:
+  build:
+    name: CLX S20L MT7986A
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout forked ImmortalWrt source
+        uses: actions/checkout@v4
+
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gettext gcc-multilib \
+            g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm nano ninja-build p7zip-full \
+            patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
+            re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
+          sudo timedatectl set-timezone Asia/Shanghai
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "WRT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+          cache: false
+
+      - name: Restore downloads and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: s20l-24.10-${{ hashFiles('build-configs/S20L.txt', '.github/workflows/S20L.yml') }}
+          restore-keys: |
+            s20l-24.10-
+
+      - name: Update feeds and add iStore
+        run: |
+          grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://github.com/linkease/istore.git;main' >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          ./scripts/feeds install -d y -p istore luci-app-store
+
+      - name: Add fixed proxy and NPC packages
+        run: |
+          rm -rf package/luci-app-passwall package/luci-app-passwall2 package/passwall-packages \
+            package/npc package/luci-app-npc feeds/luci/applications/luci-app-passwall \
+            feeds/luci/applications/luci-app-passwall2 feeds/luci/applications/luci-app-npc \
+            feeds/luci/applications/luci-app-nps feeds/packages/net/npc feeds/packages/net/nps \
+            package/feeds/luci/luci-app-npc package/feeds/luci/luci-app-nps \
+            package/feeds/packages/npc package/feeds/packages/nps
+
+          git clone --depth=1 --branch "$PASSWALL_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall.git /tmp/openwrt-passwall
+          mv /tmp/openwrt-passwall/luci-app-passwall package/
+          git clone --depth=1 --branch "$PASSWALL2_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall2.git /tmp/openwrt-passwall2
+          mv /tmp/openwrt-passwall2/luci-app-passwall2 package/
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
+          git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
+          rm -rf package/passwall-packages/.git
+
+          git clone https://github.com/djylb/nps-openwrt.git /tmp/nps-openwrt
+          git -C /tmp/nps-openwrt checkout "$NPS_OPENWRT_COMMIT"
+          cp -a /tmp/nps-openwrt/npc package/
+          cp -a /tmp/nps-openwrt/luci-app-npc package/
+
+      - name: Apply S20L configuration and defaults
+        run: |
+          rm -f .config
+          cp build-configs/S20L.txt .config
+
+          git clone --depth=1 --branch codex/hy3000-24.10 https://github.com/wangjontao/CloseWRT-CI.git /tmp/ci-config
+          cp -a /tmp/ci-config/Files/. package/base-files/files/
+          chmod 0755 package/base-files/files/etc/init.d/npc-wan-mac
+          chmod 0755 package/base-files/files/etc/uci-defaults/99-dulwifi
+          chmod 0755 package/base-files/files/etc/uci-defaults/99-enable-npc-wan-mac
+          chmod 0755 package/base-files/files/usr/libexec/npc-wan-mac
+
+          sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bin/config_generate
+          sed -i "s/hostname='.*'/hostname='DulWiFi'/g" package/base-files/files/bin/config_generate
+          ROOT_HASH="$(openssl passwd -1 '@password@')"
+          sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
+
+          make defconfig
+          grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-store=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-statistics=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-passwall=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-passwall2=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-homeproxy=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-npc=y' .config
+          ./scripts/diffconfig.sh | tee S20L-final.config
+
+      - name: Download sources
+        run: |
+          make download -j"$(nproc)"
+          find dl -type f -size -1024c -print -delete
+
+      - name: Compile S20L firmware
+        run: make -j"$(nproc)" || make -j1 V=s
+
+      - name: Verify and collect S20L firmware
+        run: |
+          mkdir -p upload
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*clx_s20l*sysupgrade*' -size +5M)
+          if [ "${#images[@]}" -eq 0 ]; then
+            echo 'ERROR: no CLX S20L sysupgrade image was produced.'
+            find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+            exit 1
+          fi
+          cp -a "${images[@]}" upload/
+          find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest' -exec cp -a {} upload/ \;
+          find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
+          cp S20L-final.config upload/
+          sha256sum upload/* | tee upload/SHA256SUMS
+          ls -lh upload
+
+      - name: Upload S20L firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLX-S20L-24.10-iStore-Monitor-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish S20L firmware release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: CLX-S20L-24.10-${{ env.BUILD_DATE }}
+          name: CLX S20L 24.10 ${{ env.BUILD_DATE }}
+          files: upload/*
+          body: |
+            CLX S20L / MT7986A / dailook ImmortalWrt 24.10 source
+            Source commit: ${{ env.WRT_HASH }}
+            Management IP: 192.168.7.1
+            Hostname: DulWiFi
+            Wi-Fi: DulWiFi-5G / DulWiFi-2.4G
+            Included: iStore, LuCI Statistics, PassWall, PassWall2, HomeProxy, luci-app-npc
+            NPC: nps.jontao.top:8024; WAN MAC is used as uppercase vkey without colons.
