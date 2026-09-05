@@ -2,9 +2,6 @@ name: Z8103AX iStore services
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - codex/z8103ax-istore-services
 
 permissions:
   contents: write
@@ -50,10 +47,10 @@ jobs:
           test -s "$DTS"
           grep -q 'compatible = "zbtlink,zbt-z8103ax", "mediatek,mt7981"' "$DTS"
           grep -q 'label = "ubi"' "$DTS"
-          grep -q 'reg = <0x580000 0x4000000>;' "$DTS"
-          grep -q 'IMAGE_SIZE := 65536k' target/linux/mediatek/image/filogic.mk
+          grep -q 'reg = <0x580000 0x7200000>;' "$DTS"
+          sed -n '/^define Device\/zbtlink_zbt-z8103ax$/,/^endef$/p' target/linux/mediatek/image/filogic.mk | grep -q 'IMAGE_SIZE := 116736k'
           grep -q 'TARGET_DEVICES += zbtlink_zbt-z8103ax' target/linux/mediatek/image/filogic.mk
-          echo 'Verified source-default UBI partition and image limit: 64 MiB.'
+          echo 'Verified Z8103AX custom UBI partition and image limit: 114 MiB.'
 
       - name: Update feeds and add application sources
         run: |
@@ -246,6 +243,6 @@ jobs:
           name: Z8103AX iStore services ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
-            ZBT-Z8103AX / MT7981 / source-default 64 MiB UBI layout.
+            ZBT-Z8103AX / MT7981 / custom 114 MiB UBI layout.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
