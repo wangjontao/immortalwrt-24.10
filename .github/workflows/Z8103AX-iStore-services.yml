@@ -1,0 +1,251 @@
+name: Z8103AX iStore services
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/z8103ax-istore-services
+
+permissions:
+  contents: write
+
+env:
+  PASSWALL_TAG: 26.3.6-1
+  PASSWALL2_TAG: 26.3.5-1
+  PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
+  HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
+  OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
+  NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Initialize environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git \
+            libncurses-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget curl jq \
+            openssl ccache zstd
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "SOURCE_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+          cache: false
+
+      - name: Verify Z8103AX native layout
+        run: |
+          DTS=target/linux/mediatek/dts/mt7981b-zbtlink-zbt-z8103ax.dts
+          test -s "$DTS"
+          grep -q 'compatible = "zbtlink,zbt-z8103ax", "mediatek,mt7981"' "$DTS"
+          grep -q 'label = "ubi"' "$DTS"
+          grep -q 'reg = <0x580000 0x4000000>;' "$DTS"
+          grep -q 'IMAGE_SIZE := 65536k' target/linux/mediatek/image/filogic.mk
+          grep -q 'TARGET_DEVICES += zbtlink_zbt-z8103ax' target/linux/mediatek/image/filogic.mk
+          echo 'Verified source-default UBI partition and image limit: 64 MiB.'
+
+      - name: Update feeds and add application sources
+        run: |
+          cat >> feeds.conf.default <<'FEEDS'
+          src-git istore https://github.com/linkease/istore.git;main
+          src-git nas_packages https://github.com/linkease/nas-packages.git;master
+          src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main
+          FEEDS
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          ./scripts/feeds install -d y -p istore luci-app-store
+          ./scripts/feeds install -d y -p nas_packages quickstart
+          ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
+
+          rm -rf package/luci-app-passwall package/luci-app-passwall2 package/passwall-packages
+          git clone --depth=1 --branch "$PASSWALL_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall.git /tmp/passwall
+          mv /tmp/passwall/luci-app-passwall package/
+          git clone --depth=1 --branch "$PASSWALL2_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall2.git /tmp/passwall2
+          mv /tmp/passwall2/luci-app-passwall2 package/
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
+          git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
+          rm -rf package/passwall-packages/.git
+
+          rm -rf package/homeproxy package/luci-app-homeproxy
+          git clone https://github.com/VIKINGYFY/homeproxy.git package/homeproxy
+          git -C package/homeproxy checkout "$HOMEPROXY_COMMIT"
+          rm -rf package/homeproxy/.git
+
+          rm -rf package/luci-app-openclash
+          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
+          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
+          cp -a /tmp/openclash/luci-app-openclash package/
+
+          rm -rf package/npc package/luci-app-nps package/luci-app-npc
+          git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
+          git -C /tmp/nps checkout "$NPS_COMMIT"
+          cp -a /tmp/nps/npc package/
+          git clone --depth=1 --filter=blob:none --sparse https://github.com/coolsnowwolf/luci.git /tmp/lean-luci
+          git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
+          cp -a /tmp/lean-luci/applications/luci-app-nps package/
+          sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+
+          rm -rf package/luci-theme-argon package/luci-app-argon-config
+          git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+          git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+
+          rm -rf feeds/nas_packages/network/services/librespeed-cli \
+            feeds/nas_packages/network/services/librespeed-cli-rust \
+            feeds/nas_packages/libs/librespeed-common
+          rm -rf package/feeds/nas_packages/librespeed-cli \
+            package/feeds/nas_packages/librespeed-cli-rust \
+            package/feeds/nas_packages/librespeed-common
+          rm -rf tmp
+
+      - name: Configure Z8103AX and first-boot defaults
+        run: |
+          cat > .config <<'CONFIG'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          CONFIG_TARGET_mediatek_filogic_DEVICE_zbtlink_zbt-z8103ax=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_LUCI_LANG_zh_Hans=y
+          CONFIG_PACKAGE_luci-app-store=y
+          CONFIG_PACKAGE_luci-app-quickstart=y
+          CONFIG_PACKAGE_quickstart=y
+          CONFIG_PACKAGE_luci-theme-argon=y
+          CONFIG_PACKAGE_luci-app-argon-config=y
+          CONFIG_PACKAGE_luci-app-ttyd=y
+          CONFIG_PACKAGE_ttyd=y
+          CONFIG_PACKAGE_luci-app-passwall=y
+          CONFIG_PACKAGE_luci-app-passwall2=y
+          CONFIG_PACKAGE_luci-app-homeproxy=y
+          CONFIG_PACKAGE_luci-app-openclash=y
+          CONFIG_PACKAGE_npc=y
+          CONFIG_PACKAGE_luci-app-nps=y
+          # CONFIG_PACKAGE_luci-app-npc is not set
+          CONFIG_PACKAGE_luci-app-filemanager=y
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-wol=y
+          CONFIG_PACKAGE_luci-app-samba4=y
+          CONFIG_PACKAGE_luci-app-sqm=y
+          CONFIG_PACKAGE_luci-app-statistics=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_ip-full=y
+          CONFIG_PACKAGE_ca-certificates=y
+          CONFIG_PACKAGE_kmod-tun=y
+          CONFIG_PACKAGE_kmod-nft-socket=y
+          CONFIG_PACKAGE_kmod-nft-tproxy=y
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_CCACHE=y
+          CONFIG
+          make defconfig
+
+          mkdir -p package/base-files/files/usr/libexec package/base-files/files/etc/init.d \
+            package/base-files/files/etc/uci-defaults package/base-files/files/etc/hotplug.d/iface
+          cat > package/base-files/files/usr/libexec/nps-wan-mac <<'SCRIPT'
+          #!/bin/sh
+          DONE=/etc/nps-wan-mac.done
+          [ -e "$DONE" ] && exit 0
+          valid_mac() { case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) return 1;; ??:??:??:??:??:??) return 0;; *) return 1;; esac; }
+          get_mac() {
+            dev="$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.l3_device' 2>/dev/null)"
+            [ -n "$dev" ] || dev="$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.device' 2>/dev/null)"
+            [ -n "$dev" ] || dev="$(uci -q get network.wan.device)"
+            case "$dev" in pppoe-*) dev="${dev#pppoe-}";; esac
+            [ -r "/sys/class/net/$dev/address" ] && mac="$(cat "/sys/class/net/$dev/address")"
+            valid_mac "$mac" && return 0
+            for lower in /sys/class/net/"$dev"/lower_*; do
+              [ -r "$lower/address" ] || continue
+              mac="$(cat "$lower/address")"; valid_mac "$mac" && return 0
+            done
+            return 1
+          }
+          tries=0; mac=''
+          while [ "$tries" -lt 60 ]; do get_mac && break; tries=$((tries+1)); sleep 2; done
+          valid_mac "$mac" || exit 1
+          vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          uci -q set nps.@nps[0].enabled='1'
+          uci -q set nps.@nps[0].server_addr='47.83.9.208'
+          uci -q set nps.@nps[0].server_port='8024'
+          uci -q set nps.@nps[0].protocol='tcp'
+          uci -q set nps.@nps[0].vkey="$vkey"
+          uci -q commit nps
+          /etc/init.d/nps enable
+          /etc/init.d/nps restart
+          touch "$DONE"
+          SCRIPT
+          cat > package/base-files/files/etc/init.d/nps-wan-mac <<'SCRIPT'
+          #!/bin/sh /etc/rc.common
+          START=98
+          start() { [ -e /etc/nps-wan-mac.done ] || /usr/libexec/nps-wan-mac >/dev/null 2>&1 & }
+          SCRIPT
+          cat > package/base-files/files/etc/uci-defaults/99-z8103ax-defaults <<'SCRIPT'
+          #!/bin/sh
+          uci -q set network.lan.ipaddr='192.168.9.1'
+          uci -q set system.@system[0].hostname='DulWiFi'
+          uci -q commit network
+          uci -q commit system
+          /etc/init.d/nps-wan-mac enable
+          /etc/init.d/nps-wan-mac start
+          exit 0
+          SCRIPT
+          chmod 0755 package/base-files/files/usr/libexec/nps-wan-mac \
+            package/base-files/files/etc/init.d/nps-wan-mac \
+            package/base-files/files/etc/uci-defaults/99-z8103ax-defaults
+
+          for symbol in CONFIG_PACKAGE_luci-app-store CONFIG_PACKAGE_luci-app-quickstart \
+            CONFIG_PACKAGE_luci-theme-argon CONFIG_PACKAGE_luci-app-ttyd \
+            CONFIG_PACKAGE_luci-app-passwall CONFIG_PACKAGE_luci-app-passwall2 \
+            CONFIG_PACKAGE_luci-app-homeproxy CONFIG_PACKAGE_luci-app-openclash \
+            CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
+            grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
+          done
+          ./scripts/diffconfig.sh | tee Z8103AX-final.config
+
+      - name: Download and compile
+        run: |
+          make download -j"$(nproc)"
+          find dl -type f -size -1024c -print -delete
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          make -j"$(nproc)" || make -j1 V=s
+
+      - name: Verify and collect
+        run: |
+          mkdir -p upload
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*z8103ax*factory.bin' -o -iname '*z8103ax*sysupgrade.bin' \) -size +5M)
+          [ "${#images[@]}" -gt 0 ]
+          mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*z8103ax*.manifest')
+          [ "${#manifests[@]}" -gt 0 ]
+          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd \
+            luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
+            grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
+          done
+          cp -a "${images[@]}" "${manifests[@]}" Z8103AX-final.config upload/
+          sha256sum upload/* | tee upload/SHA256SUMS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Z8103AX-iStore-services-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: Z8103AX-iStore-services-${{ env.BUILD_DATE }}
+          name: Z8103AX iStore services ${{ env.BUILD_DATE }}
+          files: upload/*
+          body: |
+            ZBT-Z8103AX / MT7981 / source-default 64 MiB UBI layout.
+            Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
+            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
