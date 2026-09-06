@@ -16,8 +16,10 @@ uci export > "$BACKUP/all-uci.txt"
 RADIO_2G=""
 RADIO_5G=""
 for r in $(uci -q show wireless | sed -n "s/^wireless\.\([^=]*\)=wifi-device$/\1/p"); do
-  band="$(uci -q get wireless.$r.band)"
-  hwmode="$(uci -q get wireless.$r.hwmode)"
+  # band and hwmode are alternative descriptions.  Many current mac80211
+  # profiles have only band; a missing optional key must not trip `set -e`.
+  band="$(uci -q get wireless.$r.band || true)"
+  hwmode="$(uci -q get wireless.$r.hwmode || true)"
   case "$band:$hwmode" in
     2g:*|*:11g|*:11ng|*:11axg) RADIO_2G="$r" ;;
     5g:*|*:11a|*:11ac|*:11axa) RADIO_5G="$r" ;;
