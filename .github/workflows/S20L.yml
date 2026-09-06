@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - openwrt-24.10
+      - CLX20L-20WiFi
     paths:
       - '.github/workflows/S20L.yml'
       - 'build-configs/S20L.txt'
