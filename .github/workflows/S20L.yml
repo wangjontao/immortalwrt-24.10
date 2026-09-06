@@ -9,6 +9,9 @@ on:
       - '.github/workflows/S20L.yml'
       - 'build-configs/S20L.txt'
       - 'files/root/setup-20wifi-acl.sh'
+      - 'files/root/add_ap20_wifi.sh'
+      - 'files/root/ap20-wifi-config/passwall'
+      - 'files/root/ap20-wifi-config/passwall2'
       - 'files/etc/init.d/setup-20wifi-firstboot'
       - 'files/etc/uci-defaults/99-enable-20wifi-firstboot'
 
@@ -119,6 +122,8 @@ jobs:
           rm -f .config
           cp build-configs/S20L.txt .config
           chmod 0755 files/root/setup-20wifi-acl.sh
+          chmod 0755 files/root/add_ap20_wifi.sh
+          chmod 0644 files/root/ap20-wifi-config/passwall files/root/ap20-wifi-config/passwall2
           chmod 0755 files/etc/init.d/setup-20wifi-firstboot
           chmod 0755 files/etc/uci-defaults/99-enable-20wifi-firstboot
 
@@ -207,6 +212,9 @@ jobs:
 
           make defconfig
           test -x files/root/setup-20wifi-acl.sh
+          test -x files/root/add_ap20_wifi.sh
+          test -s files/root/ap20-wifi-config/passwall
+          test -s files/root/ap20-wifi-config/passwall2
           test -x files/etc/init.d/setup-20wifi-firstboot
           test -x files/etc/uci-defaults/99-enable-20wifi-firstboot
           grep -q "acl_enable='0'" files/root/setup-20wifi-acl.sh
@@ -289,5 +297,5 @@ jobs:
             Hostname: DulWiFi
             Wi-Fi: DulWiFi-5G / DulWiFi-2.4G retained; first boot adds A1-A15 on 5 GHz and A16-A20 on 2.4 GHz, password a1111111.
             Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, luci-app-nps client.
-            Multi-WiFi: one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24); isolated multiwifi firewall zone has no WAN forwarding; 20 ACL entries are created in PassWall and PassWall2 with both ACL master switches left disabled.
+            Multi-WiFi: the supplied AP01-AP20 batch runs once after first boot settles, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as requested.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for 47.83.9.208:8024 TCP, compression and encryption enabled.
