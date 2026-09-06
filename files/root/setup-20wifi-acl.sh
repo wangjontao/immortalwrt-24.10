@@ -14,10 +14,19 @@ for i in $(seq 1 20); do
   uci -q delete network.a$i || true
   uci -q delete dhcp.a$i || true
   uci -q delete wireless.a$i || true
-  uci -q delete passwall.mw_a$i || true
-  uci -q delete passwall2.mw_a$i || true
 done
 uci -q delete firewall.multiwifi || true
+
+# PassWall startup scripts only detect anonymous @acl_rule sections.
+# Remove sections created by an earlier run using our private marker.
+for app in passwall passwall2; do
+  while :; do
+    sid="$(uci -q show "$app" | sed -n "s/^$app\.\([^.]\+\)\.multiwifi='1'$/\1/p" | head -n1)"
+    [ -n "$sid" ] || break
+    uci -q delete "$app.$sid"
+  done
+  for i in $(seq 1 20); do uci -q delete "$app.mw_a$i" || true; done
+done
 
 uci set firewall.multiwifi='zone'
 uci set firewall.multiwifi.name='multiwifi'
@@ -64,22 +73,25 @@ for i in $(seq 1 20); do
 
   uci add_list firewall.multiwifi.network="$net"
 
-  uci set passwall.mw_a$i='acl_rule'
-  uci set passwall.mw_a$i.enabled='1'
-  uci set passwall.mw_a$i.remarks="A$i - $subnet.0/24"
-  uci add_list passwall.mw_a$i.sources="$subnet.0/24"
-  uci set passwall.mw_a$i.interface="$net"
-  uci set passwall.mw_a$i.tcp_no_redir_ports='disable'
-  uci set passwall.mw_a$i.udp_no_redir_ports='disable'
-  uci set passwall.mw_a$i.use_global_config='1'
+  pw_sid="$(uci add passwall acl_rule)"
+  uci set passwall.$pw_sid.enabled='1'
+  uci set passwall.$pw_sid.remarks="A$i - $subnet.0/24"
+  uci add_list passwall.$pw_sid.sources="$subnet.0/24"
+  uci set passwall.$pw_sid.interface="$net"
+  uci set passwall.$pw_sid.tcp_no_redir_ports='disable'
+  uci set passwall.$pw_sid.udp_no_redir_ports='disable'
+  uci set passwall.$pw_sid.use_global_config='1'
+  uci set passwall.$pw_sid.multiwifi='1'
 
-  uci set passwall2.mw_a$i='acl_rule'
-  uci set passwall2.mw_a$i.enabled='1'
-  uci set passwall2.mw_a$i.remarks="A$i - $subnet.0/24"
-  uci add_list passwall2.mw_a$i.sources="$subnet.0/24"
-  uci set passwall2.mw_a$i.interface="$net"
-  uci set passwall2.mw_a$i.tcp_no_redir_ports='disable'
-  uci set passwall2.mw_a$i.udp_no_redir_ports='disable'
+  pw2_sid="$(uci add passwall2 acl_rule)"
+  uci set passwall2.$pw2_sid.enabled='1'
+  uci set passwall2.$pw2_sid.remarks="A$i - $subnet.0/24"
+  uci add_list passwall2.$pw2_sid.sources="$subnet.0/24"
+  uci set passwall2.$pw2_sid.interface="$net"
+  uci set passwall2.$pw2_sid.tcp_no_redir_ports='disable'
+  uci set passwall2.$pw2_sid.udp_no_redir_ports='disable'
+  uci set passwall2.$pw2_sid.node=''
+  uci set passwall2.$pw2_sid.multiwifi='1'
 done
 
 uci set passwall.@global[0].acl_enable='0'
