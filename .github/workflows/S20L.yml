@@ -216,8 +216,12 @@ jobs:
           grep -q '^CONFIG_PACKAGE_luci-app-nps=y' .config
           grep -q '^CONFIG_PACKAGE_luci-i18n-nps-zh-cn=y' .config
           ! grep -q '^CONFIG_PACKAGE_luci-app-npc=y' .config
-          grep -q "server_addr '47.83.9.208'" "$NPS_CONFIG_FILE"
-          grep -q "server_port '8024'" "$NPS_CONFIG_FILE"
+          NPS_CONFIG_VERIFY="$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head -n1)"
+          test -n "$NPS_CONFIG_VERIFY"
+          grep -q "server_addr '47.83.9.208'" "$NPS_CONFIG_VERIFY"
+          grep -q "server_port '8024'" "$NPS_CONFIG_VERIFY"
+          grep -q "compress '1'" "$NPS_CONFIG_VERIFY"
+          grep -q "crypt '1'" "$NPS_CONFIG_VERIFY"
           ./scripts/diffconfig.sh | tee S20L-final.config
 
       - name: Download sources
