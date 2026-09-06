@@ -3,9 +3,9 @@ START=99
 USE_PROCD=1
 
 start_service() {
-  [ -e /etc/setup-20wifi-firstboot.done ] && return 0
+  [ -e /etc/add_ap20_wifi.done ] && return 0
   procd_open_instance
-  procd_set_param command /bin/sh -c 'sleep 45; if /bin/sh /root/setup-20wifi-acl.sh; then touch /etc/setup-20wifi-firstboot.done; /etc/init.d/setup-20wifi-firstboot disable; logger -t setup-20wifi "A1-A20 configuration completed"; else logger -t setup-20wifi "configuration failed and will retry next boot"; fi'
+  procd_set_param command /bin/sh -c 'sleep 60; if /bin/sh /root/add_ap20_wifi.sh; then touch /etc/add_ap20_wifi.done; /etc/init.d/setup-20wifi-firstboot disable; logger -t setup-20wifi "AP01-AP20 configuration completed"; else logger -t setup-20wifi "configuration failed and will retry next boot"; fi'
   procd_set_param stdout 1
   procd_set_param stderr 1
   procd_set_param term_timeout 10
