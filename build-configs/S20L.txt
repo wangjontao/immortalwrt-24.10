@@ -67,9 +67,11 @@ CONFIG_PACKAGE_sing-box=y
 CONFIG_PACKAGE_xray-core=y
 CONFIG_PACKAGE_hysteria=y
 
-# NPS client with the LuCI UI shown in the reference image
+# Source-feed NPS server/client and LuCI UI
+CONFIG_PACKAGE_nps=y
 CONFIG_PACKAGE_npc=y
 CONFIG_PACKAGE_luci-app-nps=y
+CONFIG_PACKAGE_luci-i18n-nps-zh-cn=y
 # CONFIG_PACKAGE_luci-app-npc is not set
 
 # Runtime
