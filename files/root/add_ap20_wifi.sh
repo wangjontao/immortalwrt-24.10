@@ -111,12 +111,20 @@ for cfg in passwall passwall2; do
 done
 for cfg in wireless network dhcp firewall passwall passwall2; do uci -q commit "$cfg" || true; done
 
-/etc/init.d/network restart
-sleep 8
-/etc/init.d/dnsmasq restart
-/etc/init.d/firewall restart
-wifi reload
+# The UCI configuration is already durable at this point.  Record success before
+# touching the live network: on S20L, a successful network restart can still
+# return non-zero while interfaces are being recreated, which previously made
+# the first-boot service report failure and skip this marker.
 touch "$DONE"
 echo "$BACKUP" > /root/ap20-wifi-last-backup
+logger -t ap20 "AP01-AP20 configuration committed; reloading services"
+
+# Reload each service independently.  A transient return code must not undo the
+# committed configuration; all interfaces will also be created on the next boot.
+/etc/init.d/network reload || logger -t ap20 "network reload returned non-zero"
+sleep 8
+/etc/init.d/dnsmasq restart || logger -t ap20 "dnsmasq restart returned non-zero"
+/etc/init.d/firewall restart || logger -t ap20 "firewall restart returned non-zero"
+wifi reload || wifi up || logger -t ap20 "wifi reload returned non-zero"
 logger -t ap20 "AP01-AP20 first-boot setup completed"
 
