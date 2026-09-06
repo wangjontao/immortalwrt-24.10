@@ -108,7 +108,8 @@ for cfg in passwall passwall2; do
     cp -p "$template" "/etc/config/$cfg"
     logger -t ap20 "Installed supplied $cfg ACL template"
   fi
-donefor cfg in wireless network dhcp firewall passwall passwall2; do uci -q commit "$cfg" || true; done
+done
+for cfg in wireless network dhcp firewall passwall passwall2; do uci -q commit "$cfg" || true; done
 
 /etc/init.d/network restart
 sleep 8
@@ -118,3 +119,4 @@ wifi reload
 touch "$DONE"
 echo "$BACKUP" > /root/ap20-wifi-last-backup
 logger -t ap20 "AP01-AP20 first-boot setup completed"
+
