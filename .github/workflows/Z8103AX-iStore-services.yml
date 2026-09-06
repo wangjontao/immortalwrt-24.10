@@ -78,7 +78,7 @@ jobs:
           rm -rf package/passwall-packages/.git
 
           rm -rf package/homeproxy package/luci-app-homeproxy
-          git clone https://github.com/VIKINGYFY/homeproxy.git package/homeproxy
+          git clone https://github.com/immortalwrt/homeproxy.git package/homeproxy
           git -C package/homeproxy checkout "$HOMEPROXY_COMMIT"
           rm -rf package/homeproxy/.git
 
