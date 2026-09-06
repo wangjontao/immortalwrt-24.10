@@ -1,4 +1,4 @@
-name: S20L-24.10-Full-LuCI-NPS
+name: CLX 20L 20WiFi
 
 on:
   workflow_dispatch:
