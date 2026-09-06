@@ -35,6 +35,13 @@ jobs:
           sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git \
             libncurses-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget curl jq \
             openssl ccache zstd
+          # GitHub's hosted image contains large SDKs that are unrelated to OpenWrt.
+          # Removing them prevents target/install from exhausting the runner disk.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Ruby
+          sudo docker system prune -af >/dev/null 2>&1 || true
+          sudo apt-get clean
+          df -h /
           echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
           echo "SOURCE_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
@@ -143,7 +150,7 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-socket=y
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_dnsmasq-full=y
-          CONFIG_CCACHE=y
+          # CONFIG_CCACHE is not set
           CONFIG
           make defconfig
 
@@ -213,9 +220,11 @@ jobs:
         run: |
           make download -j"$(nproc)"
           find dl -type f -size -1024c -print -delete
+          rm -rf feeds/*/.git package/*/.git package/*/*/.git
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
-          make -j"$(nproc)" || make -j1 V=s
+          df -h /
+          make -j"$(nproc)" || { df -h /; make -j1 V=s; }
 
       - name: Verify and collect
         run: |
