@@ -1,0 +1,3 @@
+#!/bin/sh
+/etc/init.d/setup-20wifi-firstboot start
+exit 0

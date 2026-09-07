@@ -1,132 +1,205 @@
 #!/bin/sh
-set -eu
 
-DONE=/etc/add_ap20_wifi.done
-[ -e "$DONE" ] && exit 0
 PASSWORD="a1111111"
-STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP="/root/ap20-wifi-backup-$STAMP"
-mkdir -p "$BACKUP"
-for cfg in network wireless dhcp firewall passwall passwall2; do
-  [ -f "/etc/config/$cfg" ] && cp -p "/etc/config/$cfg" "$BACKUP/$cfg"
-done
-uci export > "$BACKUP/all-uci.txt"
 
-# Detect radio names so this works with both mac80211 and MTK vendor wifi scripts.
-RADIO_2G=""
-RADIO_5G=""
-for r in $(uci -q show wireless | sed -n "s/^wireless\.\([^=]*\)=wifi-device$/\1/p"); do
-  # band and hwmode are alternative descriptions.  Many current mac80211
-  # profiles have only band; a missing optional key must not trip `set -e`.
-  band="$(uci -q get wireless.$r.band || true)"
-  hwmode="$(uci -q get wireless.$r.hwmode || true)"
-  case "$band:$hwmode" in
-    2g:*|*:11g|*:11ng|*:11axg) RADIO_2G="$r" ;;
-    5g:*|*:11a|*:11ac|*:11axa) RADIO_5G="$r" ;;
-  esac
-done
-[ -n "$RADIO_2G" ] || RADIO_2G=radio0
-[ -n "$RADIO_5G" ] || RADIO_5G=radio1
-uci -q get wireless.$RADIO_2G >/dev/null || { logger -t ap20 "2.4G radio not found"; exit 1; }
-uci -q get wireless.$RADIO_5G >/dev/null || { logger -t ap20 "5G radio not found"; exit 1; }
+echo "======================================"
+echo " MT7986 新增20个WiFi"
+echo " 5G  AP1-AP14"
+echo " 2.4G AP15-AP20"
+echo "======================================"
 
-# Remove only a previous AP01-AP20 generated layout; keep the two default WiFi.
-for i in $(seq 1 20); do
-  n="$(printf '%02d' "$i")"
-  uci -q delete network.apdev$n || true
-  uci -q delete network.ap$n || true
-  uci -q delete dhcp.ap$n || true
-  uci -q delete wireless.ap$n || true
-done
-uci -q delete firewall.apwifi || true
-uci -q delete firewall.apwifi_wan || true
+#################################################
+# 1. 创建网络 + DHCP
+#################################################
 
-# Networks and DHCP.
-for i in $(seq 1 20); do
-  n="$(printf '%02d' "$i")"
-  net="ap$n"
-  dev="apdev$n"
-  br="br-ap$n"
-  ip="172.16.$i.1"
-  uci set network.$dev='device'
-  uci set network.$dev.name="$br"
-  uci set network.$dev.type='bridge'
-  uci set network.$dev.bridge_empty='1'
-  uci set network.$net='interface'
-  uci set network.$net.device="$br"
-  uci set network.$net.proto='static'
-  uci set network.$net.ipaddr="$ip"
-  uci set network.$net.netmask='255.255.255.0'
-  uci set network.$net.delegate='0'
-  uci set dhcp.$net='dhcp'
-  uci set dhcp.$net.interface="$net"
-  uci set dhcp.$net.start='100'
-  uci set dhcp.$net.limit='150'
-  uci set dhcp.$net.leasetime='12h'
-  uci set dhcp.$net.ignore='0'
-  uci set dhcp.$net.force='1'
-  uci set dhcp.$net.dhcpv4='server'
-  uci set dhcp.$net.dhcpv6='disabled'
-  uci set dhcp.$net.ra='disabled'
-  uci set dhcp.$net.ndp='disabled'
-  uci add_list dhcp.$net.dhcp_option="3,$ip"
-  uci add_list dhcp.$net.dhcp_option="6,$ip"
+for I in $(seq 1 20)
+do
+
+    N=$(printf "%02d" "$I")
+
+    NET="ap${N}"
+    DEV="apdev${N}"
+    BR="br-ap${N}"
+    IP="172.16.${I}.1"
+
+    echo "创建 AP${I}: ${IP}"
+
+    # bridge
+    uci set network.${DEV}='device'
+    uci set network.${DEV}.name="${BR}"
+    uci set network.${DEV}.type='bridge'
+    uci set network.${DEV}.bridge_empty='1'
+
+    # interface
+    uci set network.${NET}='interface'
+    uci set network.${NET}.device="${BR}"
+    uci set network.${NET}.proto='static'
+    uci set network.${NET}.ipaddr="${IP}"
+    uci set network.${NET}.netmask='255.255.255.0'
+    uci set network.${NET}.delegate='0'
+
+
+    # DHCP
+
+    uci set dhcp.${NET}='dhcp'
+    uci set dhcp.${NET}.interface="${NET}"
+    uci set dhcp.${NET}.start='100'
+    uci set dhcp.${NET}.limit='150'
+    uci set dhcp.${NET}.leasetime='12h'
+
+    uci set dhcp.${NET}.ignore='0'
+    uci set dhcp.${NET}.force='1'
+
+    # IPv4 DHCP
+    uci set dhcp.${NET}.dhcpv4='server'
+
+    #关闭IPv6
+    uci set dhcp.${NET}.ra='disabled'
+    uci set dhcp.${NET}.dhcpv6='disabled'
+    uci set dhcp.${NET}.ndp='disabled'
+
+
+    uci add_list dhcp.${NET}.dhcp_option="3,${IP}"
+    uci add_list dhcp.${NET}.dhcp_option="6,${IP}"
+
 done
 
-# AP1-AP14 on 5GHz, AP15-AP20 on 2.4GHz. Existing default WiFi is retained.
-for i in $(seq 1 20); do
-  n="$(printf '%02d' "$i")"
-  [ "$i" -le 14 ] && radio="$RADIO_5G" || radio="$RADIO_2G"
-  uci set wireless.ap$n='wifi-iface'
-  uci set wireless.ap$n.device="$radio"
-  uci set wireless.ap$n.network="ap$n"
-  uci set wireless.ap$n.mode='ap'
-  uci set wireless.ap$n.ssid="AP$i"
-  uci set wireless.ap$n.encryption='psk2+ccmp'
-  uci set wireless.ap$n.key="$PASSWORD"
-  uci set wireless.ap$n.disabled='0'
-  uci set wireless.ap$n.isolate='1'
+
+#################################################
+# 2. 创建无线
+#################################################
+
+
+echo "创建5G AP1-AP14"
+
+
+for I in $(seq 1 14)
+do
+
+    N=$(printf "%02d" "$I")
+
+    echo "5G AP${I}"
+
+    uci set wireless.ap${N}='wifi-iface'
+
+    uci set wireless.ap${N}.device='radio1'
+
+    uci set wireless.ap${N}.network="ap${N}"
+
+    uci set wireless.ap${N}.mode='ap'
+
+    uci set wireless.ap${N}.ssid="AP${I}"
+
+    uci set wireless.ap${N}.encryption='psk2+ccmp'
+
+    uci set wireless.ap${N}.key="${PASSWORD}"
+
+    uci set wireless.ap${N}.disabled='0'
+
+    uci set wireless.ap${N}.isolate='1'
+
 done
 
-# Dedicated AP zone and the forwarding requested by the supplied batch.
+
+
+echo "创建2.4G AP15-AP20"
+
+
+for I in $(seq 15 20)
+do
+
+    N=$(printf "%02d" "$I")
+
+    echo "2.4G AP${I}"
+
+    uci set wireless.ap${N}='wifi-iface'
+
+    uci set wireless.ap${N}.device='radio0'
+
+    uci set wireless.ap${N}.network="ap${N}"
+
+    uci set wireless.ap${N}.mode='ap'
+
+    uci set wireless.ap${N}.ssid="AP${I}"
+
+    uci set wireless.ap${N}.encryption='psk2+ccmp'
+
+    uci set wireless.ap${N}.key="${PASSWORD}"
+
+    uci set wireless.ap${N}.disabled='0'
+
+    uci set wireless.ap${N}.isolate='1'
+
+done
+
+
+
+#################################################
+# 3. 防火墙
+#################################################
+
+
+uci -q delete firewall.apwifi
+
 uci set firewall.apwifi='zone'
 uci set firewall.apwifi.name='apwifi'
 uci set firewall.apwifi.input='ACCEPT'
 uci set firewall.apwifi.output='ACCEPT'
 uci set firewall.apwifi.forward='REJECT'
-for i in $(seq 1 20); do
-  n="$(printf '%02d' "$i")"
-  uci add_list firewall.apwifi.network="ap$n"
+
+
+for I in $(seq 1 20)
+do
+
+    N=$(printf "%02d" "$I")
+
+    uci add_list firewall.apwifi.network="ap${N}"
+
 done
+
+
 uci set firewall.apwifi_wan='forwarding'
 uci set firewall.apwifi_wan.src='apwifi'
 uci set firewall.apwifi_wan.dest='wan'
 
-# Replace PassWall and PassWall2 with the user-supplied known-good ACL templates.
-# The original files are backed up above; no ACL sections are generated here.
-for cfg in passwall passwall2; do
-  template="/root/ap20-wifi-config/$cfg"
-  if [ -f "$template" ]; then
-    cp -p "$template" "/etc/config/$cfg"
-    logger -t ap20 "Installed supplied $cfg ACL template"
-  fi
-done
-for cfg in wireless network dhcp firewall passwall passwall2; do uci -q commit "$cfg" || true; done
 
-# The UCI configuration is already durable at this point.  Record success before
-# touching the live network: on S20L, a successful network restart can still
-# return non-zero while interfaces are being recreated, which previously made
-# the first-boot service report failure and skip this marker.
-touch "$DONE"
-echo "$BACKUP" > /root/ap20-wifi-last-backup
-logger -t ap20 "AP01-AP20 configuration committed; reloading services"
+#################################################
+# 保存
+#################################################
 
-# Reload each service independently.  A transient return code must not undo the
-# committed configuration; all interfaces will also be created on the next boot.
-/etc/init.d/network reload || logger -t ap20 "network reload returned non-zero"
+
+uci commit wireless
+uci commit network
+uci commit dhcp
+uci commit firewall
+
+
+echo
+echo "======================================"
+echo "完成"
+echo
+echo "5GHz:"
+echo "AP1-AP14"
+echo
+echo "2.4GHz:"
+echo "AP15-AP20"
+echo
+echo "密码:"
+echo "${PASSWORD}"
+echo
+echo "网段:"
+echo "172.16.1.1 - 172.16.20.1"
+echo
+echo "重启网络..."
+echo "======================================"
+
+
+/etc/init.d/network restart
 sleep 8
-/etc/init.d/dnsmasq restart || logger -t ap20 "dnsmasq restart returned non-zero"
-/etc/init.d/firewall restart || logger -t ap20 "firewall restart returned non-zero"
-wifi reload || wifi up || logger -t ap20 "wifi reload returned non-zero"
-logger -t ap20 "AP01-AP20 first-boot setup completed"
+
+/etc/init.d/dnsmasq restart
+/etc/init.d/firewall restart
+
+wifi reload
+
 
