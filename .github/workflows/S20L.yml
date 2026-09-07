@@ -304,3 +304,57 @@ jobs:
             Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, luci-app-nps client.
             Multi-WiFi: the supplied AP1-AP20 batch runs once 60 seconds after rc.local; 20 seconds after the batch finishes, original configs are backed up and the supplied PassWall files are copied byte-for-byte, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as requested.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for 47.83.9.208:8024 TCP, compression and encryption enabled.
+
+      - name: Archive complete successful build tree to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          export BASELINE_TAG="CLX-S20L-Full-LuCI-NPS-24.10-${BUILD_DATE}"
+          export BASELINE_PARTS="$RUNNER_TEMP/s20l-baseline-parts"
+          mkdir -p "$BASELINE_PARTS"
+          {
+            echo "Source commit: $GITHUB_SHA"
+            echo "Original workspace: $GITHUB_WORKSPACE"
+            echo "Restore into the SAME absolute workspace on Ubuntu 24.04."
+            echo "Includes source, build_dir, staging_dir, bin, dl, feeds, .config and .ccache."
+            echo "Git metadata and uploaded firmware duplicates are excluded."
+            echo "Download all S20L-build-tree.tar.zst.part-* assets and SHA256SUMS-build-tree."
+            echo "sha256sum -c SHA256SUMS-build-tree"
+            echo "cat S20L-build-tree.tar.zst.part-* | zstd -d | tar -xpf - -C RESTORE_DIRECTORY"
+            echo "Preserve feeds and toolchain; do not run feeds update -a."
+            echo "Update desired files/packages, run make defconfig, then make -jN."
+            echo "Dependency or toolchain changes can require a lengthy rebuild."
+          } > "$BASELINE_PARTS/BUILD-TREE-RESTORE.txt"
+          git rev-parse HEAD > "$BASELINE_PARTS/SOURCE-COMMIT.txt"
+          for feed in feeds/*; do
+            [ ! -d "$feed/.git" ] || printf '%s %s\n' "$feed" "$(git -C "$feed" rev-parse HEAD)"
+          done > "$BASELINE_PARTS/FEED-COMMITS.txt"
+          export BASELINE_FILTER="$RUNNER_TEMP/upload-baseline-part.sh"
+          cat > "$BASELINE_FILTER" <<'PART'
+          #!/bin/bash
+          set -euo pipefail
+          cat > "$FILE"
+          (cd "$BASELINE_PARTS" && sha256sum "$(basename "$FILE")") >> "$BASELINE_PARTS/SHA256SUMS-build-tree"
+          for attempt in 1 2 3; do
+            if gh release upload "$BASELINE_TAG" "$FILE" --clobber; then
+              rm -f "$FILE"
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+          PART
+          chmod +x "$BASELINE_FILTER"
+          # Upload one part at a time, without duplicating the build tree on disk.
+          tar --exclude='./.git' --exclude='*/.git' --exclude='./upload' \
+            -cpf - . | zstd -T2 -3 | \
+            split -b 1024M -d -a 4 --filter='bash "$BASELINE_FILTER"' - \
+              "$BASELINE_PARTS/S20L-build-tree.tar.zst.part-"
+          gh release upload "$BASELINE_TAG" \
+            "$BASELINE_PARTS/SHA256SUMS-build-tree" \
+            "$BASELINE_PARTS/BUILD-TREE-RESTORE.txt" \
+            "$BASELINE_PARTS/SOURCE-COMMIT.txt" \
+            "$BASELINE_PARTS/FEED-COMMITS.txt" --clobber
+          echo "Complete build tree saved to release $BASELINE_TAG" >> "$GITHUB_STEP_SUMMARY"
