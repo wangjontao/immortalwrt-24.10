@@ -19,3 +19,6 @@
 		reg = <0x580000 0x7280000>;
 	};
 };
+
+&wifi { status = "disabled"; };
+&wbsys { status = "okay"; };

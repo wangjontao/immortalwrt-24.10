@@ -2608,7 +2608,7 @@ define Device/zbtlink_zbt-z8103ax-c
   DEVICE_MODEL := ZBT-Z8103AX-C
   DEVICE_DTS := mt7981b-zbtlink-zbt-z8103ax-c
   DEVICE_DTS_DIR := ../dts
-  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 \
+  DEVICE_PACKAGES := kmod-mt_wifi mtwifi-cfg luci-app-mtwifi-cfg wifi-dats kmod-usb3 \
     kmod-usb-serial-option kmod-usb-storage kmod-usb-net-qmi-wwan uqmi automount
   KERNEL_IN_UBI := 1
   UBINIZE_OPTS := -E 5
