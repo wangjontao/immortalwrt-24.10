@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+[ -f /etc/tk5-firstboot.done ] && exit 0
+exec >>/root/tk5-firstboot.log 2>&1
+echo "$(date) Waiting for baseline WiFi setup and both radios"
+ready() {
+    [ -f /etc/dulwifi-wifi.done ] || return 1
+    iw dev | grep -q 'ssid DulWiFi-5G' || return 1
+    iw dev | grep -q 'ssid DulWiFi-2.4G' || return 1
+}
+tries=0
+until ready; do
+    tries=$((tries+1))
+    [ "$tries" -lt 180 ] || { echo 'Radio timeout; retry next boot'; exit 1; }
+    sleep 5
+done
+sleep 60
+ready || { echo 'Radios no longer ready; retry next boot'; exit 1; }
+src=/usr/share/tk5
+if [ ! -f /etc/tk5-wifi.done ]; then
+    sh "$src/setup_tiktok_5wifi.sh"
+    for i in 1 2 3 4 5; do
+        [ "$(uci -q get wireless.tk$i.ssid)" = "A$i" ]
+        [ "$(uci -q get network.tk$i.ipaddr)" = "172.16.$i.1" ]
+    done
+    tries=0
+    until [ "$(iw dev | grep -Ec 'ssid A[1-5]$')" -eq 5 ]; do
+        tries=$((tries+1))
+        [ "$tries" -lt 60 ] || { echo 'Five APs not ready; retry next boot'; exit 1; }
+        sleep 5
+    done
+    touch /etc/tk5-wifi.done
+fi
+backup=/root/tk5-proxy-original
+mkdir -p "$backup"
+for p in passwall passwall2; do
+    test -s "$src/$p"
+    uci -c "$src" show "$p" >/dev/null
+    if [ ! -e "$backup/$p" ] && [ -f "/etc/config/$p" ]; then
+        cp -p "/etc/config/$p" "$backup/$p"
+    fi
+done
+for p in passwall passwall2; do
+    /etc/init.d/$p stop || true
+done
+for p in passwall passwall2; do
+    cp "$src/$p" "/etc/config/.$p.tk5"
+    chmod 600 "/etc/config/.$p.tk5"
+    mv -f "/etc/config/.$p.tk5" "/etc/config/$p"
+    cmp -s "$src/$p" "/etc/config/$p"
+    uci -c /etc/config show "$p" >/dev/null
+done
+# Apply the supplied files exactly; never generate or rewrite ACL sections.
+for p in passwall passwall2; do
+    /etc/init.d/$p start || echo "$p start returned nonzero; supplied enable settings retained"
+done
+for p in passwall passwall2; do
+    cmp -s "$src/$p" "/etc/config/$p"
+done
+touch /etc/tk5-firstboot.done
+echo "$(date) WiFi and exact proxy configuration replacement verified"
