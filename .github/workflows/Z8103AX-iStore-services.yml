@@ -1,10 +1,10 @@
-name: Z8103AX iStore services
+name: Z8103AX-C iStore services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - codex/z8103ax-istore-services
+      - jontaoNpS-z8103ax-c
 
 permissions:
   contents: write
@@ -51,16 +51,17 @@ jobs:
           go-version: 1.24.x
           cache: false
 
-      - name: Verify Z8103AX native layout
+      - name: Verify Z8103AX-C native layout
         run: |
-          DTS=target/linux/mediatek/dts/mt7981b-zbtlink-zbt-z8103ax.dts
+          DTS=target/linux/mediatek/dts/mt7981b-zbtlink-zbt-z8103ax-c.dts
           test -s "$DTS"
-          grep -q 'compatible = "zbtlink,zbt-z8103ax", "mediatek,mt7981"' "$DTS"
+          grep -q 'compatible = "zbtlink,zbt-z8103ax-c", "mediatek,mt7981b"' "$DTS"
+          DTS=target/linux/mediatek/dts/mt7981b-zbtlink-zbt-z8103ax.dtsi
           grep -q 'label = "ubi"' "$DTS"
-          grep -q 'reg = <0x580000 0x7200000>;' "$DTS"
-          sed -n '/^define Device\/zbtlink_zbt-z8103ax$/,/^endef$/p' target/linux/mediatek/image/filogic.mk | grep -q 'IMAGE_SIZE := 116736k'
-          grep -q 'TARGET_DEVICES += zbtlink_zbt-z8103ax' target/linux/mediatek/image/filogic.mk
-          echo 'Verified Z8103AX custom UBI partition and image limit: 114 MiB.'
+          grep -q 'reg = <0x580000 0x7280000>;' "$DTS"
+          sed -n '/^define Device\/zbtlink_zbt-z8103ax-c$/,/^endef$/p' target/linux/mediatek/image/filogic.mk | grep -q 'IMAGE_SIZE := 117248k'
+          grep -q 'TARGET_DEVICES += zbtlink_zbt-z8103ax-c' target/linux/mediatek/image/filogic.mk
+          echo 'Verified Z8103AX-C custom UBI partition and image limit: 114.5 MiB.'
 
       - name: Update feeds and add application sources
         run: |
@@ -115,12 +116,12 @@ jobs:
             package/feeds/nas_packages/librespeed-common
           rm -rf tmp
 
-      - name: Configure Z8103AX and first-boot defaults
+      - name: Configure Z8103AX-C and first-boot defaults
         run: |
           cat > .config <<'CONFIG'
           CONFIG_TARGET_mediatek=y
           CONFIG_TARGET_mediatek_filogic=y
-          CONFIG_TARGET_mediatek_filogic_DEVICE_zbtlink_zbt-z8103ax=y
+          CONFIG_TARGET_mediatek_filogic_DEVICE_zbtlink_zbt-z8103ax-c=y
           CONFIG_PACKAGE_luci=y
           CONFIG_LUCI_LANG_zh_Hans=y
           CONFIG_PACKAGE_luci-app-store=y
@@ -154,58 +155,15 @@ jobs:
           CONFIG
           make defconfig
 
-          mkdir -p package/base-files/files/usr/libexec package/base-files/files/etc/init.d \
-            package/base-files/files/etc/uci-defaults package/base-files/files/etc/hotplug.d/iface
-          cat > package/base-files/files/usr/libexec/nps-wan-mac <<'SCRIPT'
-          #!/bin/sh
-          DONE=/etc/nps-wan-mac.done
-          [ -e "$DONE" ] && exit 0
-          valid_mac() { case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) return 1;; ??:??:??:??:??:??) return 0;; *) return 1;; esac; }
-          get_mac() {
-            dev="$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.l3_device' 2>/dev/null)"
-            [ -n "$dev" ] || dev="$(ubus call network.interface.wan status 2>/dev/null | jsonfilter -e '@.device' 2>/dev/null)"
-            [ -n "$dev" ] || dev="$(uci -q get network.wan.device)"
-            case "$dev" in pppoe-*) dev="${dev#pppoe-}";; esac
-            [ -r "/sys/class/net/$dev/address" ] && mac="$(cat "/sys/class/net/$dev/address")"
-            valid_mac "$mac" && return 0
-            for lower in /sys/class/net/"$dev"/lower_*; do
-              [ -r "$lower/address" ] || continue
-              mac="$(cat "$lower/address")"; valid_mac "$mac" && return 0
-            done
-            return 1
-          }
-          tries=0; mac=''
-          while [ "$tries" -lt 60 ]; do get_mac && break; tries=$((tries+1)); sleep 2; done
-          valid_mac "$mac" || exit 1
-          vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-          uci -q set nps.@nps[0].enabled='1'
-          uci -q set nps.@nps[0].server_addr='47.83.9.208'
-          uci -q set nps.@nps[0].server_port='8024'
-          uci -q set nps.@nps[0].protocol='tcp'
-          uci -q set nps.@nps[0].vkey="$vkey"
-          uci -q commit nps
-          /etc/init.d/nps enable
-          /etc/init.d/nps restart
-          touch "$DONE"
-          SCRIPT
-          cat > package/base-files/files/etc/init.d/nps-wan-mac <<'SCRIPT'
-          #!/bin/sh /etc/rc.common
-          START=98
-          start() { [ -e /etc/nps-wan-mac.done ] || /usr/libexec/nps-wan-mac >/dev/null 2>&1 & }
-          SCRIPT
-          cat > package/base-files/files/etc/uci-defaults/99-z8103ax-defaults <<'SCRIPT'
-          #!/bin/sh
-          uci -q set network.lan.ipaddr='192.168.9.1'
-          uci -q set system.@system[0].hostname='DulWiFi'
-          uci -q commit network
-          uci -q commit system
-          /etc/init.d/nps-wan-mac enable
-          /etc/init.d/nps-wan-mac start
-          exit 0
-          SCRIPT
-          chmod 0755 package/base-files/files/usr/libexec/nps-wan-mac \
-            package/base-files/files/etc/init.d/nps-wan-mac \
-            package/base-files/files/etc/uci-defaults/99-z8103ax-defaults
+          mkdir -p files/etc
+          openssl passwd -1 password > files/etc/dulwifi-root.hash
+          cp package/base-files/files/etc/shadow files/etc/shadow
+          HASH="$(cat files/etc/dulwifi-root.hash)"
+          sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
+          chmod 600 files/etc/shadow files/etc/dulwifi-root.hash
+          chmod 755 files/etc/uci-defaults/99-zz-dulwifi files/etc/init.d/dulwifi-firstboot files/usr/libexec/dulwifi-firstboot
+          sh -n files/etc/uci-defaults/99-zz-dulwifi
+          sh -n files/usr/libexec/dulwifi-firstboot
 
           for symbol in CONFIG_PACKAGE_luci-app-store CONFIG_PACKAGE_luci-app-quickstart \
             CONFIG_PACKAGE_luci-theme-argon CONFIG_PACKAGE_luci-app-ttyd \
@@ -214,7 +172,7 @@ jobs:
             CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
             grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
           done
-          ./scripts/diffconfig.sh | tee Z8103AX-final.config
+          ./scripts/diffconfig.sh | tee Z8103AX-C-final.config
 
       - name: Download and compile
         run: |
@@ -237,13 +195,13 @@ jobs:
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" Z8103AX-final.config upload/
+          cp -a "${images[@]}" "${manifests[@]}" Z8103AX-C-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Z8103AX-iStore-services-${{ env.BUILD_DATE }}
+          name: Z8103AX-C-iStore-services-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -251,10 +209,10 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: Z8103AX-iStore-services-${{ env.BUILD_DATE }}
-          name: Z8103AX iStore services ${{ env.BUILD_DATE }}
+          tag_name: Z8103AX-C-iStore-services-${{ env.BUILD_DATE }}
+          name: Z8103AX-C iStore services ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
-            ZBT-Z8103AX / MT7981 / custom 114 MiB UBI layout.
+            ZBT-Z8103AX-C / MT7981 / custom 114.5 MiB UBI layout.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
