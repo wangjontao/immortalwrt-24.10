@@ -1249,6 +1249,20 @@ define Device/jcg_q30-pro
 endef
 TARGET_DEVICES += jcg_q30-pro
 
+define Device/gielink_g33pro-v1
+  DEVICE_VENDOR := GIELINK
+  DEVICE_MODEL := G33Pro v1
+  DEVICE_DTS := mt7981-gielink-g33pro-v1
+  DEVICE_DTS_DIR := ../dts
+  SUPPORTED_DEVICES := gielink,g33pro-v1
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 113152k
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += gielink_g33pro-v1
+
 define Device/jdcloud_re-cp-03
   DEVICE_VENDOR := JDCloud
   DEVICE_MODEL := RE-CP-03
