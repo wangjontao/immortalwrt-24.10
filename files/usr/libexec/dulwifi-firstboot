@@ -18,6 +18,19 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
         sleep 2
     done
 
+    for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+        radio="$(uci -q get wireless.$iface.device || true)"
+        case "$radio" in
+            "$R2") ssid='A-2.4G';;
+            "$R5") ssid='A-5G';;
+            *) continue;;
+        esac
+        uci set wireless.$iface.ssid="$ssid"
+        uci set wireless.$iface.encryption=psk2+ccmp
+        uci set wireless.$iface.key=a1111111
+        uci set wireless.$iface.disabled=0
+        uci set wireless.$radio.disabled=0
+    done
     for i in 1 2 3 4 5 6 7 8 9 10; do
         n="tk$i"
         uci -q delete wireless.$n || true
