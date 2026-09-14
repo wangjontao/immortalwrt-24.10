@@ -196,14 +196,6 @@ jobs:
           cp -a "${images[@]}" "${manifests[@]}" AGS21-10WiFi-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: AGS21-10WiFi-${{ env.BUILD_DATE }}
-          path: upload/*
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -215,4 +207,13 @@ jobs:
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             Management: 192.168.7.1/@password@. 10WiFi: A1-A8 on 5GHz and A9-A10 on 2.4GHz, Wi-Fi password a1111111, isolated networks 172.16.1.0/24 through 172.16.10.0/24 with no WAN forwarding.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: AGS21-10WiFi-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
 
