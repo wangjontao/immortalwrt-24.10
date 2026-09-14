@@ -127,6 +127,12 @@ jobs:
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_ca-certificates=y
           CONFIG_PACKAGE_kmod-tun=y
+          CONFIG_PACKAGE_firewall4=y
+          CONFIG_PACKAGE_nftables=y
+          CONFIG_PACKAGE_iptables-nft=y
+          CONFIG_PACKAGE_ip6tables-nft=y
+          CONFIG_PACKAGE_xtables-nft=y
+          CONFIG_PACKAGE_iptables-mod-tproxy=y
           CONFIG_PACKAGE_kmod-nft-socket=y
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_dnsmasq-full=y
@@ -160,7 +166,7 @@ jobs:
           [ "${#images[@]}" -gt 0 ]
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*cmcc_rax3000m*.manifest')
           [ "${#manifests[@]}" -gt 0 ]
-          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
+          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc firewall4 nftables iptables-nft ip6tables-nft xtables-nft iptables-mod-tproxy; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
           cp -a "${images[@]}" "${manifests[@]}" RAX3000M-NAND-final.config upload/
@@ -181,6 +187,7 @@ jobs:
           name: CMCC RAX3000M NAND iStore services ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
-            CMCC RAX3000M NAND / MT7981 / DulWiFi custom build.
+            CMCC RAX3000M NAND / MT7981 / DulWiFi custom build with fw4/nftables plus iptables-nft compatibility.
             Management IP 192.168.9.1, root password password. Default WiFi DulWiFi-2.4G and DulWiFi-5G/password.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+
