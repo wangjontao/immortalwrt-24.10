@@ -63,7 +63,7 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
         uci set wireless.$n.mode=ap
         uci set wireless.$n.ssid="A$i"
         uci set wireless.$n.encryption=psk2+ccmp
-        uci set wireless.$n.key=password
+        uci set wireless.$n.key=a1111111
         uci set wireless.$n.isolate=1
         uci set wireless.$n.disabled=0
         uci set wireless.$radio.disabled=0
@@ -137,3 +137,4 @@ mkdir -p /tmp/etc
 [ -e /etc/dulwifi-wifi.done ] || exit 1
 touch /etc/dulwifi-firstboot.done
 logger -t dulwifi '10WiFi and NPS first-boot configuration complete'
+
