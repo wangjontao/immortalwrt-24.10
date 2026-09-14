@@ -1,10 +1,10 @@
-name: AGS21 iStore services
+name: AGS21 10WiFi iStore services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-ags21-native
+      - jontaoNpS-ags21-10wifi
 
 permissions:
   contents: write
@@ -114,7 +114,7 @@ jobs:
             package/feeds/nas_packages/librespeed-common
           rm -rf tmp
 
-      - name: Configure AGS21 and first-boot defaults
+      - name: Configure AGS21 10WiFi and first-boot defaults
         run: |
           cat > .config <<'CONFIG'
           CONFIG_TARGET_mediatek=y
@@ -170,7 +170,7 @@ jobs:
             CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
             grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
           done
-          ./scripts/diffconfig.sh | tee AGS21-final.config
+          ./scripts/diffconfig.sh | tee AGS21-10WiFi-final.config
 
       - name: Download and compile
         run: |
@@ -193,13 +193,13 @@ jobs:
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" AGS21-final.config upload/
+          cp -a "${images[@]}" "${manifests[@]}" AGS21-10WiFi-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AGS21-iStore-services-${{ env.BUILD_DATE }}
+          name: AGS21-10WiFi-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -207,11 +207,12 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: AGS21-iStore-services-${{ env.BUILD_DATE }}
-          name: AGS21 iStore services ${{ env.BUILD_DATE }}
+          tag_name: AGS21-10WiFi-${{ env.BUILD_DATE }}
+          name: AGS21 10WiFi iStore services ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             Aigo AGS21 / MT7981 / native DTS from this immortalwrt-24.10 source tree.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
-            Management: 192.168.9.1/password. Wi-Fi: DulWiFi-2.4G and DulWiFi-5G/password.
+            Management: 192.168.9.1/password. 10WiFi: A1-A8 on 5GHz and A9-A10 on 2.4GHz, password/password, isolated networks 172.16.1.0/24 through 172.16.10.0/24 with no WAN forwarding.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+
