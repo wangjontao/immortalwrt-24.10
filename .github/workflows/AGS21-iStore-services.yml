@@ -89,9 +89,15 @@ jobs:
           rm -rf package/homeproxy/.git
 
           rm -rf package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
-          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
-          cp -a /tmp/openclash/luci-app-openclash package/
+          OPENCLASH_TMP="$(mktemp -d)"
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 1800 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/${OPENCLASH_COMMIT}" \
+            --output "$OPENCLASH_TMP/source.tar.gz"
+          tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
+          test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
+          cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
 
           rm -rf package/npc package/luci-app-nps package/luci-app-npc
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
@@ -172,6 +178,15 @@ jobs:
           done
           ./scripts/diffconfig.sh | tee AGS21-10WiFi-final.config
 
+      - name: Restore download cache
+        id: downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: dl
+          key: ags21-downloads-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ags21-downloads-v1-
+
       - name: Download and compile
         run: |
           make download -j"$(nproc)"
@@ -181,6 +196,14 @@ jobs:
           mkdir -p dl/go-mod-cache
           df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+
+      - name: Save download cache even after failure
+        if: ${{ always() && steps.downloads.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: dl
+          key: ${{ steps.downloads.outputs.cache-primary-key }}
 
       - name: Verify and collect
         run: |
