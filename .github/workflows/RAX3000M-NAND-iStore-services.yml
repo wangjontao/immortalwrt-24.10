@@ -189,7 +189,7 @@ jobs:
           [ "${#images[@]}" -gt 0 ]
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*cmcc_rax3000m*.manifest')
           [ "${#manifests[@]}" -gt 0 ]
-          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc firewall4 nftables iptables-nft ip6tables-nft xtables-nft iptables-mod-tproxy; do
+          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc firewall4 iptables-nft ip6tables-nft xtables-nft iptables-mod-tproxy; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
           cp -a "${images[@]}" "${manifests[@]}" RAX3000M-NAND-final.config upload/
