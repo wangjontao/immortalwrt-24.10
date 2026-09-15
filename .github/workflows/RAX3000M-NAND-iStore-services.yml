@@ -79,9 +79,15 @@ jobs:
           git -C package/homeproxy checkout "$HOMEPROXY_COMMIT"
           rm -rf package/homeproxy/.git
           rm -rf package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
-          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
-          cp -a /tmp/openclash/luci-app-openclash package/
+          OPENCLASH_TMP="$(mktemp -d)"
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 1800 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/${OPENCLASH_COMMIT}" \
+            --output "$OPENCLASH_TMP/source.tar.gz"
+          tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
+          test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
+          cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
           rm -rf package/npc package/luci-app-nps package/luci-app-npc
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
           git -C /tmp/nps checkout "$NPS_COMMIT"
@@ -150,6 +156,15 @@ jobs:
           sh -n files/usr/libexec/dulwifi-firstboot
           ./scripts/diffconfig.sh | tee RAX3000M-NAND-final.config
 
+      - name: Restore download cache
+        id: downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: dl
+          key: rax3000m-nand-downloads-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            rax3000m-nand-downloads-v1-
+
       - name: Download and compile
         run: |
           make download -j"$(nproc)"
@@ -158,6 +173,14 @@ jobs:
           mkdir -p dl/go-mod-cache
           df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+
+      - name: Save download cache even after failure
+        if: ${{ always() && steps.downloads.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: dl
+          key: ${{ steps.downloads.outputs.cache-primary-key }}
 
       - name: Verify and collect
         run: |
@@ -172,14 +195,6 @@ jobs:
           cp -a "${images[@]}" "${manifests[@]}" RAX3000M-NAND-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RAX3000M-NAND-iStore-services-${{ env.BUILD_DATE }}
-          path: upload/*
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -190,4 +205,13 @@ jobs:
             CMCC RAX3000M NAND / MT7981 / DulWiFi custom build with fw4/nftables plus iptables-nft compatibility.
             Management IP 192.168.9.1, root password password. Default WiFi DulWiFi-2.4G and DulWiFi-5G/password.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: RAX3000M-NAND-iStore-services-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
 
