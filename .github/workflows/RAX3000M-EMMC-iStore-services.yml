@@ -1,10 +1,10 @@
-name: CMCC RAX3000M eMMC iStore services
+name: CMCC RAX3000M eMMC A WiFi port 9527 services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-rax3000m-emmc
+      - jontaoNpS-rax3000m-emmc-a-port9527
 
 permissions:
   contents: write
@@ -140,7 +140,7 @@ jobs:
           CONFIG
           make defconfig
           mkdir -p files/etc
-          openssl passwd -1 password > files/etc/dulwifi-root.hash
+          openssl passwd -1 '@password@' > files/etc/dulwifi-root.hash
           cp package/base-files/files/etc/shadow files/etc/shadow
           HASH="$(cat files/etc/dulwifi-root.hash)"
           sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
@@ -192,19 +192,19 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: RAX3000M-EMMC-iStore-services-${{ env.BUILD_DATE }}
-          name: CMCC RAX3000M eMMC iStore services ${{ env.BUILD_DATE }}
+          tag_name: RAX3000M-EMMC-A-port9527-${{ env.BUILD_DATE }}
+          name: CMCC RAX3000M eMMC A WiFi port 9527 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             CMCC RAX3000M eMMC / MT7981 / DulWiFi custom build.
-            Management IP 192.168.9.1, root password password. Default WiFi DulWiFi-2.4G and DulWiFi-5G/password.
+            Management: http://192.168.7.1:9527, root password @password@. WiFi A-2.4G and A-5G, password a1111111.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: RAX3000M-EMMC-iStore-services-${{ env.BUILD_DATE }}
+          name: RAX3000M-EMMC-A-port9527-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
