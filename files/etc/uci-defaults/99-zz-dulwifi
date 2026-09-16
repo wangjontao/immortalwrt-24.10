@@ -1,12 +1,16 @@
 #!/bin/sh
 set -e
-uci set network.lan.ipaddr='192.168.9.1'
+uci set network.lan.ipaddr='192.168.7.1'
 uci set network.lan.netmask='255.255.255.0'
 uci set system.@system[0].hostname='DulWiFi-Tk'
 uci set luci.main.mediaurlbase='/luci-static/argon'
+uci -q delete uhttpd.main.listen_http
+uci add_list uhttpd.main.listen_http='0.0.0.0:9527'
+uci add_list uhttpd.main.listen_http='[::]:9527'
 uci commit network
 uci commit system
 uci commit luci
+uci commit uhttpd
 HASH="$(cat /etc/dulwifi-root.hash)"
 [ -n "$HASH" ]
 sed -i "s#^root:[^:]*:#root:${HASH}:#" /etc/shadow

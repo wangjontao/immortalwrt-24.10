@@ -1,10 +1,10 @@
-name: Z8103AX-C iStore services
+name: Z8103AX-C A WiFi port 9527 iStore services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-z8103ax-c
+      - jontaoNpS-z8103ax-c-a-port9527
 
 permissions:
   contents: write
@@ -91,8 +91,11 @@ jobs:
           rm -rf package/homeproxy/.git
 
           rm -rf package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
-          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
+          curl -fL --retry 8 --retry-all-errors --connect-timeout 20 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/$OPENCLASH_COMMIT" \
+            -o /tmp/openclash.tar.gz
+          mkdir -p /tmp/openclash
+          tar -xzf /tmp/openclash.tar.gz --strip-components=1 -C /tmp/openclash
           cp -a /tmp/openclash/luci-app-openclash package/
 
           rm -rf package/npc package/luci-app-nps package/luci-app-npc
@@ -116,7 +119,7 @@ jobs:
             package/feeds/nas_packages/librespeed-common
           rm -rf tmp
 
-      - name: Configure Z8103AX-C and first-boot defaults
+      - name: Configure Z8103AX-C A WiFi and first-boot defaults
         run: |
           cat > .config <<'CONFIG'
           CONFIG_TARGET_mediatek=y
@@ -156,7 +159,7 @@ jobs:
           make defconfig
 
           mkdir -p files/etc
-          openssl passwd -1 password > files/etc/dulwifi-root.hash
+          openssl passwd -1 '@password@' > files/etc/dulwifi-root.hash
           cp package/base-files/files/etc/shadow files/etc/shadow
           HASH="$(cat files/etc/dulwifi-root.hash)"
           sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
@@ -172,7 +175,7 @@ jobs:
             CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
             grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
           done
-          ./scripts/diffconfig.sh | tee Z8103AX-C-final.config
+          ./scripts/diffconfig.sh | tee Z8103AX-C-A-port9527-final.config
 
       - name: Download and compile
         run: |
@@ -195,13 +198,13 @@ jobs:
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" Z8103AX-C-final.config upload/
+          cp -a "${images[@]}" "${manifests[@]}" Z8103AX-C-A-port9527-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Z8103AX-C-iStore-services-${{ env.BUILD_DATE }}
+          name: Z8103AX-C-A-port9527-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -209,10 +212,12 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: Z8103AX-C-iStore-services-${{ env.BUILD_DATE }}
-          name: Z8103AX-C iStore services ${{ env.BUILD_DATE }}
+          tag_name: Z8103AX-C-A-port9527-${{ env.BUILD_DATE }}
+          name: Z8103AX-C A WiFi port 9527 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             ZBT-Z8103AX-C / MT7981 / custom 114.5 MiB UBI layout.
+            Management: http://192.168.7.1:9527; root password: @password@.
+            WiFi: A-2.4G and A-5G; password: a1111111.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
