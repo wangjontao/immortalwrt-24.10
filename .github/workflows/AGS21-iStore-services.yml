@@ -1,10 +1,10 @@
-name: AGS21 iStore services
+name: AGS21 A WiFi port 9527 iStore services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-ags21-native
+      - jontaoNpS-ags21-a-port9527
 
 permissions:
   contents: write
@@ -89,9 +89,15 @@ jobs:
           rm -rf package/homeproxy/.git
 
           rm -rf package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
-          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
-          cp -a /tmp/openclash/luci-app-openclash package/
+          OPENCLASH_TMP="$(mktemp -d)"
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 1800 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/${OPENCLASH_COMMIT}" \
+            --output "$OPENCLASH_TMP/source.tar.gz"
+          tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
+          test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
+          cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
 
           rm -rf package/npc package/luci-app-nps package/luci-app-npc
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
@@ -114,7 +120,7 @@ jobs:
             package/feeds/nas_packages/librespeed-common
           rm -rf tmp
 
-      - name: Configure AGS21 and first-boot defaults
+      - name: Configure AGS21 A WiFi and first-boot defaults
         run: |
           cat > .config <<'CONFIG'
           CONFIG_TARGET_mediatek=y
@@ -154,7 +160,7 @@ jobs:
           make defconfig
 
           mkdir -p files/etc
-          openssl passwd -1 password > files/etc/dulwifi-root.hash
+          openssl passwd -1 '@password@' > files/etc/dulwifi-root.hash
           cp package/base-files/files/etc/shadow files/etc/shadow
           HASH="$(cat files/etc/dulwifi-root.hash)"
           sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
@@ -170,7 +176,16 @@ jobs:
             CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
             grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
           done
-          ./scripts/diffconfig.sh | tee AGS21-final.config
+          ./scripts/diffconfig.sh | tee AGS21-A-port9527-final.config
+
+      - name: Restore download cache
+        id: downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: dl
+          key: ags21-downloads-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ags21-downloads-v1-
 
       - name: Download and compile
         run: |
@@ -181,6 +196,14 @@ jobs:
           mkdir -p dl/go-mod-cache
           df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+
+      - name: Save download cache even after failure
+        if: ${{ always() && steps.downloads.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: dl
+          key: ${{ steps.downloads.outputs.cache-primary-key }}
 
       - name: Verify and collect
         run: |
@@ -193,25 +216,26 @@ jobs:
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" AGS21-final.config upload/
+          cp -a "${images[@]}" "${manifests[@]}" AGS21-A-port9527-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: AGS21-iStore-services-${{ env.BUILD_DATE }}
-          path: upload/*
-          if-no-files-found: error
-          retention-days: 30
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: AGS21-iStore-services-${{ env.BUILD_DATE }}
-          name: AGS21 iStore services ${{ env.BUILD_DATE }}
+          tag_name: AGS21-A-port9527-${{ env.BUILD_DATE }}
+          name: AGS21 A WiFi port 9527 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             Aigo AGS21 / MT7981 / native DTS from this immortalwrt-24.10 source tree.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
-            Management: 192.168.9.1/password. Wi-Fi: DulWiFi-2.4G and DulWiFi-5G/password.
+            Management: http://192.168.7.1:9527, root password @password@. WiFi A-2.4G and A-5G, password a1111111.
             NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: AGS21-A-port9527-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
