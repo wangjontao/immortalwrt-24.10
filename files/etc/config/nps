@@ -1,0 +1,9 @@
+config nps
+	option enabled '1'
+	option server_addr '47.83.9.208'
+	option server_port '8024'
+	option protocol 'tcp'
+	option compress '1'
+	option crypt '1'
+	option vkey 'WANMAC'
+	option log_level '4'
