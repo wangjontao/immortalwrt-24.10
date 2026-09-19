@@ -79,6 +79,8 @@ platform_do_upgrade() {
 	cudy,tr3000-v1-256mb|\
 	cudy,tr3000-v1-ubootmod|\
 	gatonetworks,gdsp|\
+	gielink,g33pro-v1|\
+	gielink,g33pro|\
 	h3c,magic-nx30-pro|\
 	imou,lc-hx3001|\
 	ikuai,q6000|\

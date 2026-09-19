@@ -51,16 +51,22 @@ jobs:
           go-version: 1.24.x
           cache: false
 
-      - name: Verify G33Pro fixed-parts layout
+      - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
           DTS=target/linux/mediatek/dts/mt7981-gielink-g33pro-v1.dts
           test -s "$DTS"
-          grep -q 'compatible = "gielink,g33pro-v1", "mediatek,mt7981"' "$DTS"
+          grep -q 'compatible = "gielink,g33pro-v1", "gielink,g33pro", "mediatek,mt7981"' "$DTS"
+          grep -q 'mediatek,nmbm;' "$DTS"
+          ! grep -q 'compatible = "generic,nmbm"' "$DTS"
           grep -q 'label = "ubi"' "$DTS"
           grep -q 'reg = <0x580000 0x7200000>;' "$DTS"
-          sed -n '/^define Device\/gielink_g33pro-v1$/,/^endef$/p' target/linux/mediatek/image/filogic.mk | grep -q 'IMAGE_SIZE := 113152k'
+          grep -q '^&wifi {' "$DTS"
+          PROFILE="$(sed -n '/^define Device\/gielink_g33pro-v1$/,/^endef$/p' target/linux/mediatek/image/filogic.mk)"
+          printf '%s\n' "$PROFILE" | grep -q 'IMAGE_SIZE := 113152k'
+          printf '%s\n' "$PROFILE" | grep -q 'KERNEL_IN_UBI := 1'
+          printf '%s\n' "$PROFILE" | grep -q 'IMAGE/factory.bin := append-ubi'
           grep -q 'TARGET_DEVICES += gielink_g33pro-v1' target/linux/mediatek/image/filogic.mk
-          echo 'Verified G33Pro fixed-parts UBI partition: 114 MiB.'
+          echo 'Verified G33Pro MT7981 NMBM + 114 MiB UBI + KERNEL_IN_UBI layout.'
 
       - name: Update feeds and add application sources
         run: |
