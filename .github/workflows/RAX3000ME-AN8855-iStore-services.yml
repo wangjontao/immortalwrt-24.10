@@ -61,6 +61,10 @@ jobs:
           grep -q 'compatible = "airoha,an8855-mdio"' "$DTS"
           grep -q 'status = "disabled"' "$DTS"
           grep -q 'TARGET_DEVICES += cmcc_rax3000me-an8855' target/linux/mediatek/image/filogic.mk
+          PROFILE="$(sed -n '/^define Device\/cmcc_rax3000me-an8855$/,/^endef$/p' target/linux/mediatek/image/filogic.mk)"
+          printf '%s\n' "$PROFILE" | grep -q 'IMAGES := sysupgrade.itb'
+          printf '%s\n' "$PROFILE" | grep -q 'external-static-with-rootfs'
+          printf '%s\n' "$PROFILE" | grep -q 'UBOOTENV_IN_UBI := 1'
           grep -q 'CONFIG_MFD_AIROHA_AN8855=y' target/linux/mediatek/filogic/config-6.6
           grep -q 'CONFIG_NET_DSA_AN8855=y' target/linux/mediatek/filogic/config-6.6
           grep -q 'CONFIG_MDIO_AN8855=y' target/linux/mediatek/filogic/config-6.6
@@ -131,6 +135,7 @@ jobs:
           CONFIG_TARGET_mediatek_filogic=y
           CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000me-an8855=y
           CONFIG_PACKAGE_luci=y
+          CONFIG_TARGET_ROOTFS_INITRAMFS=y
           CONFIG_LUCI_LANG_zh_Hans=y
           CONFIG_PACKAGE_luci-app-store=y
           CONFIG_PACKAGE_luci-app-quickstart=y
@@ -202,7 +207,7 @@ jobs:
       - name: Verify and collect
         run: |
           mkdir -p upload
-          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*cmcc_rax3000me-an8855*factory.bin' -o -iname '*cmcc_rax3000me-an8855*sysupgrade.bin' \) -size +5M)
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*cmcc_rax3000me-an8855*sysupgrade.itb' -o -iname '*cmcc_rax3000me-an8855*initramfs-recovery.itb' \) -size +5M)
           [ "${#images[@]}" -gt 0 ] || {
             echo "ERROR: RAX3000ME AN8855 firmware image not found"
             find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f\n' | sort
@@ -240,7 +245,8 @@ jobs:
           set -euo pipefail
 
           cat > /tmp/release-notes.txt <<'EOF'
-          CMCC RAX3000ME / MT7981B / AN8855 DSA switch test build.
+          CMCC RAX3000ME / MT7981B / AN8855 DSA switch FIT/UBI build.
+          Firmware format is sysupgrade.itb (FIT magic d00dfeed), matched to RAX3000ME FIT/UBI U-Boot.
           Management: http://192.168.9.1; root password: password.
           WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
           Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps, File Manager, UPnP, WOL, Samba4, SQM and Statistics.

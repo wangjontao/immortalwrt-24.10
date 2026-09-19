@@ -1,0 +1,138 @@
+name: RAX3000ME AN8855 Web U-Boot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - jontaoNpS-rax3000me-an8855-dulwifi
+    paths:
+      - '.github/workflows/RAX3000ME-AN8855-WebUBoot.yml'
+
+permissions:
+  contents: write
+
+env:
+  BOOTLOADER_REPO: https://github.com/Yuzhii0718/bl-mt798x-dhcpd.git
+  BOOTLOADER_COMMIT: 4d5f0ffe02c5410c545bfb3f4112346877c75a72
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        dram: [ddr3, ddr4]
+
+    steps:
+      - name: Checkout firmware repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential flex bison libssl-dev \
+            device-tree-compiler qemu-user-static nodejs npm git python3 bc libncurses-dev zstd xz-utils
+          sudo apt-get clean
+
+      - name: Fetch pinned AN8855 bootloader source
+        run: |
+          git clone --filter=blob:none "$BOOTLOADER_REPO" /tmp/bl-mt798x
+          git -C /tmp/bl-mt798x checkout "$BOOTLOADER_COMMIT"
+          test -s /tmp/bl-mt798x/uboot-mtk-20250711/drivers/net/mtk_eth/an8855.c
+          grep -q 'CONFIG_MTK_ETH_SWITCH_AN8855' /tmp/bl-mt798x/uboot-mtk-20250711/drivers/net/mtk_eth/Makefile
+
+      - name: Create RAX3000ME AN8855 board configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/bl-mt798x
+          BOARD="cmcc_rax3000me-an8855-\${{ matrix.dram }}"
+          echo "BOARD=$BOARD" >> "$GITHUB_ENV"
+
+          cp uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000m.dts \
+             uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
+          sed -i 's/model = "mt7981-cmcc-rax3000m";/model = "CMCC RAX3000ME AN8855";/' \
+             uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
+          sed -i 's/mediatek,switch = "auto";/mediatek,switch = "an8855";/' \
+             uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
+
+          cp uboot-mtk-20250711/configs-fit/mt7981_cmcc_rax3000m_defconfig \
+             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+          sed -i 's/CONFIG_DEFAULT_DEVICE_TREE="mt7981-cmcc-rax3000m"/CONFIG_DEFAULT_DEVICE_TREE="mt7981-cmcc-rax3000me-an8855"/' \
+             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+          sed -i 's|CONFIG_MTK_DEFAULT_FIT_BOOT_CONF="config-1#mt7981b-cmcc-rax3000m-nand"|CONFIG_MTK_DEFAULT_FIT_BOOT_CONF="config-1#mt7981b-cmcc-rax3000me-an8855"|' \
+             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+
+          if [ "\${{ matrix.dram }}" = "ddr4" ]; then
+            printf '%s\n' '_PLAT_MT7981=y' '_DRAM_DDR4=y' '_LOG_LEVEL_INFO=y' '_NAND_UBI=y' \
+              > "atf-20250711/configs-ubi/mt7981_$BOARD_defconfig"
+          else
+            printf '%s\n' '_PLAT_MT7981=y' '_MT7981_BOARD_BGA=y' '_LOG_LEVEL_INFO=y' '_NAND_UBI=y' \
+              > "atf-20250711/configs-ubi/mt7981_$BOARD_defconfig"
+          fi
+
+          grep -q 'mediatek,switch = "an8855";' uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
+          grep -q 'CONFIG_MTK_WEB_FAILSAFE=y' "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+          grep -q 'CONFIG_MTK_UBI_SUPPORT=y' "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+
+      - name: Build Web Failsafe BL2 and FIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/bl-mt798x
+          make BOARD="$BOARD" VERSION=2025 VARIANT=ubootmod FSTHEME=bootstrap \
+            FIXED_MTDPARTS=1 MULTI_LAYOUT=0 SIMG=1 UBIMNG=1 TELNETD=1 COPY_BL2=1
+
+          mkdir -p "$GITHUB_WORKSPACE/uboot-output"
+          FIP="$(find output -maxdepth 1 -type f -name 'fip-*.bin' | head -n1)"
+          BL2="$(find output -maxdepth 1 -type f -name 'bl2-*.img' | head -n1)"
+          test -s "$FIP"
+          test -s "$BL2"
+          cp "$FIP" "$GITHUB_WORKSPACE/uboot-output/RAX3000ME-AN8855-\${{ matrix.dram }}-FIP-WebUI.bin"
+          cp "$BL2" "$GITHUB_WORKSPACE/uboot-output/RAX3000ME-AN8855-\${{ matrix.dram }}-BL2-WebUI.img"
+          sha256sum "$GITHUB_WORKSPACE"/uboot-output/* > "$GITHUB_WORKSPACE/uboot-output/SHA256SUMS-\${{ matrix.dram }}"
+
+      - name: Upload bootloader artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAX3000ME-AN8855-WebUBoot-\${{ matrix.dram }}
+          path: uboot-output/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download bootloader artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: RAX3000ME-AN8855-WebUBoot-*
+          path: release
+          merge-multiple: true
+
+      - name: Create checksums
+        run: |
+          cd release
+          rm -f SHA256SUMS-ddr3 SHA256SUMS-ddr4
+          sha256sum RAX3000ME-AN8855-* > SHA256SUMS
+
+      - name: Publish Web U-Boot release
+        env:
+          GH_TOKEN: \${{ github.token }}
+          TAG_NAME: RAX3000ME-AN8855-WebUBoot-\${{ github.run_number }}
+        run: |
+          cat > /tmp/notes.txt <<'EOF'
+          CMCC RAX3000ME / MT7981 / AN8855 Web Failsafe U-Boot.
+          Native Airoha AN8855 switch support + DHCPD + HTTP Web UI + FIT/UBI boot.
+          Includes DDR3 and DDR4 BL2/FIP pairs. Use only the pair matching the actual DRAM type.
+          SPI-NAND layout: BL2 1MiB, env 512KiB, Factory 2MiB, FIP 2MiB, UBI from 0x580000.
+          Back up the full flash and Factory partition before writing any bootloader.
+          Matching system firmware: RAX3000ME AN8855 sysupgrade.itb.
+          EOF
+          gh release create "$TAG_NAME" \
+            --title "RAX3000ME AN8855 Web U-Boot \${{ github.run_number }}" \
+            --notes-file /tmp/notes.txt --target "$GITHUB_SHA" release/*
