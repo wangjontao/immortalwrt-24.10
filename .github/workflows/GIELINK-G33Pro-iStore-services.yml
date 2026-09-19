@@ -51,6 +51,16 @@ jobs:
           go-version: 1.24.x
           cache: false
 
+      - name: Restore OpenWrt cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: g33pro-openwrt-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            g33pro-openwrt-${{ runner.os }}-
+
       - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
           DTS=target/linux/mediatek/dts/mt7981-gielink-g33pro-v1.dts
