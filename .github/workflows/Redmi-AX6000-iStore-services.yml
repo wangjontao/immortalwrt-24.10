@@ -208,15 +208,32 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Free space before release
+        run: |
+          rm -rf build_dir staging_dir tmp dl/go-mod-cache
+          rm -rf "$RUNNER_TEMP"/* || true
+          df -h /
+
       - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: Redmi-AX6000-DulWiFi-${{ env.BUILD_DATE }}
-          name: Redmi AX6000 DulWiFi ${{ env.BUILD_DATE }}
-          files: upload/*
-          body: |
-            Xiaomi Redmi AX6000 / MT7986A / NAND UBI layout.
-            Management: http://192.168.9.1; root password: password.
-            WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
-            Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: Redmi-AX6000-DulWiFi-${{ env.BUILD_DATE }}
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/release-notes.txt <<'EOF'
+          Xiaomi Redmi AX6000 / MT7986A / NAND UBI layout.
+          Management: http://192.168.9.1; root password: password.
+          WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
+          Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
+          NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+          EOF
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME"               --title "Redmi AX6000 DulWiFi ${BUILD_DATE}"               --notes-file /tmp/release-notes.txt               --target "$GITHUB_SHA"
+          fi
+
+          for file in upload/*; do
+            echo "Uploading $file"
+            gh release upload "$TAG_NAME" "$file" --clobber
+          done
