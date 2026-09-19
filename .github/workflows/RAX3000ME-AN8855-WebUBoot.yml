@@ -60,23 +60,23 @@ jobs:
              uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
 
           cp uboot-mtk-20250711/configs-fit/mt7981_cmcc_rax3000m_defconfig \
-             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+             "uboot-mtk-20250711/configs-fit/mt7981_${BOARD}_defconfig"
           sed -i 's/CONFIG_DEFAULT_DEVICE_TREE="mt7981-cmcc-rax3000m"/CONFIG_DEFAULT_DEVICE_TREE="mt7981-cmcc-rax3000me-an8855"/' \
-             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+             "uboot-mtk-20250711/configs-fit/mt7981_${BOARD}_defconfig"
           sed -i 's|CONFIG_MTK_DEFAULT_FIT_BOOT_CONF="config-1#mt7981b-cmcc-rax3000m-nand"|CONFIG_MTK_DEFAULT_FIT_BOOT_CONF="config-1#mt7981b-cmcc-rax3000me-an8855"|' \
-             "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+             "uboot-mtk-20250711/configs-fit/mt7981_${BOARD}_defconfig"
 
           if [ "\${{ matrix.dram }}" = "ddr4" ]; then
             printf '%s\n' '_PLAT_MT7981=y' '_DRAM_DDR4=y' '_LOG_LEVEL_INFO=y' '_NAND_UBI=y' \
-              > "atf-20250711/configs-ubi/mt7981_$BOARD_defconfig"
+              > "atf-20250711/configs-ubi/mt7981_${BOARD}_defconfig"
           else
             printf '%s\n' '_PLAT_MT7981=y' '_MT7981_BOARD_BGA=y' '_LOG_LEVEL_INFO=y' '_NAND_UBI=y' \
-              > "atf-20250711/configs-ubi/mt7981_$BOARD_defconfig"
+              > "atf-20250711/configs-ubi/mt7981_${BOARD}_defconfig"
           fi
 
           grep -q 'mediatek,switch = "an8855";' uboot-mtk-20250711/arch/arm/dts/mt7981-cmcc-rax3000me-an8855.dts
-          grep -q 'CONFIG_MTK_WEB_FAILSAFE=y' "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
-          grep -q 'CONFIG_MTK_UBI_SUPPORT=y' "uboot-mtk-20250711/configs-fit/mt7981_$BOARD_defconfig"
+          grep -q 'CONFIG_MTK_WEB_FAILSAFE=y' "uboot-mtk-20250711/configs-fit/mt7981_${BOARD}_defconfig"
+          grep -q 'CONFIG_MTK_UBI_SUPPORT=y' "uboot-mtk-20250711/configs-fit/mt7981_${BOARD}_defconfig"
 
       - name: Build Web Failsafe BL2 and FIP
         shell: bash
