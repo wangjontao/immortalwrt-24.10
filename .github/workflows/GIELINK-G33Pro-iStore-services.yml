@@ -209,6 +209,15 @@ jobs:
           df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
 
+      - name: Save OpenWrt cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: g33pro-openwrt-${{ runner.os }}-${{ github.sha }}
+
       - name: Verify and collect
         run: |
           mkdir -p upload
