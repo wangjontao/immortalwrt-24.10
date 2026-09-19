@@ -159,7 +159,7 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-socket=y
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_dnsmasq-full=y
-          # CONFIG_CCACHE is not set
+          CONFIG_CCACHE=y
           CONFIG
           make defconfig
 
