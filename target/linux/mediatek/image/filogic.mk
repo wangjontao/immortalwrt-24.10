@@ -1255,14 +1255,14 @@ define Device/gielink_g33pro-v1
   DEVICE_DTS := mt7981-gielink-g33pro-v1
   DEVICE_DTS_DIR := ../dts
   SUPPORTED_DEVICES := gielink,g33pro-v1 gielink,g33pro
-  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
   IMAGE_SIZE := 113152k
   KERNEL_IN_UBI := 1
   IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$(IMAGE_SIZE)
+  IMAGE/factory.bin := append-ubi | check-size $(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
   KERNEL := kernel-bin | lzma | \
 	fit lzma $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb
