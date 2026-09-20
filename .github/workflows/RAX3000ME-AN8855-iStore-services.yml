@@ -84,9 +84,9 @@ jobs:
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: rax3000me-an8855-v1-target-build-${{ runner.os }}-${{ github.sha }}
+          key: rax3000me-an8855-v2-target-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            rax3000me-an8855-v1-target-build-${{ runner.os }}-
+            rax3000me-an8855-v2-target-build-${{ runner.os }}-
 
       - name: Verify RAX3000ME AN8855 support
         run: |
@@ -154,6 +154,8 @@ jobs:
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+          # npc is selected explicitly in .config; avoid luci-app-nps <-> npc Kconfig recursion.
+          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
 
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -255,27 +257,23 @@ jobs:
       - name: Preflight RAX3000ME AN8855 target linux
         id: preflight
         run: |
-          echo "Preflight target/linux compile and AN8855 DTB before the long package build..."
+          echo "Preflight target/linux compile before the long package build..."
           make target/linux/compile -j"$(nproc)" || {
             df -h /
             make target/linux/compile -j1 V=s
             exit 1
           }
-
-          DTB="$(find build_dir/target-*/linux-mediatek_filogic -type f -name '*cmcc*rax3000me*an8855*.dtb' | head -n 1)"
-          if [ -z "$DTB" ] || [ ! -s "$DTB" ]; then
-            echo "ERROR: RAX3000ME AN8855 DTB was not generated!"
-            find build_dir/target-*/linux-mediatek_filogic -type f -name '*.dtb' | sort || true
-            exit 1
-          fi
-
-          echo "RAX3000ME AN8855 DTB OK: $DTB"
-          ls -lh "$DTB"
+          echo "target/linux compile passed. Device image DTB/FIT is generated later during the full image build."
 
       - name: Compile firmware
+        id: compile
         run: |
           df -h /
-          make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+          if ! make -j"$(nproc)"; then
+            echo "Parallel build failed; retrying serially with verbose output..."
+            df -h /
+            make -j1 V=s
+          fi
 
       - name: Save download and compiler cache
         if: always()
@@ -300,14 +298,14 @@ jobs:
           key: rax3000me-an8855-v1-host-toolchain-${{ runner.os }}-${{ github.sha }}
 
       - name: Save target build cache
-        if: ${{ always() && steps.preflight.outcome == 'success' }}
+        if: ${{ always() && steps.preflight.outcome == 'success' && steps.compile.outcome == 'success' }}
         uses: actions/cache/save@v4
         with:
           path: |
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: rax3000me-an8855-v1-target-build-${{ runner.os }}-${{ github.sha }}
+          key: rax3000me-an8855-v2-target-build-${{ runner.os }}-${{ github.sha }}
 
       - name: Verify and collect
         run: |
