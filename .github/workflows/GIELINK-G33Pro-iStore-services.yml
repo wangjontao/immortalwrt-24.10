@@ -71,9 +71,9 @@ jobs:
             staging_dir/host
             staging_dir/hostpkg
             staging_dir/toolchain-*
-          key: g33pro-host-toolchain-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v2-host-toolchain-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            g33pro-host-toolchain-${{ runner.os }}-
+            g33pro-v2-host-toolchain-${{ runner.os }}-
 
       - name: Restore target build cache
         uses: actions/cache/restore@v4
@@ -82,9 +82,9 @@ jobs:
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: g33pro-target-build-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v2-target-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            g33pro-target-build-${{ runner.os }}-
+            g33pro-v2-target-build-${{ runner.os }}-
 
       - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
@@ -234,7 +234,18 @@ jobs:
           mkdir -p dl/go-mod-cache
           df -h /
 
+      - name: Prepare OpenWrt host tools and toolchain
+        id: host_toolchain
+        run: |
+          echo "Preparing OpenWrt host tools before target/linux preflight..."
+          make tools/install -j"$(nproc)" || { df -h /; make tools/install -j1 V=s; exit 1; }
+          make toolchain/install -j"$(nproc)" || { df -h /; make toolchain/install -j1 V=s; exit 1; }
+          test -x staging_dir/host/bin/m4
+          staging_dir/host/bin/m4 --version | head -n 1
+          df -h /
+
       - name: Preflight target linux and G33Pro DTB
+        id: preflight
         run: |
           echo "Preflight target/linux before the long package build..."
           make target/linux/install -j"$(nproc)" || { df -h /; make target/linux/install -j1 V=s; exit 1; }
@@ -254,7 +265,7 @@ jobs:
           key: g33pro-openwrt-${{ runner.os }}-${{ github.sha }}
 
       - name: Save host and toolchain cache
-        if: always()
+        if: ${{ always() && steps.host_toolchain.outcome == 'success' }}
         uses: actions/cache/save@v4
         with:
           path: |
@@ -264,17 +275,17 @@ jobs:
             staging_dir/host
             staging_dir/hostpkg
             staging_dir/toolchain-*
-          key: g33pro-host-toolchain-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v2-host-toolchain-${{ runner.os }}-${{ github.sha }}
 
       - name: Save target build cache
-        if: always()
+        if: ${{ always() && steps.preflight.outcome == 'success' }}
         uses: actions/cache/save@v4
         with:
           path: |
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: g33pro-target-build-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v2-target-build-${{ runner.os }}-${{ github.sha }}
 
       - name: Verify and collect
         run: |
