@@ -88,21 +88,27 @@ jobs:
 
       - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
-          DTS=target/linux/mediatek/dts/mt7981-gielink-g33pro-v1.dts
-          test -s "$DTS"
-          grep -q 'compatible = "gielink,g33pro-v1", "gielink,g33pro", "mediatek,mt7981"' "$DTS"
-          grep -q 'mediatek,nmbm;' "$DTS"
-          ! grep -q 'compatible = "generic,nmbm"' "$DTS"
-          grep -q 'label = "ubi"' "$DTS"
-          grep -q 'reg = <0x580000 0x7200000>;' "$DTS"
-          grep -q '^&wifi {' "$DTS"
-          ! grep -q '^&hnat {' "$DTS"
-          PROFILE="$(sed -n '/^define Device\/gielink_g33pro-v1$/,/^endef$/p' target/linux/mediatek/image/filogic.mk)"
-          printf '%s\n' "$PROFILE" | grep -q 'IMAGE_SIZE := 113152k'
-          printf '%s\n' "$PROFILE" | grep -q 'KERNEL_IN_UBI := 1'
-          printf '%s\n' "$PROFILE" | grep -q 'IMAGE/factory.bin := append-ubi'
-          grep -q 'TARGET_DEVICES += gielink_g33pro-v1' target/linux/mediatek/image/filogic.mk
-          echo 'Verified G33Pro MT7981 NMBM + 114 MiB UBI + KERNEL_IN_UBI layout.'
+          python3 - <<'PY'
+          from pathlib import Path
+          dts = Path("target/linux/mediatek/dts/mt7981-gielink-g33pro-v1.dts").read_text()
+          image = Path("target/linux/mediatek/image/filogic.mk").read_text()
+          start = image.index("define Device/gielink_g33pro-v1")
+          end = image.index("\nendef", start)
+          profile = image[start:end]
+          for value in (
+              'compatible = "gielink,g33pro-v1", "gielink,g33pro", "mediatek,mt7981"',
+              'mediatek,nmbm;', 'label = "ubi"', 'reg = <0x580000 0x7200000>;', '&wifi {'
+          ):
+              assert value in dts, f"DTS validation missing: {value}"
+          assert 'compatible = "generic,nmbm"' not in dts
+          assert '&hnat {' not in dts
+          for value in ('IMAGE_SIZE := 113152k', 'KERNEL_IN_UBI := 1',
+                        'IMAGE/factory.bin := append-ubi',
+                        '$$(DEVICE_DTS)', '$$(IMAGE_SIZE)'):
+              assert value in profile, f"image profile validation missing: {value}"
+          assert 'TARGET_DEVICES += gielink_g33pro-v1' in image
+          print('Verified G33Pro MT7981 NMBM, UBI, deferred DTB and factory image rules.')
+          PY
 
       - name: Update feeds and add application sources
         run: |
