@@ -51,8 +51,8 @@ jobs:
           go-version: 1.24.x
           cache: false
 
-      - name: Restore OpenWrt cache
-        uses: actions/cache@v4
+      - name: Restore download and compiler cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             dl
@@ -60,6 +60,31 @@ jobs:
           key: g33pro-openwrt-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             g33pro-openwrt-${{ runner.os }}-
+
+      - name: Restore host and toolchain cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build_dir/host
+            build_dir/hostpkg
+            build_dir/toolchain-*
+            staging_dir/host
+            staging_dir/hostpkg
+            staging_dir/toolchain-*
+          key: g33pro-host-toolchain-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            g33pro-host-toolchain-${{ runner.os }}-
+
+      - name: Restore target build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build_dir/target-*
+            staging_dir/target-*
+            bin/packages
+          key: g33pro-target-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            g33pro-target-build-${{ runner.os }}-
 
       - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
@@ -71,6 +96,7 @@ jobs:
           grep -q 'label = "ubi"' "$DTS"
           grep -q 'reg = <0x580000 0x7200000>;' "$DTS"
           grep -q '^&wifi {' "$DTS"
+          ! grep -q '^&hnat {' "$DTS"
           PROFILE="$(sed -n '/^define Device\/gielink_g33pro-v1$/,/^endef$/p' target/linux/mediatek/image/filogic.mk)"
           printf '%s\n' "$PROFILE" | grep -q 'IMAGE_SIZE := 113152k'
           printf '%s\n' "$PROFILE" | grep -q 'KERNEL_IN_UBI := 1'
@@ -199,7 +225,7 @@ jobs:
           done
           ./scripts/diffconfig.sh | tee GIELINK-G33Pro-v1-final.config
 
-      - name: Download and compile
+      - name: Download sources
         run: |
           make download -j"$(nproc)"
           find dl -type f -size -1024c -print -delete
@@ -207,9 +233,18 @@ jobs:
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           df -h /
+
+      - name: Preflight target linux and G33Pro DTB
+        run: |
+          echo "Preflight target/linux before the long package build..."
+          make target/linux/install -j"$(nproc)" || { df -h /; make target/linux/install -j1 V=s; exit 1; }
+
+      - name: Compile firmware
+        run: |
+          df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
 
-      - name: Save OpenWrt cache
+      - name: Save download and compiler cache
         if: always()
         uses: actions/cache/save@v4
         with:
@@ -217,6 +252,29 @@ jobs:
             dl
             .ccache
           key: g33pro-openwrt-${{ runner.os }}-${{ github.sha }}
+
+      - name: Save host and toolchain cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build_dir/host
+            build_dir/hostpkg
+            build_dir/toolchain-*
+            staging_dir/host
+            staging_dir/hostpkg
+            staging_dir/toolchain-*
+          key: g33pro-host-toolchain-${{ runner.os }}-${{ github.sha }}
+
+      - name: Save target build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build_dir/target-*
+            staging_dir/target-*
+            bin/packages
+          key: g33pro-target-build-${{ runner.os }}-${{ github.sha }}
 
       - name: Verify and collect
         run: |
