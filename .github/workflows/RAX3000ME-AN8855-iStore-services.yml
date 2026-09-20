@@ -51,6 +51,43 @@ jobs:
           go-version: 1.24.x
           cache: false
 
+      - name: Restore download and compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: rax3000me-an8855-openwrt-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            rax3000me-an8855-openwrt-${{ runner.os }}-
+            g33pro-openwrt-${{ runner.os }}-
+
+      - name: Restore host and toolchain cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build_dir/host
+            build_dir/hostpkg
+            build_dir/toolchain-*
+            staging_dir/host
+            staging_dir/hostpkg
+            staging_dir/toolchain-*
+          key: rax3000me-an8855-v1-host-toolchain-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            rax3000me-an8855-v1-host-toolchain-${{ runner.os }}-
+            g33pro-v2-host-toolchain-${{ runner.os }}-
+
+      - name: Restore target build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build_dir/target-*
+            staging_dir/target-*
+            bin/packages
+          key: rax3000me-an8855-v1-target-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            rax3000me-an8855-v1-target-build-${{ runner.os }}-
+
       - name: Verify RAX3000ME AN8855 support
         run: |
           DTS=target/linux/mediatek/dts/mt7981b-cmcc-rax3000me-an8855.dts
@@ -65,6 +102,8 @@ jobs:
           printf '%s\n' "$PROFILE" | grep -q 'IMAGES := sysupgrade.itb'
           printf '%s\n' "$PROFILE" | grep -q 'external-static-with-rootfs'
           printf '%s\n' "$PROFILE" | grep -q 'UBOOTENV_IN_UBI := 1'
+          printf '%s\n' "$PROFILE" | grep -Fq 'fit lzma $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb with-initrd'
+          printf '%s\n' "$PROFILE" | grep -Fq 'fit gzip $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb external-static-with-rootfs'
           grep -q 'CONFIG_MFD_AIROHA_AN8855=y' target/linux/mediatek/filogic/config-6.6
           grep -q 'CONFIG_NET_DSA_AN8855=y' target/linux/mediatek/filogic/config-6.6
           grep -q 'CONFIG_MDIO_AN8855=y' target/linux/mediatek/filogic/config-6.6
@@ -164,7 +203,7 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-socket=y
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_dnsmasq-full=y
-          # CONFIG_CCACHE is not set
+          CONFIG_CCACHE=y
           CONFIG
           make defconfig
 
@@ -194,7 +233,7 @@ jobs:
           done
           ./scripts/diffconfig.sh | tee RAX3000ME-AN8855-final.config
 
-      - name: Download and compile
+      - name: Download sources
         run: |
           make download -j"$(nproc)"
           find dl -type f -size -1024c -print -delete
@@ -202,7 +241,59 @@ jobs:
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           df -h /
+
+      - name: Prepare OpenWrt host tools and toolchain
+        id: host_toolchain
+        run: |
+          echo "Preparing OpenWrt host tools before target/linux preflight..."
+          make tools/install -j"$(nproc)" || { df -h /; make tools/install -j1 V=s; exit 1; }
+          make toolchain/install -j"$(nproc)" || { df -h /; make toolchain/install -j1 V=s; exit 1; }
+          test -x staging_dir/host/bin/m4
+          staging_dir/host/bin/m4 --version | head -n 1
+          df -h /
+
+      - name: Preflight RAX3000ME AN8855 target linux
+        id: preflight
+        run: |
+          echo "Preflight target/linux and AN8855 FIT/DTB before the long package build..."
+          make target/linux/install -j"$(nproc)" || { df -h /; make target/linux/install -j1 V=s; exit 1; }
+
+      - name: Compile firmware
+        run: |
+          df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+
+      - name: Save download and compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: rax3000me-an8855-openwrt-${{ runner.os }}-${{ github.sha }}
+
+      - name: Save host and toolchain cache
+        if: ${{ always() && steps.host_toolchain.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build_dir/host
+            build_dir/hostpkg
+            build_dir/toolchain-*
+            staging_dir/host
+            staging_dir/hostpkg
+            staging_dir/toolchain-*
+          key: rax3000me-an8855-v1-host-toolchain-${{ runner.os }}-${{ github.sha }}
+
+      - name: Save target build cache
+        if: ${{ always() && steps.preflight.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build_dir/target-*
+            staging_dir/target-*
+            bin/packages
+          key: rax3000me-an8855-v1-target-build-${{ runner.os }}-${{ github.sha }}
 
       - name: Verify and collect
         run: |
