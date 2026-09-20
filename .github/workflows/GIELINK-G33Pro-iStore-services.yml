@@ -82,9 +82,9 @@ jobs:
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: g33pro-v2-target-build-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v3-target-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            g33pro-v2-target-build-${{ runner.os }}-
+            g33pro-v3-target-build-${{ runner.os }}-
 
       - name: Verify G33Pro MT7981 NAND/UBI layout
         run: |
@@ -147,6 +147,8 @@ jobs:
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+          # npc is selected explicitly in .config; avoid luci-app-nps <-> npc Kconfig recursion.
+          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
 
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -244,7 +246,7 @@ jobs:
           staging_dir/host/bin/m4 --version | head -n 1
           df -h /
 
-      - name: Preflight target linux and G33Pro DTB
+      - name: Preflight target linux
         id: preflight
         run: |
           echo "Preflight target/linux compile before the long package build..."
@@ -253,21 +255,17 @@ jobs:
             make target/linux/compile -j1 V=s
             exit 1
           }
-
-          DTB="$(find build_dir/target-*/linux-mediatek_filogic -type f -name '*gielink*g33pro*v1*.dtb' | head -n 1)"
-          if [ -z "$DTB" ] || [ ! -s "$DTB" ]; then
-            echo "ERROR: G33Pro DTB was not generated!"
-            find build_dir/target-*/linux-mediatek_filogic -type f -name '*.dtb' | sort || true
-            exit 1
-          fi
-
-          echo "G33Pro DTB OK: $DTB"
-          ls -lh "$DTB"
+          echo "target/linux compile passed. Image DTB is generated later during the full image build."
 
       - name: Compile firmware
+        id: compile
         run: |
           df -h /
-          make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+          if ! make -j"$(nproc)"; then
+            echo "Parallel build failed; retrying serially with verbose output..."
+            df -h /
+            make -j1 V=s
+          fi
 
       - name: Save download and compiler cache
         if: always()
@@ -292,14 +290,14 @@ jobs:
           key: g33pro-v2-host-toolchain-${{ runner.os }}-${{ github.sha }}
 
       - name: Save target build cache
-        if: ${{ always() && steps.preflight.outcome == 'success' }}
+        if: ${{ always() && steps.preflight.outcome == 'success' && steps.compile.outcome == 'success' }}
         uses: actions/cache/save@v4
         with:
           path: |
             build_dir/target-*
             staging_dir/target-*
             bin/packages
-          key: g33pro-v2-target-build-${{ runner.os }}-${{ github.sha }}
+          key: g33pro-v3-target-build-${{ runner.os }}-${{ github.sha }}
 
       - name: Verify and collect
         run: |
