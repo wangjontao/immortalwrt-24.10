@@ -247,8 +247,22 @@ jobs:
       - name: Preflight target linux and G33Pro DTB
         id: preflight
         run: |
-          echo "Preflight target/linux before the long package build..."
-          make target/linux/install -j"$(nproc)" || { df -h /; make target/linux/install -j1 V=s; exit 1; }
+          echo "Preflight target/linux compile before the long package build..."
+          make target/linux/compile -j"$(nproc)" || {
+            df -h /
+            make target/linux/compile -j1 V=s
+            exit 1
+          }
+
+          DTB="$(find build_dir/target-*/linux-mediatek_filogic -type f -name '*gielink*g33pro*v1*.dtb' | head -n 1)"
+          if [ -z "$DTB" ] || [ ! -s "$DTB" ]; then
+            echo "ERROR: G33Pro DTB was not generated!"
+            find build_dir/target-*/linux-mediatek_filogic -type f -name '*.dtb' | sort || true
+            exit 1
+          fi
+
+          echo "G33Pro DTB OK: $DTB"
+          ls -lh "$DTB"
 
       - name: Compile firmware
         run: |
