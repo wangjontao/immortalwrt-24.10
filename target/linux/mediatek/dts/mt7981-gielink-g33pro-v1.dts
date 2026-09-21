@@ -11,6 +11,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		label-mac-device = &gmac0;
 		led-boot = &status_red_led;
 		led-failsafe = &status_red_led;
 		led-running = &status_green_led;
@@ -75,7 +76,7 @@
 		reg = <0>;
 		phy-mode = "2500base-x";
 
-		nvmem-cells = <&macaddr_factory_a 0>;
+		nvmem-cells = <&macaddr_factory_a002a 0>;
 		nvmem-cell-names = "mac-address";
 
 		fixed-link {
@@ -83,16 +84,6 @@
 			full-duplex;
 			pause;
 		};
-	};
-
-	gmac1: mac@1 {
-		compatible = "mediatek,eth-mac";
-		reg = <1>;
-		phy-mode = "gmii";
-		phy-handle = <&int_gbe_phy>;
-
-		nvmem-cells = <&macaddr_factory_4 0>;
-		nvmem-cell-names = "mac-address";
 	};
 };
 
@@ -113,18 +104,26 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		port@0 {
+			reg = <0>;
+			label = "wan";
+
+			nvmem-cells = <&macaddr_factory_a0024 0>;
+			nvmem-cell-names = "mac-address";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan1";
+		};
+
 		port@2 {
 			reg = <2>;
-			label = "lan1";
+			label = "lan2";
 		};
 
 		port@3 {
 			reg = <3>;
-			label = "lan2";
-		};
-
-		port@4 {
-			reg = <4>;
 			label = "lan3";
 		};
 
@@ -188,24 +187,21 @@
 				reg = <0x180000 0x200000>;
 				read-only;
 
+				compatible = "nvmem-cells";
 				nvmem-layout {
 					compatible = "fixed-layout";
 					#address-cells = <1>;
 					#size-cells = <1>;
 
-					eeprom_factory_0: eeprom@0 {
-						reg = <0x0 0x1000>;
-					};
-
-					macaddr_factory_4: macaddr@4 {
+					macaddr_factory_a002a: macaddr@a002a {
 						compatible = "mac-base";
-						reg = <0x4 0x6>;
+						reg = <0xa002a 0x6>;
 						#nvmem-cell-cells = <1>;
 					};
 
-					macaddr_factory_a: macaddr@a {
+					macaddr_factory_a0024: macaddr@a0024 {
 						compatible = "mac-base";
-						reg = <0xa 0x6>;
+						reg = <0xa0024 0x6>;
 						#nvmem-cell-cells = <1>;
 					};
 				};

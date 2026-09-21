@@ -105,12 +105,16 @@ jobs:
               'gpios = <&pio 10 GPIO_ACTIVE_HIGH>;',
               'gpios = <&pio 11 GPIO_ACTIVE_HIGH>;',
               'gpios = <&pio 12 GPIO_ACTIVE_HIGH>;',
-              'macaddr_factory_4:', 'macaddr_factory_a:'
+              'label = "wan";',
+              'port@0 {', 'port@1 {', 'port@2 {', 'port@3 {',
+              'macaddr_factory_a0024:', 'macaddr_factory_a002a:'
           ):
               assert value in dts, f"DTS validation missing: {value}"
           assert 'compatible = "generic,nmbm"' not in dts
           assert '&hnat {' not in dts
-          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" eth1' in network
+          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan' in network
+          assert 'gmac1: mac@1' not in dts
+          assert 'phy-handle = <&int_gbe_phy>;' not in dts
           for value in ('IMAGE_SIZE := 113152k', 'KERNEL_IN_UBI := 1',
                         'IMAGE/factory.bin := append-ubi',
                         '$$(DEVICE_DTS)', '$$(IMAGE_SIZE)'):
