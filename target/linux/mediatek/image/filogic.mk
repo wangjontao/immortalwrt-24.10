@@ -2358,3 +2358,23 @@ define Device/zyxel_nwa50ax-pro
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += zyxel_nwa50ax-pro
+
+
+define Device/huastlink_hc-g60
+  DEVICE_VENDOR := HUASTLINK
+  DEVICE_MODEL := HC-G60
+  SUPPORTED_DEVICES += huastlink,hc-g60
+  DEVICE_DTS := mt7981b-huastlink-hc-g60
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 \
+	kmod-usb-net-qmi-wwan kmod-usb-net-cdc-mbim kmod-usb-serial-option uqmi umbim
+  KERNEL_IN_UBI := 1
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 113152k
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += huastlink_hc-g60
