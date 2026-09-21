@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: wangjontao <54728149+wangjontao@users.noreply.github.com>
+Date: Mon, 21 Sep 2026 03:00:00 +0000
+Subject: [PATCH] net: dsa: mt7530: ignore unmapped PHY nested IRQs
+
+On GIELINK G33Pro with MT7531, Linux 6.6.151 can receive a PHY
+interrupt status bit for which no Linux IRQ mapping exists. In that
+case irq_find_mapping() returns 0 and handle_nested_irq(0) dereferences
+a NULL irq_desc, causing a fatal data abort at address 0xac.
+
+Only dispatch mapped nested IRQs. The switch status bit has already
+been acknowledged, so an unmapped/spurious bit can safely be skipped
+while preserving normal interrupt handling for mapped PHY ports.
+
+--- a/drivers/net/dsa/mt7530.c
++++ b/drivers/net/dsa/mt7530.c
+@@ -1855,8 +1855,9 @@ mt7530_irq_thread_fn(int irq, void *dev_id)
+ 		if (BIT(p) & val) {
+ 			unsigned int irq;
+ 
+ 			irq = irq_find_mapping(priv->irq_domain, p);
+-			handle_nested_irq(irq);
++			if (irq)
++				handle_nested_irq(irq);
+ 			handled = true;
+ 		}
+ 	}

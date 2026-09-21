@@ -270,6 +270,16 @@ jobs:
             make target/linux/compile -j1 V=s
             exit 1
           }
+          KERNEL_MT7530="$(find build_dir/target-*/linux-mediatek_filogic/linux-6.6*/drivers/net/dsa/mt7530.c -type f | head -n1)"
+          if [ -z "$KERNEL_MT7530" ]; then
+            echo "ERROR: prepared mt7530.c was not found after target/linux compile"
+            exit 1
+          fi
+          if ! grep -A3 'irq = irq_find_mapping(priv->irq_domain, p);' "$KERNEL_MT7530" | grep -q 'if (irq)'; then
+            echo "ERROR: MT7530 unmapped-IRQ guard patch was not applied"
+            exit 1
+          fi
+          echo "Verified MT7530 unmapped-IRQ guard in prepared kernel source."
           echo "target/linux compile passed. Image DTB is generated later during the full image build."
 
       - name: Compile firmware
