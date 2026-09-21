@@ -362,17 +362,3 @@
 	vbus-supply = <&reg_5v>;
 };
 
-&cpu_thermal {
-	cooling-maps {
-		/delete-node/ cpu-active-highest;
-		/delete-node/ cpu-active-high;
-		/delete-node/ cpu-active-med;
-		/delete-node/ cpu-active-low;
-		/delete-node/ cpu-active-lowest;
-
-		cpu-active-highest {
-			cooling-device = <&gpio_fan 1 1>;
-			trip = <&cpu_trip_active_high>;
-		};
-	};
-};
