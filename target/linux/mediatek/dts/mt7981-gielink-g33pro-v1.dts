@@ -72,6 +72,7 @@
 	status = "okay";
 
 	gmac0: mac@0 {
+		/* MT7531 CPU/LAN uplink */
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
 		phy-mode = "2500base-x";
@@ -84,6 +85,17 @@
 			full-duplex;
 			pause;
 		};
+	};
+
+	gmac1: mac@1 {
+		/* Stock G33Pro WAN is exposed as eth1 */
+		compatible = "mediatek,eth-mac";
+		reg = <1>;
+		phy-mode = "gmii";
+		phy-handle = <&int_gbe_phy>;
+
+		nvmem-cells = <&macaddr_factory_a0024 0>;
+		nvmem-cell-names = "mac-address";
 	};
 };
 
@@ -104,31 +116,30 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		/* Physical order copied from the stock G33Pro V1.3 DTB. */
 		port@0 {
 			reg = <0>;
-			label = "wan";
-
-			nvmem-cells = <&macaddr_factory_a0024 0>;
-			nvmem-cell-names = "mac-address";
+			label = "lan1";
 		};
 
 		port@1 {
 			reg = <1>;
-			label = "lan1";
+			label = "lan2";
 		};
 
 		port@2 {
 			reg = <2>;
-			label = "lan2";
+			label = "lan3";
 		};
 
 		port@3 {
 			reg = <3>;
-			label = "lan3";
+			label = "lan4";
 		};
 
 		port@6 {
 			reg = <6>;
+			label = "cpu";
 			ethernet = <&gmac0>;
 			phy-mode = "2500base-x";
 
@@ -215,7 +226,7 @@
 
 			ubi: partition@580000 {
 				label = "ubi";
-				reg = <0x580000 0x7200000>;
+				reg = <0x580000 0x7000000>;
 			};
 		};
 	};

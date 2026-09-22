@@ -98,29 +98,31 @@ jobs:
           profile = image[start:end]
           for value in (
               'compatible = "gielink,g33pro-v1", "gielink,g33pro", "mediatek,mt7981"',
-              'mediatek,nmbm;', 'label = "ubi"', 'reg = <0x580000 0x7200000>;', '&wifi {',
+              'mediatek,nmbm;', 'label = "ubi"', 'reg = <0x580000 0x7000000>;', '&wifi {',
               'compatible = "mediatek,mt7531";',
-              'label = "lan1";', 'label = "lan2";', 'label = "lan3";',
+              'label = "lan1";', 'label = "lan2";', 'label = "lan3";', 'label = "lan4";',
               'led-running = &status_green_led;', 'led-upgrade = &status_red_led;',
               'gpios = <&pio 10 GPIO_ACTIVE_HIGH>;',
               'gpios = <&pio 11 GPIO_ACTIVE_HIGH>;',
               'gpios = <&pio 12 GPIO_ACTIVE_HIGH>;',
-              'label = "wan";',
               'port@0 {', 'port@1 {', 'port@2 {', 'port@3 {',
               'macaddr_factory_a0024:', 'macaddr_factory_a002a:'
           ):
               assert value in dts, f"DTS validation missing: {value}"
           assert 'compatible = "generic,nmbm"' not in dts
           assert '&hnat {' not in dts
-          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan' in network
-          assert 'gmac1: mac@1' not in dts
-          assert 'phy-handle = <&int_gbe_phy>;' not in dts
+          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" eth1' in network
+          assert 'gmac1: mac@1' in dts
+          assert 'phy-handle = <&int_gbe_phy>;' in dts
           for value in ('IMAGE_SIZE := 113152k', 'KERNEL_IN_UBI := 1',
                         'IMAGE/factory.bin := append-ubi',
-                        '$$(DEVICE_DTS)', '$$(IMAGE_SIZE)'):
+                        'ARTIFACTS := preloader.bin bl31-uboot.fip',
+                        'ARTIFACT/preloader.bin := mt7981-bl2 spim-nand-ddr3',
+                        'ARTIFACT/bl31-uboot.fip := mt7981-bl31-uboot gielink_g33pro-v1',
+                        '$(DEVICE_DTS)', '$(IMAGE_SIZE)'):
               assert value in profile, f"image profile validation missing: {value}"
           assert 'TARGET_DEVICES += gielink_g33pro-v1' in image
-          print('Verified G33Pro MT7531 DSA ports, LED polarity, factory MACs, NMBM/UBI and image rules.')
+          print('Verified G33Pro stock LAN1-LAN4 + eth1 WAN mapping, Q30Pro-style UBI, factory MACs and image rules.')
           PY
 
       - name: Update feeds and add application sources
@@ -333,13 +335,15 @@ jobs:
           mkdir -p upload
           mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*gielink_g33pro-v1*factory.bin' -o -iname '*gielink_g33pro-v1*sysupgrade.bin' \) -size +5M)
           [ "${#images[@]}" -gt 0 ]
+          mapfile -t boot_artifacts < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*gielink_g33pro-v1*preloader.bin' -o -iname '*gielink_g33pro-v1*bl31-uboot.fip' \))
+          [ "${#boot_artifacts[@]}" -ge 2 ] || { echo "ERROR: G33Pro preloader/FIP artifacts missing"; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f\n'; exit 1; }
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*gielink_g33pro-v1*.manifest')
           [ "${#manifests[@]}" -gt 0 ]
           for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd \
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" GIELINK-G33Pro-v1-final.config upload/
+          cp -a "${images[@]}" "${boot_artifacts[@]}" "${manifests[@]}" GIELINK-G33Pro-v1-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
       - name: Upload artifact
@@ -357,7 +361,7 @@ jobs:
           name: GIELINK G33Pro v1 DulWiFi ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
-            GIELINK G33Pro v1 / MT7981B / fixed-parts 114 MiB UBI layout.
+            GIELINK G33Pro v1 / MT7981B / Q30Pro-style 112 MiB raw UBI layout (~110 MiB usable), stock G33Pro LAN1-LAN4 + eth1 WAN mapping.
             Management: http://192.168.9.1; root password: password.
             WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.

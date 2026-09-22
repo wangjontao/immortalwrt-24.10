@@ -1256,6 +1256,9 @@ define Device/gielink_g33pro-v1
   DEVICE_DTS_DIR := ../dts
   SUPPORTED_DEVICES := gielink,g33pro-v1 gielink,g33pro
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+  ARTIFACTS := preloader.bin bl31-uboot.fip
+  ARTIFACT/preloader.bin := mt7981-bl2 spim-nand-ddr3
+  ARTIFACT/bl31-uboot.fip := mt7981-bl31-uboot gielink_g33pro-v1
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
