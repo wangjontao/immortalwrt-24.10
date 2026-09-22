@@ -100,7 +100,7 @@ jobs:
               'compatible = "gielink,g33pro-v1", "gielink,g33pro", "mediatek,mt7981"',
               'mediatek,nmbm;', 'label = "ubi"', 'reg = <0x580000 0x7000000>;', '&wifi {',
               'compatible = "mediatek,mt7531";',
-              'label = "lan1";', 'label = "lan2";', 'label = "lan3";', 'label = "lan4";',
+              'label = "wan";', 'label = "lan1";', 'label = "lan2";', 'label = "lan3";',
               'led-running = &status_green_led;', 'led-upgrade = &status_red_led;',
               'gpios = <&pio 10 GPIO_ACTIVE_HIGH>;',
               'gpios = <&pio 11 GPIO_ACTIVE_HIGH>;',
@@ -111,9 +111,9 @@ jobs:
               assert value in dts, f"DTS validation missing: {value}"
           assert 'compatible = "generic,nmbm"' not in dts
           assert '&hnat {' not in dts
-          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" eth1' in network
-          assert 'gmac1: mac@1' in dts
-          assert 'phy-handle = <&int_gbe_phy>;' in dts
+          assert 'ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan' in network
+          assert 'gmac1: mac@1' not in dts
+          assert 'phy-handle = <&int_gbe_phy>;' not in dts
           for value in ('IMAGE_SIZE := 113152k', 'KERNEL_IN_UBI := 1',
                         'IMAGE/factory.bin := append-ubi',
                         'ARTIFACTS := preloader.bin bl31-uboot.fip',
@@ -122,7 +122,7 @@ jobs:
                         '$(DEVICE_DTS)', '$(IMAGE_SIZE)'):
               assert value in profile, f"image profile validation missing: {value}"
           assert 'TARGET_DEVICES += gielink_g33pro-v1' in image
-          print('Verified G33Pro stock LAN1-LAN4 + eth1 WAN mapping, Q30Pro-style UBI, factory MACs and image rules.')
+          print('Verified G33Pro Q30Pro-style port0 WAN + port1/2/3 LAN mapping, 110M-class UBI, factory MACs and image rules.')
           PY
 
       - name: Update feeds and add application sources
@@ -361,7 +361,7 @@ jobs:
           name: GIELINK G33Pro v1 DulWiFi ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
-            GIELINK G33Pro v1 / MT7981B / Q30Pro-style 112 MiB raw UBI layout (~110 MiB usable), stock G33Pro LAN1-LAN4 + eth1 WAN mapping.
+            GIELINK G33Pro v1 / MT7981B / Q30Pro-style 112 MiB raw UBI layout (~110 MiB usable), port0 WAN + port1/2/3 LAN1/LAN2/LAN3.
             Management: http://192.168.9.1; root password: password.
             WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.

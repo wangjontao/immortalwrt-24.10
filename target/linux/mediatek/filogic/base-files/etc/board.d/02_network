@@ -40,7 +40,7 @@ zbtlink,zbt-z8103ax-c)
 		;;
 	gielink,g33pro-v1|\
 	gielink,g33pro)
-		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" eth1
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" wan
 		;;
 	arcadyan,mozart)
 		ucidef_set_interfaces_lan_wan "lan0 eth1" eth2
