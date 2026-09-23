@@ -7,7 +7,7 @@
 #include "mt7981.dtsi"
 
 / {
-	model = "Konka KOMI A31";
+	model = "E-Life ETR635-U";
 	compatible = "konka,komi-a31", "mediatek,mt7981";
 
 	aliases {
