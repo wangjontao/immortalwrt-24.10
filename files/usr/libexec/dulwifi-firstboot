@@ -22,7 +22,7 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
         case "$radio" in "$R2") ssid='DulWiFi-2.4G';; "$R5") ssid='DulWiFi-5G';; *) continue;; esac
         uci set wireless.$iface.ssid="$ssid"
         uci set wireless.$iface.encryption='psk2+ccmp'
-        uci set wireless.$iface.key='a1111111'
+        uci set wireless.$iface.key='password'
         uci set wireless.$iface.disabled='0'
         uci set wireless.$radio.disabled='0'
     done
