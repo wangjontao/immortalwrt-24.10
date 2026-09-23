@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-latest
+  cancel-in-progress: true
+
 env:
   PASSWALL_TAG: 26.3.6-1
   PASSWALL2_TAG: 26.3.5-1
@@ -16,6 +20,7 @@ env:
   HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
   NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
@@ -51,6 +56,16 @@ jobs:
           go-version: 1.24.x
           cache: false
 
+      - name: Restore download and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: immortalwrt-24.10-etr631-t-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            immortalwrt-24.10-etr631-t-${{ runner.os }}-
+
       - name: Verify E-Life ETR631-T alias and A31 layout
         run: |
           DTS=target/linux/mediatek/dts/mt7981b-konka-komi-a31.dts
@@ -59,7 +74,7 @@ jobs:
           test -s "$DTS"
           test -s "$EMMC"
           test -s "$NOR"
-          grep -q 'model = "Konka KOMI A31"' "$DTS"
+          grep -q 'model = "E-Life ETR631-T"' "$DTS"
           grep -q 'compatible = "konka,komi-a31", "mediatek,mt7981"' "$DTS"
           grep -q 'label = "ubi"' "$DTS"
           grep -q 'reg = <0x580000 0x7000000>;' "$DTS"
@@ -161,7 +176,7 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-socket=y
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_dnsmasq-full=y
-          # CONFIG_CCACHE is not set
+          CONFIG_CCACHE=y
           CONFIG
           make defconfig
 
@@ -173,7 +188,7 @@ jobs:
           }
 
           mkdir -p files/etc
-          openssl passwd -1 password > files/etc/dulwifi-root.hash
+          openssl passwd -1 '@password@' > files/etc/dulwifi-root.hash
           cp package/base-files/files/etc/shadow files/etc/shadow
           HASH="$(cat files/etc/dulwifi-root.hash)"
           sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
@@ -193,6 +208,9 @@ jobs:
 
       - name: Download and compile
         run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 5G
+          ccache -z
           make download -j"$(nproc)"
           find dl -type f -size -1024c -print -delete
           rm -rf feeds/*/.git package/*/.git package/*/*/.git
@@ -200,6 +218,7 @@ jobs:
           mkdir -p dl/go-mod-cache
           df -h /
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+          ccache -s || true
 
       - name: Verify and collect
         run: |
@@ -212,12 +231,21 @@ jobs:
           }
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*konka_komi-a31*.manifest')
           [ "${#manifests[@]}" -gt 0 ] || { echo "ERROR: A31 manifest not found"; exit 1; }
+          grep -q "47.83.9.208" files/usr/libexec/dulwifi-firstboot || { echo "ERROR: NPS server mismatch"; exit 1; }
+          grep -q "192.168.7.1" files/etc/uci-defaults/99-zz-dulwifi || { echo "ERROR: LAN address mismatch"; exit 1; }
+          grep -q "wireless.\$iface.key='password'" files/usr/libexec/dulwifi-firstboot || { echo "ERROR: WiFi password mismatch"; exit 1; }
           for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd \
             luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc \
             luci-app-filemanager luci-app-upnp luci-app-wol luci-app-samba4 luci-app-sqm luci-app-statistics; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
-          cp -a "${images[@]}" "${manifests[@]}" ETR631-T-final.config upload/
+          for file in "${images[@]}"; do
+            base="$(basename "$file")"
+            suffix="${base#*konka_komi-a31-}"
+            cp "$file" "upload/E-Life-ETR631-T-$suffix"
+          done
+          cp "${manifests[0]}" upload/E-Life-ETR631-T.manifest
+          cp ETR631-T-final.config upload/
           sha256sum upload/* | tee upload/SHA256SUMS
 
       - name: Upload artifact
@@ -243,8 +271,8 @@ jobs:
 
           cat > /tmp/release-notes.txt <<'EOF'
           E-Life ETR631-T / MT7981B using the Konka KOMI A31 target with eMMC and NOR DTS overlays.
-          Management: http://192.168.9.1; root password: password.
-          WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
+          Management: http://192.168.7.1; root password: @password@.
+          WiFi: DulWiFi-2.4G and DulWiFi-5G; password: password.
           Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps, File Manager, UPnP, WOL, Samba4, SQM and Statistics.
           NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
           EOF
