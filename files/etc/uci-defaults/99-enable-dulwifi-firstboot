@@ -1,0 +1,4 @@
+#!/bin/sh
+/etc/init.d/dulwifi-firstboot enable
+/etc/init.d/dulwifi-firstboot start
+exit 0

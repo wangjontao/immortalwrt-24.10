@@ -1,0 +1,72 @@
+#!/bin/sh
+set -e
+[ -e /etc/dulwifi-firstboot.done ] && exit 0
+sleep 60
+(
+if [ ! -e /etc/dulwifi-wifi.done ]; then
+    tries=0
+    while :; do
+        R2=''; R5=''
+        for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
+            band="$(uci -q get wireless.$radio.band || true)"
+            hw="$(uci -q get wireless.$radio.hwmode || true)"
+            case "$band:$hw" in 2g:*|*:11g) R2="$radio";; 5g:*|*:11a) R5="$radio";; esac
+        done
+        [ -n "$R2" ] && [ -n "$R5" ] && break
+        tries=$((tries+1))
+        [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both wireless radios not ready; retry next boot'; exit 1; }
+        sleep 2
+    done
+    for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+        radio="$(uci -q get wireless.$iface.device)"
+        case "$radio" in "$R2") ssid='DulWiFi-2.4G';; "$R5") ssid='DulWiFi-5G';; *) continue;; esac
+        uci set wireless.$iface.ssid="$ssid"
+        uci set wireless.$iface.encryption='psk2+ccmp'
+        uci set wireless.$iface.key='password'
+        uci set wireless.$iface.disabled='0'
+        uci set wireless.$radio.disabled='0'
+    done
+    uci commit wireless
+    wifi reload
+    touch /etc/dulwifi-wifi.done
+fi
+) || logger -t dulwifi 'WiFi setup incomplete; continuing NPS setup'
+valid_mac() {
+    printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
+        [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]
+}
+mac=''
+tries=0
+while ! valid_mac "$mac"; do
+    dev="$(uci -q get network.wan.device || uci -q get network.wan.ifname || true)"
+    case "$dev" in @*) dev="$(uci -q get network.${dev#@}.device || true)";; esac
+    [ -n "$dev" ] || dev="$(ip route | awk '/default/ {print $5; exit}')"
+    if [ -r "/sys/class/net/$dev/address" ]; then mac="$(cat "/sys/class/net/$dev/address")"; fi
+    if ! valid_mac "$mac"; then
+        for lower in /sys/class/net/"$dev"/lower_*; do
+            [ -r "$lower/address" ] || continue
+            mac="$(cat "$lower/address")"
+            valid_mac "$mac" && break
+        done
+    fi
+    valid_mac "$mac" && break
+    tries=$((tries+1))
+    [ "$tries" -lt 60 ] || { logger -t dulwifi 'WAN MAC unavailable; retry next boot'; exit 1; }
+    sleep 2
+done
+[ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
+uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
+uci set nps.@nps[0].enabled='1'
+uci set nps.@nps[0].server_addr='47.83.9.208'
+uci set nps.@nps[0].server_port='8024'
+uci set nps.@nps[0].protocol='tcp'
+uci set nps.@nps[0].compress='1'
+uci set nps.@nps[0].crypt='1'
+uci set nps.@nps[0].vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+uci commit nps
+mkdir -p /tmp/etc
+/etc/init.d/nps enable
+/etc/init.d/nps restart
+[ -e /etc/dulwifi-wifi.done ] || exit 1
+touch /etc/dulwifi-firstboot.done
+logger -t dulwifi 'WiFi and NPS first-boot configuration complete'
