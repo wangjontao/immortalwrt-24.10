@@ -1,10 +1,10 @@
-name: CLX 20L 20WiFi
+name: CLX S20L DulWiFi services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - openwrt-24.10
+      - jontaoNpS-clx-s20l-dulwifi
     paths:
       - '.github/workflows/S20L.yml'
       - 'build-configs/S20L.txt'
@@ -19,13 +19,16 @@ permissions:
   contents: write
 
 concurrency:
-  group: s20l-24.10-full-luci-nps-v2
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}-latest
+  cancel-in-progress: true
 
 env:
   PASSWALL_TAG: 26.3.6-1
   PASSWALL2_TAG: 26.3.5-1
   PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
+  OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
+  WIFI_KEY_B64: cGFzc3dvcmQ=
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
   build:
@@ -81,7 +84,7 @@ jobs:
           ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
           ./scripts/feeds install -d y -p luci luci-app-autoreboot
 
-      - name: Add proxy packages, source-feed NPS, and Argon
+      - name: Add proxy packages, OpenClash, source-feed NPS, and Argon
         run: |
           rm -rf package/luci-app-passwall package/luci-app-passwall2 package/passwall-packages \
             package/luci-app-npc feeds/luci/applications/luci-app-passwall \
@@ -95,6 +98,16 @@ jobs:
           git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
           git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
           rm -rf package/passwall-packages/.git
+
+          rm -rf package/luci-app-openclash package/feeds/luci/luci-app-openclash feeds/luci/applications/luci-app-openclash
+          curl -fL --retry 8 --retry-delay 3 --retry-all-errors --connect-timeout 20 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/$OPENCLASH_COMMIT" \
+            -o /tmp/openclash.tar.gz
+          rm -rf /tmp/openclash
+          mkdir -p /tmp/openclash
+          tar -xzf /tmp/openclash.tar.gz --strip-components=1 -C /tmp/openclash
+          cp -a /tmp/openclash/luci-app-openclash package/
+          test -f package/luci-app-openclash/Makefile
 
           # Install the mutually compatible NPS packages supplied by this source.
           ./scripts/feeds install -f -p packages nps npc
@@ -129,6 +142,9 @@ jobs:
 
           git clone --depth=1 --branch codex/hy3000-24.10 https://github.com/wangjontao/CloseWRT-CI.git /tmp/ci-config
           cp -a /tmp/ci-config/Files/. package/base-files/files/
+          WIFI_KEY="$(printf '%s' "$WIFI_KEY_B64" | base64 -d)"
+          sed -i "s/a1111111/${WIFI_KEY}/g" files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
+          grep -RIl 'a1111111' package/base-files/files 2>/dev/null | xargs -r sed -i "s/a1111111/${WIFI_KEY}/g"
           rm -f package/base-files/files/etc/init.d/npc-wan-mac
           rm -f package/base-files/files/etc/uci-defaults/99-enable-npc-wan-mac
           rm -f package/base-files/files/usr/libexec/npc-wan-mac
@@ -230,6 +246,11 @@ jobs:
           grep -q '^CONFIG_PACKAGE_luci-app-passwall=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-passwall2=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-homeproxy=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-openclash=y' .config
+          grep -Fq "$WIFI_KEY" files/root/setup-20wifi-acl.sh
+          grep -Fq "$WIFI_KEY" files/root/add_ap20_wifi.sh
+          ! grep -q 'a1111111' files/root/setup-20wifi-acl.sh
+          ! grep -q 'a1111111' files/root/add_ap20_wifi.sh
           grep -q '^CONFIG_PACKAGE_nps=y' .config
           grep -q '^CONFIG_PACKAGE_npc=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-nps=y' .config
@@ -250,10 +271,14 @@ jobs:
 
       - name: Compile S20L firmware
         run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 5G
+          ccache -z
           # Rebuild the Go module cache after interrupted sing-box downloads.
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           make -j"$(nproc)" || make -j1 V=s
+          ccache -s || true
 
       - name: Verify and collect S20L firmware
         run: |
@@ -267,7 +292,7 @@ jobs:
           cp -a "${images[@]}" upload/
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest')
           [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: S20L manifest missing'; exit 1; }
-          for pkg in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps luci-i18n-nps-zh-cn npc; do
+          for pkg in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash nps luci-app-nps luci-i18n-nps-zh-cn npc; do
             grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
           done
           cp -a "${manifests[@]}" upload/
@@ -295,7 +320,7 @@ jobs:
             Source commit: ${{ env.WRT_HASH }}
             Management IP: 192.168.7.1
             Hostname: DulWiFi
-            Wi-Fi: DulWiFi-5G / DulWiFi-2.4G retained; first boot adds A1-A15 on 5 GHz and A16-A20 on 2.4 GHz, password a1111111.
-            Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, luci-app-nps client.
-            Multi-WiFi: the supplied AP01-AP20 batch runs once after first boot settles, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as requested.
+            Wi-Fi: DulWiFi-5G / DulWiFi-2.4G retained; wireless password: password. First boot adds AP1-AP14 on 5 GHz and AP15-AP20 on 2.4 GHz, also using password.
+            Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps client.
+            Multi-WiFi: the supplied AP1-AP20 batch runs once after first boot settles, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as configured.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for 47.83.9.208:8024 TCP, compression and encryption enabled.
