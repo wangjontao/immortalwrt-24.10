@@ -8,12 +8,9 @@ on:
     paths:
       - '.github/workflows/S20L.yml'
       - 'build-configs/S20L.txt'
-      - 'files/root/setup-20wifi-acl.sh'
-      - 'files/root/add_ap20_wifi.sh'
-      - 'files/root/ap20-wifi-config/passwall'
-      - 'files/root/ap20-wifi-config/passwall2'
-      - 'files/etc/init.d/setup-20wifi-firstboot'
-      - 'files/etc/uci-defaults/99-enable-20wifi-firstboot'
+      - 'files/usr/libexec/dulwifi-firstboot'
+      - 'files/etc/init.d/dulwifi-firstboot'
+      - 'files/etc/uci-defaults/99-enable-dulwifi-firstboot'
 
 permissions:
   contents: write
@@ -27,7 +24,6 @@ env:
   PASSWALL2_TAG: 26.3.5-1
   PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
-  WIFI_KEY_B64: cGFzc3dvcmQ=
   CCACHE_DIR: ${{ github.workspace }}/.ccache
 
 jobs:
@@ -134,17 +130,8 @@ jobs:
         run: |
           rm -f .config
           cp build-configs/S20L.txt .config
-          chmod 0755 files/root/setup-20wifi-acl.sh
-          chmod 0755 files/root/add_ap20_wifi.sh
-          chmod 0644 files/root/ap20-wifi-config/passwall files/root/ap20-wifi-config/passwall2
-          chmod 0755 files/etc/init.d/setup-20wifi-firstboot
-          chmod 0755 files/etc/uci-defaults/99-enable-20wifi-firstboot
-
           git clone --depth=1 --branch codex/hy3000-24.10 https://github.com/wangjontao/CloseWRT-CI.git /tmp/ci-config
           cp -a /tmp/ci-config/Files/. package/base-files/files/
-          WIFI_KEY="$(printf '%s' "$WIFI_KEY_B64" | base64 -d)"
-          sed -i "s/a1111111/${WIFI_KEY}/g" files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
-          grep -RIl 'a1111111' package/base-files/files 2>/dev/null | xargs -r sed -i "s/a1111111/${WIFI_KEY}/g"
           rm -f package/base-files/files/etc/init.d/npc-wan-mac
           rm -f package/base-files/files/etc/uci-defaults/99-enable-npc-wan-mac
           rm -f package/base-files/files/usr/libexec/npc-wan-mac
@@ -226,15 +213,24 @@ jobs:
           ROOT_HASH="$(openssl passwd -1 '@password@')"
           sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 
+          # Keep only the two physical Wi-Fi interfaces; disable/remove the legacy AP1-AP20 bootstrap.
+          rm -f files/etc/init.d/setup-20wifi-firstboot
+          rm -f files/etc/uci-defaults/99-enable-20wifi-firstboot
+          rm -f files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
+          rm -rf files/root/ap20-wifi-config
+
+          chmod 0755 files/usr/libexec/dulwifi-firstboot
+          chmod 0755 files/etc/init.d/dulwifi-firstboot
+          chmod 0755 files/etc/uci-defaults/99-enable-dulwifi-firstboot
+
           make defconfig
-          test -x files/root/setup-20wifi-acl.sh
-          test -x files/root/add_ap20_wifi.sh
-          test -s files/root/ap20-wifi-config/passwall
-          test -s files/root/ap20-wifi-config/passwall2
-          test -x files/etc/init.d/setup-20wifi-firstboot
-          test -x files/etc/uci-defaults/99-enable-20wifi-firstboot
-          grep -q "acl_enable='0'" files/root/setup-20wifi-acl.sh
-          grep -q "DulWiFi-5G" files/root/setup-20wifi-acl.sh || true
+          test -x files/usr/libexec/dulwifi-firstboot
+          test -x files/etc/init.d/dulwifi-firstboot
+          test -x files/etc/uci-defaults/99-enable-dulwifi-firstboot
+          grep -q "DulWiFi-2.4G" files/usr/libexec/dulwifi-firstboot
+          grep -q "DulWiFi-5G" files/usr/libexec/dulwifi-firstboot
+          grep -q "server_addr='47.83.9.208'" files/usr/libexec/dulwifi-firstboot
+          grep -q "server_port='8024'" files/usr/libexec/dulwifi-firstboot
           grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-store=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-quickstart=y' .config
@@ -247,10 +243,6 @@ jobs:
           grep -q '^CONFIG_PACKAGE_luci-app-passwall2=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-homeproxy=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-openclash=y' .config
-          grep -Fq "$WIFI_KEY" files/root/setup-20wifi-acl.sh
-          grep -Fq "$WIFI_KEY" files/root/add_ap20_wifi.sh
-          ! grep -q 'a1111111' files/root/setup-20wifi-acl.sh
-          ! grep -q 'a1111111' files/root/add_ap20_wifi.sh
           grep -q '^CONFIG_PACKAGE_nps=y' .config
           grep -q '^CONFIG_PACKAGE_npc=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-nps=y' .config
@@ -320,7 +312,7 @@ jobs:
             Source commit: ${{ env.WRT_HASH }}
             Management IP: 192.168.7.1
             Hostname: DulWiFi
-            Wi-Fi: DulWiFi-5G / DulWiFi-2.4G retained; wireless password: password. First boot adds AP1-AP14 on 5 GHz and AP15-AP20 on 2.4 GHz, also using password.
+            Wi-Fi: only two SSIDs are enabled: DulWiFi-2.4G and DulWiFi-5G. Wireless password: password.
             Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps client.
-            Multi-WiFi: the supplied AP1-AP20 batch runs once after first boot settles, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as configured.
+            No AP1-AP20 multi-SSID bootstrap is included.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for 47.83.9.208:8024 TCP, compression and encryption enabled.
