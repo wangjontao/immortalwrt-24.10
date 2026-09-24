@@ -1,10 +1,10 @@
-name: AGS21 A WiFi port 9527 iStore services
+name: AGS21 A WiFi port 9527 NPS Domain
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-ags21-a-port9527
+      - jontaoNpS-ags21-a-port9527-nps-domain
 
 permissions:
   contents: write
@@ -16,6 +16,7 @@ env:
   HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
   NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+  LEAN_LUCI_COMMIT: 0fb07d4de6db4bae39cd5c6c399dec0f0dde3cc6
 
 jobs:
   build:
@@ -99,14 +100,25 @@ jobs:
           test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
           cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
 
-          rm -rf package/npc package/luci-app-nps package/luci-app-npc
+          rm -rf \
+            feeds/luci/applications/luci-app-nps feeds/luci/applications/luci-app-npc \
+            feeds/packages/net/npc feeds/packages/net/nps \
+            package/feeds/luci/luci-app-nps package/feeds/luci/luci-app-npc \
+            package/feeds/packages/npc package/feeds/packages/nps \
+            package/npc package/luci-app-nps package/luci-app-npc
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
           git -C /tmp/nps checkout "$NPS_COMMIT"
           cp -a /tmp/nps/npc package/
-          git clone --depth=1 --filter=blob:none --sparse https://github.com/coolsnowwolf/luci.git /tmp/lean-luci
+          git init /tmp/lean-luci
+          git -C /tmp/lean-luci remote add origin https://github.com/coolsnowwolf/luci.git
+          git -C /tmp/lean-luci sparse-checkout init --cone
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
+          git -C /tmp/lean-luci fetch --depth=1 origin "$LEAN_LUCI_COMMIT"
+          git -C /tmp/lean-luci checkout --detach FETCH_HEAD
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
+          sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
 
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -168,6 +180,11 @@ jobs:
           chmod 755 files/etc/uci-defaults/99-zz-dulwifi files/etc/init.d/dulwifi-firstboot files/usr/libexec/dulwifi-firstboot
           sh -n files/etc/uci-defaults/99-zz-dulwifi
           sh -n files/usr/libexec/dulwifi-firstboot
+          test ! -e package/feeds/luci/luci-app-nps
+          test ! -e package/feeds/packages/npc
+          grep -Fxq 'LUCI_DEPENDS:=+wget' package/luci-app-nps/Makefile
+          grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
 
           for symbol in CONFIG_PACKAGE_luci-app-store CONFIG_PACKAGE_luci-app-quickstart \
             CONFIG_PACKAGE_luci-theme-argon CONFIG_PACKAGE_luci-app-ttyd \
@@ -229,7 +246,7 @@ jobs:
             Aigo AGS21 / MT7981 / native DTS from this immortalwrt-24.10 source tree.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             Management: http://192.168.7.1:9527, root password @password@. WiFi A-2.4G and A-5G, password a1111111.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.jontao.top:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
