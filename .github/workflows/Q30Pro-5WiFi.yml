@@ -101,6 +101,7 @@ jobs:
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+          sed -i 's/server.datatype\s\*=\s*"ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
 
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -299,7 +300,7 @@ jobs:
           [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
           uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
           uci set nps.@nps[0].enabled='1'
-          uci set nps.@nps[0].server_addr='47.83.9.208'
+          uci set nps.@nps[0].server_addr='nps.jontao.top'
           uci set nps.@nps[0].server_port='8024'
           uci set nps.@nps[0].protocol='tcp'
           uci set nps.@nps[0].compress='1'
@@ -318,7 +319,9 @@ jobs:
           sh -n files/usr/libexec/dulwifi-firstboot
           grep -q "passwall.dul_a" files/usr/libexec/dulwifi-firstboot
           grep -q "passwall2.dul_a" files/usr/libexec/dulwifi-firstboot
-          grep -q "172.16.5.0/24" files/usr/libexec/dulwifi-firstboot
+          grep -Fq 'sources="172.16.$i.0/24"' files/usr/libexec/dulwifi-firstboot
+          grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
 
           for symbol in CONFIG_PACKAGE_luci-app-store CONFIG_PACKAGE_luci-app-quickstart \
             CONFIG_PACKAGE_luci-theme-argon CONFIG_PACKAGE_luci-app-ttyd \
@@ -372,4 +375,4 @@ jobs:
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             First boot creates five isolated 5GHz WiFi APs A1-A5 with 172.16.1.0/24 through 172.16.5.0/24, no inter-zone or direct WAN forwarding, firewall input ACCEPT, and flow offloading disabled.
             PassWall and PassWall2 include A1-A5 ACL rules: TCP/UDP proxy, ports 1:65535, node=default, source subnet matching each WiFi.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.jontao.top:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
