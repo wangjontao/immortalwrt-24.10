@@ -110,7 +110,7 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
     touch /etc/dulwifi-wifi.done
 fi
 ) || logger -t dulwifi '5WiFi setup incomplete; continuing NPS setup'
-sed -i 's/server.datatype\s\*=\s*"ipaddr"/server.datatype = "host"/' /usr/lib/lua/luci/model/cbi/nps.lua
+sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' /usr/lib/lua/luci/model/cbi/nps.lua
 valid_mac() {
     printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
         [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]

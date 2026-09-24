@@ -16,6 +16,7 @@ env:
   HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
   NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+  LEAN_LUCI_COMMIT: 0fb07d4de6db4bae39cd5c6c399dec0f0dde3cc6
 
 jobs:
   build:
@@ -92,11 +93,16 @@ jobs:
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
           git -C /tmp/nps checkout "$NPS_COMMIT"
           cp -a /tmp/nps/npc package/
-          git clone --depth=1 --filter=blob:none --sparse https://github.com/coolsnowwolf/luci.git /tmp/lean-luci
+          git init /tmp/lean-luci
+          git -C /tmp/lean-luci remote add origin https://github.com/coolsnowwolf/luci.git
+          git -C /tmp/lean-luci sparse-checkout init --cone
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
+          git -C /tmp/lean-luci fetch --depth=1 origin "$LEAN_LUCI_COMMIT"
+          git -C /tmp/lean-luci checkout --detach FETCH_HEAD
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
-          sed -i 's/server.datatype\s\*=\s*"ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
+          sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
           git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
@@ -158,6 +164,7 @@ jobs:
           grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq 'for i in 1 2 3 4 5; do' files/usr/libexec/dulwifi-firstboot
+          grep -Fxq 'LUCI_DEPENDS:=+wget' package/luci-app-nps/Makefile
           grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
           grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
           for config in passwall passwall2; do
