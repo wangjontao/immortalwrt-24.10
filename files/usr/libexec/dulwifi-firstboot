@@ -41,10 +41,9 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
         uci -q delete firewall.${n}_dhcp || true
     done
 
-    for i in 1 2 3 4 5 6 7 8 9 10; do
+    for i in 1 2 3 4 5; do
         n="tk$i"
         radio="$R5"
-        [ "$i" -ge 9 ] && radio="$R2"
 
         uci set network.${n}_dev=device
         uci set network.${n}_dev.name="br-$n"
@@ -110,7 +109,8 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
     wifi reload || true
     touch /etc/dulwifi-wifi.done
 fi
-) || logger -t dulwifi '10WiFi setup incomplete; continuing NPS setup'
+) || logger -t dulwifi '5WiFi setup incomplete; continuing NPS setup'
+sed -i 's/server.datatype\s\*=\s*"ipaddr"/server.datatype = "host"/' /usr/lib/lua/luci/model/cbi/nps.lua
 valid_mac() {
     printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
         [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]
@@ -137,7 +137,7 @@ done
 [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
 uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
 uci set nps.@nps[0].enabled='1'
-uci set nps.@nps[0].server_addr='47.83.9.208'
+uci set nps.@nps[0].server_addr='nps.jontao.top'
 uci set nps.@nps[0].server_port='8024'
 uci set nps.@nps[0].protocol='tcp'
 uci set nps.@nps[0].compress='1'
@@ -149,4 +149,4 @@ mkdir -p /tmp/etc
 /etc/init.d/nps restart
 [ -e /etc/dulwifi-wifi.done ] || exit 1
 touch /etc/dulwifi-firstboot.done
-logger -t dulwifi '10WiFi and NPS first-boot configuration complete'
+logger -t dulwifi '5WiFi and NPS first-boot configuration complete'

@@ -1,10 +1,10 @@
-name: CMCC RAX3000M NAND 10WiFi iStore services
+name: CMCC RAX3000M NAND 5WiFi iStore services
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-rax3000m-nand-10wifi
+      - jontaoNpS-rax3000m-nand-5wifi
 
 permissions:
   contents: write
@@ -96,6 +96,7 @@ jobs:
           git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+          sed -i 's/server.datatype\s\*=\s*"ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
           git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
@@ -154,6 +155,17 @@ jobs:
           chmod 755 files/etc/uci-defaults/99-zz-dulwifi files/etc/init.d/dulwifi-firstboot files/usr/libexec/dulwifi-firstboot
           sh -n files/etc/uci-defaults/99-zz-dulwifi
           sh -n files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq 'for i in 1 2 3 4 5; do' files/usr/libexec/dulwifi-firstboot
+          grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
+          for config in passwall passwall2; do
+            test -s "files/etc/config/$config"
+            for i in 1 2 3 4 5; do
+              grep -A8 "option remarks 'A$i'" "files/etc/config/$config" | grep -Fq "option sources '172.16.$i.0/24'"
+            done
+          done
           ./scripts/diffconfig.sh | tee RAX3000M-NAND-final.config
 
       - name: Restore download cache
@@ -198,19 +210,19 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: RAX3000M-NAND-10WiFi-${{ env.BUILD_DATE }}
-          name: CMCC RAX3000M NAND 10WiFi ${{ env.BUILD_DATE }}
+          tag_name: RAX3000M-NAND-5WiFi-${{ env.BUILD_DATE }}
+          name: CMCC RAX3000M NAND 5WiFi ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             CMCC RAX3000M NAND / MT7981 / DulWiFi custom build with fw4/nftables plus iptables-nft compatibility.
-            Management: 192.168.7.1/@password@. Main WiFi: A-2.4G and A-5G, password a1111111. 10WiFi: A1-A8 on 5GHz and A9-A10 on 2.4GHz, password a1111111, isolated networks 172.16.1.0/24 through 172.16.10.0/24 with no WAN forwarding. Supplied PassWall and PassWall2 ACL templates are installed into /etc/config.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            Management: 192.168.7.1/@password@. Main WiFi: A-2.4G and A-5G, password a1111111. Additional 5GHz WiFi: A1-A5, password a1111111, isolated networks 172.16.1.0/24 through 172.16.5.0/24 with no WAN forwarding. Supplied PassWall and PassWall2 ACL templates are installed into /etc/config.
+            NPS server: nps.jontao.top:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: RAX3000M-NAND-10WiFi-${{ env.BUILD_DATE }}
+          name: RAX3000M-NAND-5WiFi-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
