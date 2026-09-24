@@ -1,10 +1,10 @@
-name: CMCC RAX3000M NAND 5WiFi iStore services
+name: CMCC RAX3000M NAND 5WiFi Manual Build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-rax3000m-nand-5wifi
+      - jontaoNpS-rax3000m-nand-5wifi-manual
 
 permissions:
   contents: write
@@ -89,7 +89,14 @@ jobs:
           tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
           test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
           cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
-          rm -rf package/npc package/luci-app-nps package/luci-app-npc
+          rm -rf \
+            feeds/luci/applications/luci-app-nps \
+            feeds/luci/applications/luci-app-npc \
+            feeds/packages/net/npc feeds/packages/net/nps \
+            package/feeds/luci/luci-app-nps \
+            package/feeds/luci/luci-app-npc \
+            package/feeds/packages/npc package/feeds/packages/nps \
+            package/npc package/luci-app-nps package/luci-app-npc
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
           git -C /tmp/nps checkout "$NPS_COMMIT"
           cp -a /tmp/nps/npc package/
@@ -164,6 +171,8 @@ jobs:
           grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq 'for i in 1 2 3 4 5; do' files/usr/libexec/dulwifi-firstboot
+          test ! -e package/feeds/luci/luci-app-nps
+          test ! -e package/feeds/packages/npc
           grep -Fxq 'LUCI_DEPENDS:=+wget' package/luci-app-nps/Makefile
           grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
           grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
