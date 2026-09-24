@@ -19,7 +19,7 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
     done
     for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
         radio="$(uci -q get wireless.$iface.device)"
-        case "$radio" in "$R2") ssid='DulWiFi-2.4G';; "$R5") ssid='DulWiFi-5G';; *) continue;; esac
+        case "$radio" in "$R2") ssid='DulWiFi';; "$R5") ssid='DulWiFi';; *) continue;; esac
         uci set wireless.$iface.ssid="$ssid"
         uci set wireless.$iface.encryption='psk2+ccmp'
         uci set wireless.$iface.key='password'
