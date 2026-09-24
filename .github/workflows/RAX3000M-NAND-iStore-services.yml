@@ -101,7 +101,7 @@ jobs:
           git -C /tmp/lean-luci checkout --detach FETCH_HEAD
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
-          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
+          sed -i 's/+npc//g' package/luci-app-nps/Makefile
           sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -127,7 +127,6 @@ jobs:
           CONFIG_PACKAGE_luci-app-passwall2=y
           CONFIG_PACKAGE_luci-app-homeproxy=y
           CONFIG_PACKAGE_luci-app-openclash=y
-          CONFIG_PACKAGE_npc=y
           CONFIG_PACKAGE_luci-app-nps=y
           # CONFIG_PACKAGE_luci-app-npc is not set
           CONFIG_PACKAGE_luci-app-filemanager=y
