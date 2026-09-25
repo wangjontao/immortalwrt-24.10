@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-newland-wr8103-dulwifi
+      - jontaoNpS-newland-wr8103-defaultwifi-nps-domain
 
 permissions:
   contents: write
@@ -220,4 +220,4 @@ jobs:
             Management: http://192.168.9.1; root password: password.
             WiFi: DulWiFi-2.4G and DulWiFi-5G; password: a1111111.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.66ccs.com:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
