@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-jcg-q30-pro-singlewifi
+      - jontaoNpS-jcg-q30-pro-defaultwifi-nps-domain
 
 permissions:
   contents: write
@@ -216,4 +216,4 @@ jobs:
             JCG Q30 Pro / MT7981 / fixed-parts U-Boot 113152 KiB UBI layout.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             Default WiFi first boot: only one 2.4GHz AP and one 5GHz AP; both use SSID DulWiFi and password password. Management IP 192.168.9.1, root password password.
-            NPS server: 47.83.9.208:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.66ccs.com:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
