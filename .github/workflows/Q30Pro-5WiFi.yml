@@ -104,7 +104,7 @@ jobs:
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
           sed -i 's/+npc//g' package/luci-app-nps/Makefile
-          sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          sed -i -E 's/server\.datatype[[:space:]]*=[[:space:]]*"ipaddr"/server.datatype="host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
           NPC_TMP="$(mktemp -d)"
           curl --fail --location --show-error --silent \
             --connect-timeout 30 --max-time 300 \
@@ -333,7 +333,7 @@ jobs:
           grep -q "passwall.dul_a" files/usr/libexec/dulwifi-firstboot
           grep -q "passwall2.dul_a" files/usr/libexec/dulwifi-firstboot
           grep -Fq 'sources="172.16.$i.0/24"' files/usr/libexec/dulwifi-firstboot
-          grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          grep -Eq 'server\.datatype[[:space:]]*=[[:space:]]*"host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
           ! grep -q '+npc' package/luci-app-nps/Makefile
           test -x files/usr/bin/npc
           file files/usr/bin/npc | grep -Eq 'ARM aarch64|ARM64'
