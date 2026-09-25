@@ -15,7 +15,7 @@ env:
   PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
   HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
-  NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+  NPC_VERSION: 0.26.10
   LEAN_LUCI_COMMIT: 0fb07d4de6db4bae39cd5c6c399dec0f0dde3cc6
 
 jobs:
@@ -89,10 +89,7 @@ jobs:
           tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
           test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
           cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
-          rm -rf package/npc package/luci-app-nps package/luci-app-npc
-          git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
-          git -C /tmp/nps checkout "$NPS_COMMIT"
-          cp -a /tmp/nps/npc package/
+          rm -rf package/npc package/luci-app-nps package/luci-app-npc package/feeds/luci/luci-app-nps
           git init /tmp/lean-luci
           git -C /tmp/lean-luci remote add origin https://github.com/coolsnowwolf/luci.git
           git -C /tmp/lean-luci sparse-checkout init --cone
@@ -103,6 +100,17 @@ jobs:
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
           sed -i 's/+npc//g' package/luci-app-nps/Makefile
           sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          NPC_TMP="$(mktemp -d)"
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 1800 \
+            "https://github.com/ehang-io/nps/releases/download/v${NPC_VERSION}/linux_arm64_client.tar.gz" \
+            --output "$NPC_TMP/linux_arm64_client.tar.gz"
+          tar -xzf "$NPC_TMP/linux_arm64_client.tar.gz" -C "$NPC_TMP"
+          test -s "$NPC_TMP/npc"
+          mkdir -p files/usr/bin
+          install -m 0755 "$NPC_TMP/npc" files/usr/bin/npc
+          file files/usr/bin/npc | grep -Eq 'ARM aarch64|ARM64'
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
           git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
@@ -163,13 +171,20 @@ jobs:
           grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
           grep -Fq 'for i in 1 2 3 4 5; do' files/usr/libexec/dulwifi-firstboot
-          grep -Fxq 'LUCI_DEPENDS:=+wget' package/luci-app-nps/Makefile
+          grep -q 'LUCI_DEPENDS.*wget' package/luci-app-nps/Makefile
+          ! grep -q '+npc' package/luci-app-nps/Makefile
+          test -x files/usr/bin/npc
+          file files/usr/bin/npc | grep -Eq 'ARM aarch64|ARM64'
           grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
           grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
           for config in passwall passwall2; do
             test -s "files/etc/config/$config"
+            [ "$(grep -c '^config acl_rule' "files/etc/config/$config")" -eq 5 ]
             for i in 1 2 3 4 5; do
-              grep -A8 "option remarks 'A$i'" "files/etc/config/$config" | grep -Fq "option sources '172.16.$i.0/24'"
+              grep -A12 "option remarks 'A$i'" "files/etc/config/$config" | grep -Fq "option sources '172.16.$i.0/24'"
+            done
+            for i in 6 7 8 9 10; do
+              ! grep -Fq "option remarks 'A$i'" "files/etc/config/$config"
             done
           done
           ./scripts/diffconfig.sh | tee RAX3000M-NAND-final.config
@@ -207,7 +222,7 @@ jobs:
           [ "${#images[@]}" -gt 0 ]
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*cmcc_rax3000m*.manifest')
           [ "${#manifests[@]}" -gt 0 ]
-          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc firewall4 iptables-nft ip6tables-nft xtables-nft iptables-mod-tproxy; do
+          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-ttyd luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps firewall4 iptables-nft ip6tables-nft xtables-nft iptables-mod-tproxy; do
             grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
           done
           cp -a "${images[@]}" "${manifests[@]}" RAX3000M-NAND-final.config upload/
@@ -222,7 +237,7 @@ jobs:
           body: |
             CMCC RAX3000M NAND / MT7981 / DulWiFi custom build with fw4/nftables plus iptables-nft compatibility.
             Management: 192.168.7.1/@password@. Main WiFi: A-2.4G and A-5G, password a1111111. Additional 5GHz WiFi: A1-A5, password a1111111, isolated networks 172.16.1.0/24 through 172.16.5.0/24 with no WAN forwarding. Supplied PassWall and PassWall2 ACL templates are installed into /etc/config.
-            NPS server: nps.jontao.top:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.jontao.top:8024; NPC is ehang-io/nps 0.26.10 (Core 0.26.0); first boot writes the uppercase physical WAN MAC without colons to vkey.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
