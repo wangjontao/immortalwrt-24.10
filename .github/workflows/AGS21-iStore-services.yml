@@ -117,8 +117,8 @@ jobs:
           git -C /tmp/lean-luci checkout --detach FETCH_HEAD
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
-          sed -i 's/^LUCI_DEPENDS:=+wget +npc$/LUCI_DEPENDS:=+wget/' package/luci-app-nps/Makefile
-          sed -i 's/server.datatype = "ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
+          sed -i '/^LUCI_DEPENDS:=/s/ +npc//' package/luci-app-nps/Makefile
+          sed -i 's/server\.datatype[[:space:]]*=[[:space:]]*"ipaddr"/server.datatype = "host"/' package/luci-app-nps/luasrc/model/cbi/nps.lua
 
           rm -rf package/luci-theme-argon package/luci-app-argon-config
           git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
@@ -182,7 +182,11 @@ jobs:
           sh -n files/usr/libexec/dulwifi-firstboot
           test ! -e package/feeds/luci/luci-app-nps
           test ! -e package/feeds/packages/npc
-          grep -Fxq 'LUCI_DEPENDS:=+wget' package/luci-app-nps/Makefile
+          grep -q '^LUCI_DEPENDS:=' package/luci-app-nps/Makefile || { echo 'ERROR: luci-app-nps LUCI_DEPENDS is missing'; exit 1; }
+          if grep -Eq '^LUCI_DEPENDS:=.*[[:space:]]\+npc([[:space:]]|$)' package/luci-app-nps/Makefile; then
+            echo 'ERROR: luci-app-nps still depends on npc and would create a recursive dependency'
+            exit 1
+          fi
           grep -Fq 'server.datatype = "host"' package/luci-app-nps/luasrc/model/cbi/nps.lua
           grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
 
