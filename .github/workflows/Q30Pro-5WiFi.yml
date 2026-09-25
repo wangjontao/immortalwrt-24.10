@@ -1,11 +1,10 @@
-name: JCG Q30 Pro 5WiFi
+name: JCG Q30 Pro 5WiFi Main-A Channel48
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-jcg-q30-pro-5wifi
-      - jontaoNpS-jcg-q30-pro-110m-ubi
+      - jontaoNpS-jcg-q30-pro-5wifi-main-a-ch48
 
 permissions:
   contents: write
@@ -183,17 +182,34 @@ jobs:
           (
           if [ ! -e /etc/dulwifi-wifi.done ]; then
               tries=0
+              RADIO2=''
               RADIO5=''
               while :; do
                   for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
                       band="$(uci -q get wireless.$radio.band || true)"
                       hw="$(uci -q get wireless.$radio.hwmode || true)"
-                      case "$band:$hw" in 5g:*|*:11a) RADIO5="$radio";; esac
+                      case "$band:$hw" in
+                          2g:*|*:11g) RADIO2="$radio";;
+                          5g:*|*:11a) RADIO5="$radio";;
+                      esac
                   done
-                  [ -n "$RADIO5" ] && break
+                  [ -n "$RADIO2" ] && [ -n "$RADIO5" ] && break
                   tries=$((tries+1))
-                  [ "$tries" -lt 60 ] || { logger -t dulwifi '5GHz radio not ready; retry next boot'; exit 1; }
+                  [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both WiFi radios not ready; retry next boot'; exit 1; }
                   sleep 2
+              done
+
+              # Configure only the two existing primary APs before adding A1-A5.
+              uci set wireless.$RADIO5.channel='48'
+              for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+                  radio="$(uci -q get wireless.$iface.device || true)"
+                  case "$radio" in
+                      "$RADIO2") uci set wireless.$iface.ssid='A-2.4G';;
+                      "$RADIO5") uci set wireless.$iface.ssid='A-5G';;
+                      *) continue;;
+                  esac
+                  uci set wireless.$iface.disabled='0'
+                  uci set wireless.$radio.disabled='0'
               done
               for i in 1 2 3 4 5; do
                   n="tk$i"
@@ -330,6 +346,9 @@ jobs:
           chmod 755 files/etc/uci-defaults/99-zz-dulwifi files/etc/init.d/dulwifi-firstboot files/usr/libexec/dulwifi-firstboot
           sh -n files/etc/uci-defaults/99-zz-dulwifi
           sh -n files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq "channel='48'" files/usr/libexec/dulwifi-firstboot
           grep -q "passwall.dul_a" files/usr/libexec/dulwifi-firstboot
           grep -q "passwall2.dul_a" files/usr/libexec/dulwifi-firstboot
           grep -Fq 'sources="172.16.$i.0/24"' files/usr/libexec/dulwifi-firstboot
@@ -375,7 +394,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JCG-Q30-PRO-5WiFi-${{ env.BUILD_DATE }}
+          name: JCG-Q30-PRO-5WiFi-MainA-Ch48-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -383,12 +402,12 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: JCG-Q30-PRO-5WiFi-${{ env.BUILD_DATE }}
-          name: JCG Q30 Pro 5WiFi ${{ env.BUILD_DATE }}
+          tag_name: JCG-Q30-PRO-5WiFi-MainA-Ch48-${{ env.BUILD_DATE }}
+          name: JCG Q30 Pro 5WiFi Main-A Channel48 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             JCG Q30 Pro / MT7981 / fixed-parts U-Boot 113152 KiB UBI layout.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
-            First boot creates five isolated 5GHz WiFi APs A1-A5 with 172.16.1.0/24 through 172.16.5.0/24, no inter-zone or direct WAN forwarding, firewall input ACCEPT, and flow offloading disabled.
+            Primary WiFi is A-2.4G and A-5G with 5GHz fixed to channel 48. First boot also creates five isolated 5GHz WiFi APs A1-A5 with 172.16.1.0/24 through 172.16.5.0/24, no inter-zone or direct WAN forwarding, firewall input ACCEPT, and flow offloading disabled.
             PassWall and PassWall2 include A1-A5 ACL rules: TCP/UDP proxy, ports 1:65535, node=default, source subnet matching each WiFi.
             NPS server: nps.jontao.top:8024; NPC is ehang-io/nps 0.26.10 (Core 0.26.0); first boot writes the uppercase physical WAN MAC without colons to vkey.
