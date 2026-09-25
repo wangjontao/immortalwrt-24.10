@@ -1,6 +1,6 @@
 config nps
 	option enabled '1'
-	option server_addr '8.134.201.189'
+	option server_addr 'nps.66ccs.com'
 	option server_port '8024'
 	option protocol 'tcp'
 	option compress '1'
