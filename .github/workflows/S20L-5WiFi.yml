@@ -1,0 +1,491 @@
+name: CLX S20L 5WiFi services
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - jontaoNpS-clx-s20l-5wifi
+    paths:
+      - '.github/workflows/S20L-5WiFi.yml'
+      - 'build-configs/S20L.txt'
+      - 'files/usr/libexec/dulwifi-firstboot'
+      - 'files/etc/init.d/dulwifi-firstboot'
+      - 'files/etc/uci-defaults/99-enable-dulwifi-firstboot'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-latest
+  cancel-in-progress: true
+
+env:
+  PASSWALL_TAG: 26.3.6-1
+  PASSWALL2_TAG: 26.3.5-1
+  PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
+  OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+jobs:
+  build:
+    name: CLX S20L Full LuCI NPS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout forked ImmortalWrt source
+        uses: actions/checkout@v4
+
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gettext gcc-multilib \
+            g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm nano ninja-build p7zip-full \
+            patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
+            re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
+          sudo timedatectl set-timezone Asia/Shanghai
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "WRT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+          cache: false
+
+      - name: Restore downloads and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: s20l-24.10-${{ hashFiles('build-configs/S20L.txt', '.github/workflows/S20L-5WiFi.yml') }}
+          restore-keys: |
+            s20l-24.10-
+
+      - name: Update feeds and add iStore
+        run: |
+          grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://github.com/linkease/istore.git;main' >> feeds.conf.default
+          grep -q '^src-git nas_packages ' feeds.conf.default || echo 'src-git nas_packages https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+          grep -q '^src-git nas_luci ' feeds.conf.default || echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          ./scripts/feeds install -d y -p istore luci-app-store
+          ./scripts/feeds install -d y -p nas_packages quickstart
+          ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
+          ./scripts/feeds install -d y -p luci luci-app-autoreboot
+
+      - name: Add proxy packages, OpenClash, source-feed NPS, and Argon
+        run: |
+          rm -rf package/luci-app-passwall package/luci-app-passwall2 package/passwall-packages \
+            package/luci-app-npc feeds/luci/applications/luci-app-passwall \
+            feeds/luci/applications/luci-app-passwall2 feeds/luci/applications/luci-app-npc \
+            package/feeds/luci/luci-app-npc
+
+          git clone --depth=1 --branch "$PASSWALL_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall.git /tmp/openwrt-passwall
+          mv /tmp/openwrt-passwall/luci-app-passwall package/
+          git clone --depth=1 --branch "$PASSWALL2_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall2.git /tmp/openwrt-passwall2
+          mv /tmp/openwrt-passwall2/luci-app-passwall2 package/
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
+          git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
+          rm -rf package/passwall-packages/.git
+
+          rm -rf package/luci-app-openclash package/feeds/luci/luci-app-openclash feeds/luci/applications/luci-app-openclash
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 8 --retry-all-errors --retry-delay 10 --retry-max-time 2400 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/$OPENCLASH_COMMIT" \
+            -o /tmp/openclash.tar.gz
+          rm -rf /tmp/openclash
+          mkdir -p /tmp/openclash
+          tar -xzf /tmp/openclash.tar.gz --strip-components=1 -C /tmp/openclash
+          cp -a /tmp/openclash/luci-app-openclash package/
+          test -f package/luci-app-openclash/Makefile
+
+          # Install the mutually compatible NPS packages supplied by this source.
+          ./scripts/feeds install -f -p packages nps npc
+          ./scripts/feeds install -f -p luci luci-app-nps luci-i18n-nps-zh-cn
+          NPS_CONFIG_FILE="$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head -n1)"
+          test -n "$NPS_CONFIG_FILE"
+          cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
+          config nps
+                  option enabled '1'
+                  option server_addr 'nps.jontao.top'
+                  option server_port '8024'
+                  option protocol 'tcp'
+                  option compress '1'
+                  option crypt '1'
+                  option vkey 'WANMAC'
+                  option log_level '4'
+          NPS_CONFIG
+
+          rm -rf package/luci-theme-argon package/luci-app-argon-config
+          git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+          git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+
+      - name: Apply S20L configuration and defaults
+        run: |
+          rm -f .config
+          cp build-configs/S20L.txt .config
+          git clone --depth=1 --branch codex/hy3000-24.10 https://github.com/wangjontao/CloseWRT-CI.git /tmp/ci-config
+          cp -a /tmp/ci-config/Files/. package/base-files/files/
+          rm -f package/base-files/files/etc/init.d/npc-wan-mac
+          rm -f package/base-files/files/etc/uci-defaults/99-enable-npc-wan-mac
+          rm -f package/base-files/files/usr/libexec/npc-wan-mac
+          chmod 0755 package/base-files/files/etc/uci-defaults/99-dulwifi
+
+          mkdir -p package/base-files/files/usr/libexec
+          mkdir -p package/base-files/files/etc/init.d
+          mkdir -p package/base-files/files/etc/hotplug.d/iface
+          cat > package/base-files/files/usr/libexec/nps-wan-mac <<'NPS_MAC'
+          #!/bin/sh
+          DONE=/etc/nps-wan-mac.done
+          [ -e "$DONE" ] && exit 0
+          [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ] || exit 1
+
+          sleep 5
+          valid_mac() {
+                  case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) return 1;; ??:??:??:??:??:??) return 0;; *) return 1;; esac
+          }
+          get_wan_mac() {
+                  WAN_DEV="$(uci -q get network.wan.device)"
+                  WAN_DEV="${WAN_DEV#@}"
+                  [ -n "$WAN_DEV" ] || WAN_DEV="$(ip route 2>/dev/null | awk '/default/ {print $5; exit}')"
+                  case "$WAN_DEV" in pppoe-*) WAN_DEV="${WAN_DEV#pppoe-}";; esac
+                  WAN_MAC=""
+                  [ -n "$WAN_DEV" ] && [ -r "/sys/class/net/$WAN_DEV/address" ] && WAN_MAC="$(cat "/sys/class/net/$WAN_DEV/address")"
+                  valid_mac "$WAN_MAC" && return 0
+                  for LOWER in /sys/class/net/"$WAN_DEV"/lower_*; do
+                          [ -r "$LOWER/address" ] || continue
+                          WAN_MAC="$(cat "$LOWER/address")"
+                          valid_mac "$WAN_MAC" && return 0
+                  done
+                  return 1
+          }
+          tries=0
+          while [ "$tries" -lt 60 ]; do get_wan_mac && break; tries=$((tries + 1)); sleep 2; done
+          valid_mac "$WAN_MAC" || { logger -t nps-wan-mac 'ERROR: physical WAN MAC not found'; exit 1; }
+          NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          uci -q set nps.@nps[0].enabled='1'
+          uci -q set nps.@nps[0].server_addr='nps.jontao.top'
+          uci -q set nps.@nps[0].server_port='8024'
+          uci -q set nps.@nps[0].protocol='tcp'
+          uci -q set nps.@nps[0].compress='1'
+          uci -q set nps.@nps[0].crypt='1'
+          uci -q set nps.@nps[0].vkey="$NPS_KEY"
+          uci -q commit nps
+          /etc/init.d/nps enable
+          /etc/init.d/nps restart
+          touch "$DONE"
+          logger -t nps-wan-mac "NPS configured from physical WAN MAC $WAN_DEV"
+          NPS_MAC
+
+          cat > package/base-files/files/etc/init.d/nps-wan-mac <<'NPS_INIT'
+          #!/bin/sh /etc/rc.common
+          START=98
+          STOP=10
+          start() { [ -e /etc/nps-wan-mac.done ] || /usr/libexec/nps-wan-mac >/dev/null 2>&1 & }
+          NPS_INIT
+
+          cat > package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac <<'NPS_HOTPLUG'
+          #!/bin/sh
+          [ -e /etc/nps-wan-mac.done ] && exit 0
+          [ "$INTERFACE" = 'wan' ] && [ "$ACTION" = 'ifup' ] && /usr/libexec/nps-wan-mac >/dev/null 2>&1 &
+          NPS_HOTPLUG
+
+          cat > package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac <<'NPS_DEFAULT'
+          #!/bin/sh
+          /etc/init.d/nps-wan-mac enable
+          /etc/init.d/nps-wan-mac start
+          exit 0
+          NPS_DEFAULT
+
+          chmod 0755 package/base-files/files/usr/libexec/nps-wan-mac
+          chmod 0755 package/base-files/files/etc/init.d/nps-wan-mac
+          chmod 0755 package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac
+          chmod 0755 package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac
+
+          sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bin/config_generate
+          sed -i "s/hostname='.*'/hostname='DulWiFi'/g" package/base-files/files/bin/config_generate
+          ROOT_HASH="$(openssl passwd -1 '@password@')"
+          sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
+
+          # Keep only the two physical Wi-Fi interfaces; disable/remove the legacy AP1-AP20 bootstrap.
+          rm -f files/etc/init.d/setup-20wifi-firstboot
+          rm -f files/etc/uci-defaults/99-enable-20wifi-firstboot
+          rm -f files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
+          rm -rf files/root/ap20-wifi-config
+
+          cat > files/usr/libexec/dulwifi-firstboot <<'SCRIPT'
+          #!/bin/sh
+          set -e
+          [ -e /etc/dulwifi-firstboot.done ] && exit 0
+          sleep 60
+          (
+          if [ ! -e /etc/dulwifi-wifi.done ]; then
+              tries=0
+              RADIO2=''
+              RADIO5=''
+              while :; do
+                  for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
+                      band="$(uci -q get wireless.$radio.band || true)"
+                      hw="$(uci -q get wireless.$radio.hwmode || true)"
+                      case "$band:$hw" in
+                          2g:*|*:11g) RADIO2="$radio";;
+                          5g:*|*:11a) RADIO5="$radio";;
+                      esac
+                  done
+                  [ -n "$RADIO2" ] && [ -n "$RADIO5" ] && break
+                  tries=$((tries+1))
+                  [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both WiFi radios not ready; retry next boot'; exit 1; }
+                  sleep 2
+              done
+
+              # Configure only the two existing primary APs before adding A1-A5.
+              uci set wireless.$RADIO5.channel='48'
+              for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+                  radio="$(uci -q get wireless.$iface.device || true)"
+                  case "$radio" in
+                      "$RADIO2") uci set wireless.$iface.ssid='A-2.4G';;
+                      "$RADIO5") uci set wireless.$iface.ssid='A-5G';;
+                      *) continue;;
+                  esac
+                  uci set wireless.$iface.encryption='psk2+ccmp'
+                  uci set wireless.$iface.key='a1111111'
+                  uci set wireless.$iface.disabled='0'
+                  uci set wireless.$radio.disabled='0'
+              done
+              for i in 1 2 3 4 5; do
+                  n="tk$i"
+                  uci set network.${n}_dev='device'
+                  uci set network.${n}_dev.name="br-$n"
+                  uci set network.${n}_dev.type='bridge'
+                  uci set network.${n}_dev.bridge_empty='1'
+                  uci set network.${n}_dev.ipv6='0'
+                  uci set network.$n='interface'
+                  uci set network.$n.device="br-$n"
+                  uci set network.$n.proto='static'
+                  uci set network.$n.ipaddr="172.16.$i.1"
+                  uci set network.$n.netmask='255.255.255.0'
+                  uci set network.$n.delegate='0'
+                  uci set dhcp.$n='dhcp'
+                  uci set dhcp.$n.interface="$n"
+                  uci set dhcp.$n.start='100'
+                  uci set dhcp.$n.limit='100'
+                  uci set dhcp.$n.leasetime='12h'
+                  uci set dhcp.$n.ra='disabled'
+                  uci set dhcp.$n.dhcpv6='disabled'
+                  uci set dhcp.$n.ndp='disabled'
+                  uci set wireless.$n='wifi-iface'
+                  uci set wireless.$n.device="$RADIO5"
+                  uci set wireless.$n.network="$n"
+                  uci set wireless.$n.mode='ap'
+                  uci set wireless.$n.ssid="A$i"
+                  uci set wireless.$n.encryption='psk2+ccmp'
+                  uci set wireless.$n.key='a1111111'
+                  uci set wireless.$n.isolate='1'
+                  uci set wireless.$n.disabled='0'
+                  uci set firewall.$n='zone'
+                  uci set firewall.$n.name="$n"
+                  uci -q delete firewall.$n.network || true
+                  uci add_list firewall.$n.network="$n"
+                  uci set firewall.$n.input='ACCEPT'
+                  uci set firewall.$n.output='ACCEPT'
+                  uci set firewall.$n.forward='REJECT'
+                  uci set firewall.${n}_dhcp='rule'
+                  uci set firewall.${n}_dhcp.name="TK$i DHCP"
+                  uci set firewall.${n}_dhcp.src="$n"
+                  uci set firewall.${n}_dhcp.proto='udp'
+                  uci set firewall.${n}_dhcp.dest_port='67'
+                  uci set firewall.${n}_dhcp.family='ipv4'
+                  uci set firewall.${n}_dhcp.target='ACCEPT'
+
+                  idx="$(printf '%02d' "$i")"
+                  if [ -f /etc/config/passwall ]; then
+                      uci set passwall.dul_a${idx}='acl_rule'
+                      uci set passwall.dul_a${idx}.enabled='1'
+                      uci set passwall.dul_a${idx}.remarks="A$i"
+                      uci set passwall.dul_a${idx}.sources="172.16.$i.0/24"
+                      uci set passwall.dul_a${idx}.tcp_proxy_mode='proxy'
+                      uci set passwall.dul_a${idx}.udp_proxy_mode='proxy'
+                      uci set passwall.dul_a${idx}.tcp_no_redir_ports='disable'
+                      uci set passwall.dul_a${idx}.udp_no_redir_ports='disable'
+                      uci set passwall.dul_a${idx}.tcp_redir_ports='1:65535'
+                      uci set passwall.dul_a${idx}.udp_redir_ports='1:65535'
+                      uci set passwall.dul_a${idx}.node='default'
+                  fi
+
+                  if [ -f /etc/config/passwall2 ]; then
+                      uci set passwall2.dul_a${idx}='acl_rule'
+                      uci set passwall2.dul_a${idx}.enabled='1'
+                      uci set passwall2.dul_a${idx}.remarks="A$i"
+                      uci set passwall2.dul_a${idx}.sources="172.16.$i.0/24"
+                      uci set passwall2.dul_a${idx}.tcp_proxy_mode='proxy'
+                      uci set passwall2.dul_a${idx}.udp_proxy_mode='proxy'
+                      uci set passwall2.dul_a${idx}.tcp_no_redir_ports='disable'
+                      uci set passwall2.dul_a${idx}.udp_no_redir_ports='disable'
+                      uci set passwall2.dul_a${idx}.tcp_redir_ports='1:65535'
+                      uci set passwall2.dul_a${idx}.udp_redir_ports='1:65535'
+                      uci set passwall2.dul_a${idx}.node='default'
+                  fi
+              done
+              uci set firewall.@defaults[0].flow_offloading='0'
+              uci set firewall.@defaults[0].flow_offloading_hw='0'
+              uci commit network
+              uci commit dhcp
+              uci commit wireless
+              uci commit firewall
+              if [ -f /etc/config/passwall ]; then uci commit passwall; fi
+              if [ -f /etc/config/passwall2 ]; then uci commit passwall2; fi
+              /etc/init.d/firewall reload || true
+              /etc/init.d/network reload || true
+              sleep 5
+              /etc/init.d/dnsmasq restart || true
+              wifi reload || true
+              if [ -x /etc/init.d/passwall ]; then /etc/init.d/passwall restart || true; fi
+              if [ -x /etc/init.d/passwall2 ]; then /etc/init.d/passwall2 restart || true; fi
+              touch /etc/dulwifi-wifi.done
+          fi
+          ) || logger -t dulwifi '5WiFi setup incomplete; continuing NPS setup'
+          valid_mac() {
+              printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
+                  [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]
+          }
+          mac=''
+          tries=0
+          while ! valid_mac "$mac"; do
+              dev="$(uci -q get network.wan.device || uci -q get network.wan.ifname || true)"
+              case "$dev" in @*) dev="$(uci -q get network.${dev#@}.device || true)";; esac
+              [ -n "$dev" ] || dev="$(ip route | awk '/default/ {print $5; exit}')"
+              if [ -r "/sys/class/net/$dev/address" ]; then mac="$(cat "/sys/class/net/$dev/address")"; fi
+              if ! valid_mac "$mac"; then
+                  for lower in /sys/class/net/"$dev"/lower_*; do
+                      [ -r "$lower/address" ] || continue
+                      mac="$(cat "$lower/address")"
+                      valid_mac "$mac" && break
+                  done
+              fi
+              valid_mac "$mac" && break
+              tries=$((tries+1))
+              [ "$tries" -lt 60 ] || { logger -t dulwifi 'WAN MAC unavailable; retry next boot'; exit 1; }
+              sleep 2
+          done
+          [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
+          uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
+          uci set nps.@nps[0].enabled='1'
+          uci set nps.@nps[0].server_addr='nps.jontao.top'
+          uci set nps.@nps[0].server_port='8024'
+          uci set nps.@nps[0].protocol='tcp'
+          uci set nps.@nps[0].compress='1'
+          uci set nps.@nps[0].crypt='1'
+          uci set nps.@nps[0].vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          uci commit nps
+          mkdir -p /tmp/etc
+          /etc/init.d/nps enable
+          /etc/init.d/nps restart
+          [ -e /etc/dulwifi-wifi.done ] || exit 1
+          touch /etc/dulwifi-firstboot.done
+          logger -t dulwifi '5WiFi and NPS first-boot configuration complete'
+          SCRIPT
+          chmod 0755 files/usr/libexec/dulwifi-firstboot
+          chmod 0755 files/etc/init.d/dulwifi-firstboot
+          chmod 0755 files/etc/uci-defaults/99-enable-dulwifi-firstboot
+
+          make defconfig
+          test -x files/usr/libexec/dulwifi-firstboot
+          test -x files/etc/init.d/dulwifi-firstboot
+          test -x files/etc/uci-defaults/99-enable-dulwifi-firstboot
+          grep -q "A-2.4G" files/usr/libexec/dulwifi-firstboot
+          grep -q "A-5G" files/usr/libexec/dulwifi-firstboot
+          grep -q "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
+          grep -q "server_port='8024'" files/usr/libexec/dulwifi-firstboot
+          grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-store=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-quickstart=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-theme-argon=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-argon-config=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-ttyd=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-autoreboot=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-statistics=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-passwall=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-passwall2=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-homeproxy=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-openclash=y' .config
+          grep -q '^CONFIG_PACKAGE_nps=y' .config
+          grep -q '^CONFIG_PACKAGE_npc=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-app-nps=y' .config
+          grep -q '^CONFIG_PACKAGE_luci-i18n-nps-zh-cn=y' .config
+          ! grep -q '^CONFIG_PACKAGE_luci-app-npc=y' .config
+          NPS_CONFIG_VERIFY="$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head -n1)"
+          test -n "$NPS_CONFIG_VERIFY"
+          grep -q "server_addr 'nps.jontao.top'" "$NPS_CONFIG_VERIFY"
+          grep -q "server_port '8024'" "$NPS_CONFIG_VERIFY"
+          grep -q "compress '1'" "$NPS_CONFIG_VERIFY"
+          grep -q "crypt '1'" "$NPS_CONFIG_VERIFY"
+          ./scripts/diffconfig.sh | tee S20L-final.config
+
+      - name: Download sources
+        run: |
+          make download -j"$(nproc)"
+          find dl -type f -size -1024c -print -delete
+
+      - name: Compile S20L firmware
+        run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 5G
+          ccache -z
+          # Rebuild the Go module cache after interrupted sing-box downloads.
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          make -j"$(nproc)" || make -j1 V=s
+          ccache -s || true
+
+      - name: Verify and collect S20L firmware
+        run: |
+          mkdir -p upload
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*clx_s20l*sysupgrade*' -size +5M)
+          if [ "${#images[@]}" -eq 0 ]; then
+            echo 'ERROR: no CLX S20L sysupgrade image was produced.'
+            find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+            exit 1
+          fi
+          cp -a "${images[@]}" upload/
+          mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest')
+          [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: S20L manifest missing'; exit 1; }
+          for pkg in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash nps luci-app-nps luci-i18n-nps-zh-cn npc; do
+            grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
+          done
+          cp -a "${manifests[@]}" upload/
+          find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
+          cp S20L-final.config upload/
+          sha256sum upload/* | tee upload/SHA256SUMS
+          ls -lh upload
+
+      - name: Upload S20L firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLX-S20L-24.10-Full-LuCI-NPS-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish S20L firmware release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: CLX-S20L-Full-LuCI-NPS-24.10-${{ env.BUILD_DATE }}
+          name: CLX S20L Full LuCI NPS 24.10 ${{ env.BUILD_DATE }}
+          files: upload/*
+          body: |
+            CLX S20L / MT7986A / dailook ImmortalWrt 24.10 source
+            Source commit: ${{ env.WRT_HASH }}
+            Management IP: 192.168.7.1
+            Hostname: DulWiFi
+            Wi-Fi: only two SSIDs are enabled: DulWiFi-2.4G and DulWiFi-5G. Wireless password: password.
+            Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps client.
+            No AP1-AP20 multi-SSID bootstrap is included.
+            NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.jontao.top:8024 TCP, compression and encryption enabled.
