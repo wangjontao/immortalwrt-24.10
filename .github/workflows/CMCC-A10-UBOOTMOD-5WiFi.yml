@@ -89,9 +89,15 @@ jobs:
           rm -rf package/homeproxy/.git
 
           rm -rf package/luci-app-openclash
-          git clone https://github.com/vernesong/OpenClash.git /tmp/openclash
-          git -C /tmp/openclash checkout "$OPENCLASH_COMMIT"
-          cp -a /tmp/openclash/luci-app-openclash package/
+          OPENCLASH_TMP="$(mktemp -d)"
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 8 --retry-all-errors --retry-delay 10 --retry-max-time 2400 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/${OPENCLASH_COMMIT}" \
+            --output "$OPENCLASH_TMP/source.tar.gz"
+          tar -xzf "$OPENCLASH_TMP/source.tar.gz" -C "$OPENCLASH_TMP"
+          test -s "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash/Makefile"
+          cp -a "$OPENCLASH_TMP/OpenClash-${OPENCLASH_COMMIT}/luci-app-openclash" package/
 
           rm -rf package/npc package/luci-app-nps package/luci-app-npc package/feeds/luci/luci-app-nps
           git init /tmp/lean-luci
