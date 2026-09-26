@@ -1,0 +1,461 @@
+name: Konka KOMI A31 5WiFi services
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - jontaoNpS-konka-komi-a31-5wifi
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-latest
+  cancel-in-progress: true
+
+env:
+  PASSWALL_TAG: 26.3.6-1
+  PASSWALL2_TAG: 26.3.5-1
+  PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
+  HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
+  OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
+  NPS_COMMIT: 480f2e502575641a0c9280d6fad971550621316d
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Initialize environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git \
+            libncurses-dev libssl-dev python3-setuptools rsync swig unzip zlib1g-dev file wget curl jq \
+            openssl ccache zstd
+          # GitHub's hosted image contains large SDKs that are unrelated to OpenWrt.
+          # Removing them prevents target/install from exhausting the runner disk.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Ruby
+          sudo docker system prune -af >/dev/null 2>&1 || true
+          sudo apt-get clean
+          df -h /
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "SOURCE_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+          cache: false
+
+      - name: Restore download and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: immortalwrt-24.10-a31-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            immortalwrt-24.10-a31-${{ runner.os }}-
+
+      - name: Verify Konka KOMI A31 layout
+        run: |
+          DTS=target/linux/mediatek/dts/mt7981b-konka-komi-a31.dts
+          EMMC=target/linux/mediatek/dts/mt7981b-konka-komi-a31-emmc.dtso
+          NOR=target/linux/mediatek/dts/mt7981b-konka-komi-a31-nor.dtso
+          test -s "$DTS"
+          test -s "$EMMC"
+          test -s "$NOR"
+          grep -q 'model = "Konka KOMI A31"' "$DTS"
+          grep -q 'compatible = "konka,komi-a31", "mediatek,mt7981"' "$DTS"
+          grep -q 'label = "ubi"' "$DTS"
+          grep -q 'reg = <0x580000 0x7000000>;' "$DTS"
+          grep -q 'compatible = "konka,komi-a31", "mediatek,mt7981"' "$EMMC"
+          grep -q 'compatible = "konka,komi-a31", "mediatek,mt7981"' "$NOR"
+          sed -n '/^define Device\/konka_komi-a31$/,/^endef$/p' target/linux/mediatek/image/filogic.mk | grep -q 'IMAGE_SIZE := 114688k'
+          grep -q 'TARGET_DEVICES += konka_komi-a31' target/linux/mediatek/image/filogic.mk
+          echo 'Verified Konka KOMI A31 DTS, eMMC/NOR overlays and image layout.'
+
+      - name: Update feeds and add application sources
+        run: |
+          cat >> feeds.conf.default <<'FEEDS'
+          src-git istore https://github.com/linkease/istore.git;main
+          src-git nas_packages https://github.com/linkease/nas-packages.git;master
+          src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main
+          FEEDS
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          ./scripts/feeds install -d y -p istore luci-app-store
+          ./scripts/feeds install -d y -p nas_packages quickstart
+          ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
+
+          rm -rf package/luci-app-passwall package/luci-app-passwall2 package/passwall-packages
+          git clone --depth=1 --branch "$PASSWALL_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall.git /tmp/passwall
+          mv /tmp/passwall/luci-app-passwall package/
+          git clone --depth=1 --branch "$PASSWALL2_TAG" https://github.com/Openwrt-Passwall/openwrt-passwall2.git /tmp/passwall2
+          mv /tmp/passwall2/luci-app-passwall2 package/
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git package/passwall-packages
+          git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
+          rm -rf package/passwall-packages/.git
+
+          rm -rf package/homeproxy package/luci-app-homeproxy
+          git clone https://github.com/immortalwrt/homeproxy.git package/homeproxy
+          git -C package/homeproxy checkout "$HOMEPROXY_COMMIT"
+          rm -rf package/homeproxy/.git
+
+          rm -rf package/luci-app-openclash /tmp/openclash
+          curl --fail --location --show-error --silent \
+            --connect-timeout 30 --max-time 300 \
+            --retry 8 --retry-all-errors --retry-delay 10 --retry-max-time 2400 \
+            "https://codeload.github.com/vernesong/OpenClash/tar.gz/$OPENCLASH_COMMIT" \
+            -o /tmp/openclash.tar.gz
+          mkdir -p /tmp/openclash
+          tar -xzf /tmp/openclash.tar.gz --strip-components=1 -C /tmp/openclash
+          test -s /tmp/openclash/luci-app-openclash/Makefile
+          cp -a /tmp/openclash/luci-app-openclash package/
+
+          rm -rf package/npc package/luci-app-nps package/luci-app-npc
+          git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
+          git -C /tmp/nps checkout "$NPS_COMMIT"
+          cp -a /tmp/nps/npc package/
+          git clone --depth=1 --filter=blob:none --sparse https://github.com/coolsnowwolf/luci.git /tmp/lean-luci
+          git -C /tmp/lean-luci sparse-checkout set applications/luci-app-nps
+          cp -a /tmp/lean-luci/applications/luci-app-nps package/
+          sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
+
+          rm -rf package/luci-theme-argon package/luci-app-argon-config
+          git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+          git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+
+          rm -rf feeds/nas_packages/network/services/librespeed-cli \
+            feeds/nas_packages/network/services/librespeed-cli-rust \
+            feeds/nas_packages/libs/librespeed-common
+          rm -rf package/feeds/nas_packages/librespeed-cli \
+            package/feeds/nas_packages/librespeed-cli-rust \
+            package/feeds/nas_packages/librespeed-common
+          rm -rf tmp
+
+      - name: Configure Konka KOMI A31 5WiFi and first-boot defaults
+        run: |
+          cat > .config <<'CONFIG'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_filogic=y
+          CONFIG_TARGET_mediatek_filogic_DEVICE_konka_komi-a31=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_LUCI_LANG_zh_Hans=y
+          CONFIG_PACKAGE_luci-app-store=y
+          CONFIG_PACKAGE_luci-app-quickstart=y
+          CONFIG_PACKAGE_quickstart=y
+          CONFIG_PACKAGE_luci-theme-argon=y
+          CONFIG_PACKAGE_luci-app-argon-config=y
+          CONFIG_PACKAGE_luci-app-ttyd=y
+          CONFIG_PACKAGE_ttyd=y
+          CONFIG_PACKAGE_luci-app-passwall=y
+          CONFIG_PACKAGE_luci-app-passwall2=y
+          CONFIG_PACKAGE_luci-app-homeproxy=y
+          CONFIG_PACKAGE_luci-app-openclash=y
+          CONFIG_PACKAGE_npc=y
+          CONFIG_PACKAGE_luci-app-nps=y
+          # CONFIG_PACKAGE_luci-app-npc is not set
+          CONFIG_PACKAGE_luci-app-filemanager=y
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-wol=y
+          CONFIG_PACKAGE_luci-app-samba4=y
+          CONFIG_PACKAGE_luci-app-sqm=y
+          CONFIG_PACKAGE_luci-app-statistics=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_ip-full=y
+          CONFIG_PACKAGE_ca-certificates=y
+          CONFIG_PACKAGE_kmod-tun=y
+          CONFIG_PACKAGE_kmod-nft-socket=y
+          CONFIG_PACKAGE_kmod-nft-tproxy=y
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_CCACHE=y
+          CONFIG
+          make defconfig
+
+          echo "===== Selected target device ====="
+          grep '^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y' .config || true
+          grep -qx 'CONFIG_TARGET_mediatek_filogic_DEVICE_konka_komi-a31=y' .config || {
+            echo "ERROR: Konka KOMI A31 target was not selected!"
+            exit 1
+          }
+
+          mkdir -p files/etc
+          openssl passwd -1 '@password@' > files/etc/dulwifi-root.hash
+          cp package/base-files/files/etc/shadow files/etc/shadow
+          HASH="$(cat files/etc/dulwifi-root.hash)"
+          sed -i "s#^root:[^:]*:#root:${HASH}:#" files/etc/shadow
+          chmod 600 files/etc/shadow files/etc/dulwifi-root.hash
+          cat > files/usr/libexec/dulwifi-firstboot <<'SCRIPT'
+          #!/bin/sh
+          set -e
+          [ -e /etc/dulwifi-firstboot.done ] && exit 0
+          sleep 60
+          (
+          if [ ! -e /etc/dulwifi-wifi.done ]; then
+              tries=0
+              RADIO2=''
+              RADIO5=''
+              while :; do
+                  for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
+                      band="$(uci -q get wireless.$radio.band || true)"
+                      hw="$(uci -q get wireless.$radio.hwmode || true)"
+                      case "$band:$hw" in
+                          2g:*|*:11g) RADIO2="$radio";;
+                          5g:*|*:11a) RADIO5="$radio";;
+                      esac
+                  done
+                  [ -n "$RADIO2" ] && [ -n "$RADIO5" ] && break
+                  tries=$((tries+1))
+                  [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both WiFi radios not ready; retry next boot'; exit 1; }
+                  sleep 2
+              done
+
+              # Configure only the two existing primary APs before adding A1-A5.
+              uci set wireless.$RADIO5.channel='48'
+              for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+                  radio="$(uci -q get wireless.$iface.device || true)"
+                  case "$radio" in
+                      "$RADIO2") uci set wireless.$iface.ssid='A-2.4G';;
+                      "$RADIO5") uci set wireless.$iface.ssid='A-5G';;
+                      *) continue;;
+                  esac
+                  uci set wireless.$iface.encryption='psk2+ccmp'
+                  uci set wireless.$iface.key='a1111111'
+                  uci set wireless.$iface.disabled='0'
+                  uci set wireless.$radio.disabled='0'
+              done
+              for i in 1 2 3 4 5; do
+                  n="tk$i"
+                  uci set network.${n}_dev='device'
+                  uci set network.${n}_dev.name="br-$n"
+                  uci set network.${n}_dev.type='bridge'
+                  uci set network.${n}_dev.bridge_empty='1'
+                  uci set network.${n}_dev.ipv6='0'
+                  uci set network.$n='interface'
+                  uci set network.$n.device="br-$n"
+                  uci set network.$n.proto='static'
+                  uci set network.$n.ipaddr="172.16.$i.1"
+                  uci set network.$n.netmask='255.255.255.0'
+                  uci set network.$n.delegate='0'
+                  uci set dhcp.$n='dhcp'
+                  uci set dhcp.$n.interface="$n"
+                  uci set dhcp.$n.start='100'
+                  uci set dhcp.$n.limit='100'
+                  uci set dhcp.$n.leasetime='12h'
+                  uci set dhcp.$n.ra='disabled'
+                  uci set dhcp.$n.dhcpv6='disabled'
+                  uci set dhcp.$n.ndp='disabled'
+                  uci set wireless.$n='wifi-iface'
+                  uci set wireless.$n.device="$RADIO5"
+                  uci set wireless.$n.network="$n"
+                  uci set wireless.$n.mode='ap'
+                  uci set wireless.$n.ssid="A$i"
+                  uci set wireless.$n.encryption='psk2+ccmp'
+                  uci set wireless.$n.key='a1111111'
+                  uci set wireless.$n.isolate='1'
+                  uci set wireless.$n.disabled='0'
+                  uci set firewall.$n='zone'
+                  uci set firewall.$n.name="$n"
+                  uci -q delete firewall.$n.network || true
+                  uci add_list firewall.$n.network="$n"
+                  uci set firewall.$n.input='ACCEPT'
+                  uci set firewall.$n.output='ACCEPT'
+                  uci set firewall.$n.forward='REJECT'
+                  uci set firewall.${n}_dhcp='rule'
+                  uci set firewall.${n}_dhcp.name="TK$i DHCP"
+                  uci set firewall.${n}_dhcp.src="$n"
+                  uci set firewall.${n}_dhcp.proto='udp'
+                  uci set firewall.${n}_dhcp.dest_port='67'
+                  uci set firewall.${n}_dhcp.family='ipv4'
+                  uci set firewall.${n}_dhcp.target='ACCEPT'
+
+                  idx="$(printf '%02d' "$i")"
+                  if [ -f /etc/config/passwall ]; then
+                      uci set passwall.dul_a${idx}='acl_rule'
+                      uci set passwall.dul_a${idx}.enabled='1'
+                      uci set passwall.dul_a${idx}.remarks="A$i"
+                      uci set passwall.dul_a${idx}.sources="172.16.$i.0/24"
+                      uci set passwall.dul_a${idx}.tcp_proxy_mode='proxy'
+                      uci set passwall.dul_a${idx}.udp_proxy_mode='proxy'
+                      uci set passwall.dul_a${idx}.tcp_no_redir_ports='disable'
+                      uci set passwall.dul_a${idx}.udp_no_redir_ports='disable'
+                      uci set passwall.dul_a${idx}.tcp_redir_ports='1:65535'
+                      uci set passwall.dul_a${idx}.udp_redir_ports='1:65535'
+                      uci set passwall.dul_a${idx}.node='default'
+                  fi
+
+                  if [ -f /etc/config/passwall2 ]; then
+                      uci set passwall2.dul_a${idx}='acl_rule'
+                      uci set passwall2.dul_a${idx}.enabled='1'
+                      uci set passwall2.dul_a${idx}.remarks="A$i"
+                      uci set passwall2.dul_a${idx}.sources="172.16.$i.0/24"
+                      uci set passwall2.dul_a${idx}.tcp_proxy_mode='proxy'
+                      uci set passwall2.dul_a${idx}.udp_proxy_mode='proxy'
+                      uci set passwall2.dul_a${idx}.tcp_no_redir_ports='disable'
+                      uci set passwall2.dul_a${idx}.udp_no_redir_ports='disable'
+                      uci set passwall2.dul_a${idx}.tcp_redir_ports='1:65535'
+                      uci set passwall2.dul_a${idx}.udp_redir_ports='1:65535'
+                      uci set passwall2.dul_a${idx}.node='default'
+                  fi
+              done
+              uci set firewall.@defaults[0].flow_offloading='0'
+              uci set firewall.@defaults[0].flow_offloading_hw='0'
+              uci commit network
+              uci commit dhcp
+              uci commit wireless
+              uci commit firewall
+              if [ -f /etc/config/passwall ]; then uci commit passwall; fi
+              if [ -f /etc/config/passwall2 ]; then uci commit passwall2; fi
+              /etc/init.d/firewall reload || true
+              /etc/init.d/network reload || true
+              sleep 5
+              /etc/init.d/dnsmasq restart || true
+              wifi reload || true
+              if [ -x /etc/init.d/passwall ]; then /etc/init.d/passwall restart || true; fi
+              if [ -x /etc/init.d/passwall2 ]; then /etc/init.d/passwall2 restart || true; fi
+              touch /etc/dulwifi-wifi.done
+          fi
+          ) || logger -t dulwifi '5WiFi setup incomplete; continuing NPS setup'
+          valid_mac() {
+              printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
+                  [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]
+          }
+          mac=''
+          tries=0
+          while ! valid_mac "$mac"; do
+              dev="$(uci -q get network.wan.device || uci -q get network.wan.ifname || true)"
+              case "$dev" in @*) dev="$(uci -q get network.${dev#@}.device || true)";; esac
+              [ -n "$dev" ] || dev="$(ip route | awk '/default/ {print $5; exit}')"
+              if [ -r "/sys/class/net/$dev/address" ]; then mac="$(cat "/sys/class/net/$dev/address")"; fi
+              if ! valid_mac "$mac"; then
+                  for lower in /sys/class/net/"$dev"/lower_*; do
+                      [ -r "$lower/address" ] || continue
+                      mac="$(cat "$lower/address")"
+                      valid_mac "$mac" && break
+                  done
+              fi
+              valid_mac "$mac" && break
+              tries=$((tries+1))
+              [ "$tries" -lt 60 ] || { logger -t dulwifi 'WAN MAC unavailable; retry next boot'; exit 1; }
+              sleep 2
+          done
+          [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
+          uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
+          uci set nps.@nps[0].enabled='1'
+          uci set nps.@nps[0].server_addr='nps.jontao.top'
+          uci set nps.@nps[0].server_port='8024'
+          uci set nps.@nps[0].protocol='tcp'
+          uci set nps.@nps[0].compress='1'
+          uci set nps.@nps[0].crypt='1'
+          uci set nps.@nps[0].vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          uci commit nps
+          mkdir -p /tmp/etc
+          /etc/init.d/nps enable
+          /etc/init.d/nps restart
+          [ -e /etc/dulwifi-wifi.done ] || exit 1
+          touch /etc/dulwifi-firstboot.done
+          logger -t dulwifi '5WiFi and NPS first-boot configuration complete'
+          SCRIPT
+          chmod 755 files/etc/uci-defaults/99-zz-dulwifi files/etc/init.d/dulwifi-firstboot files/usr/libexec/dulwifi-firstboot
+          sh -n files/etc/uci-defaults/99-zz-dulwifi
+          sh -n files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-2.4G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq "ssid='A-5G'" files/usr/libexec/dulwifi-firstboot
+          grep -Fq "channel='48'" files/usr/libexec/dulwifi-firstboot
+          grep -q "passwall.dul_a" files/usr/libexec/dulwifi-firstboot
+          grep -q "passwall2.dul_a" files/usr/libexec/dulwifi-firstboot
+
+          for symbol in CONFIG_PACKAGE_luci-app-store CONFIG_PACKAGE_luci-app-quickstart \
+            CONFIG_PACKAGE_luci-theme-argon CONFIG_PACKAGE_luci-app-ttyd \
+            CONFIG_PACKAGE_luci-app-passwall CONFIG_PACKAGE_luci-app-passwall2 \
+            CONFIG_PACKAGE_luci-app-homeproxy CONFIG_PACKAGE_luci-app-openclash \
+            CONFIG_PACKAGE_luci-app-nps CONFIG_PACKAGE_npc; do
+            grep -qx "$symbol=y" .config || { echo "ERROR: $symbol missing"; exit 1; }
+          done
+          ./scripts/diffconfig.sh | tee KOMI-A31-final.config
+
+      - name: Download and compile
+        run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 5G
+          ccache -z
+          make download -j"$(nproc)"
+          find dl -type f -size -1024c -print -delete
+          rm -rf feeds/*/.git package/*/.git package/*/*/.git
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          df -h /
+          make -j"$(nproc)" || { df -h /; make -j1 V=s; }
+          ccache -s || true
+
+      - name: Verify and collect
+        run: |
+          mkdir -p upload
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname '*konka_komi-a31*factory.bin' -o -iname '*konka_komi-a31*sysupgrade.bin' \) -size +5M)
+          [ "${#images[@]}" -gt 0 ] || {
+            echo "ERROR: A31 firmware image not found"
+            find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f\n' | sort
+            exit 1
+          }
+          mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*konka_komi-a31*.manifest')
+          [ "${#manifests[@]}" -gt 0 ] || { echo "ERROR: A31 manifest not found"; exit 1; }
+          grep -q "nps.jontao.top" files/usr/libexec/dulwifi-firstboot || { echo "ERROR: NPS server mismatch"; exit 1; }
+          grep -q "192.168.7.1" files/etc/uci-defaults/99-zz-dulwifi || { echo "ERROR: LAN address mismatch"; exit 1; }
+          for package in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd \
+            luci-app-passwall luci-app-passwall2 luci-app-homeproxy luci-app-openclash luci-app-nps npc \
+            luci-app-filemanager luci-app-upnp luci-app-wol luci-app-samba4 luci-app-sqm luci-app-statistics; do
+            grep -q "^${package} " "${manifests[0]}" || { echo "ERROR: ${package} missing"; exit 1; }
+          done
+          cp -a "${images[@]}" "${manifests[@]}" KOMI-A31-final.config upload/
+          sha256sum upload/* | tee upload/SHA256SUMS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOMI-A31-5WiFi-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Free space before release
+        run: |
+          rm -rf build_dir staging_dir tmp dl/go-mod-cache
+          rm -rf "$RUNNER_TEMP"/* || true
+          df -h /
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: KOMI-A31-5WiFi-${{ env.BUILD_DATE }}
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/release-notes.txt <<'EOF'
+          Konka KOMI A31 / MT7981B with eMMC and NOR DTS overlays.
+          Management: http://192.168.7.1; root password: @password@.
+          Main WiFi: A-2.4G and A-5G, 5GHz channel 48; password: a1111111. Extra isolated 5GHz APs: A1-A5.
+          Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash, luci-app-nps, File Manager, UPnP, WOL, Samba4, SQM and Statistics.
+          NPS server: nps.jontao.top:8024; first boot writes the uppercase physical WAN MAC without colons to vkey.
+          EOF
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "Konka KOMI A31 5WiFi ${BUILD_DATE}" \
+              --notes-file /tmp/release-notes.txt \
+              --target "$GITHUB_SHA"
+          fi
+
+          for file in upload/*; do
+            echo "Uploading $file"
+            gh release upload "$TAG_NAME" "$file" --clobber
+          done
