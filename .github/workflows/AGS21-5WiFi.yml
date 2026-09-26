@@ -182,8 +182,8 @@ jobs:
           sh -n files/etc/uci-defaults/99-zz-dulwifi
           sh -n files/usr/libexec/dulwifi-firstboot
           grep -Fq "for i in 1 2 3 4 5; do" files/usr/libexec/dulwifi-firstboot
-          test "$(grep -c '^config acl_rule$' files/etc/config/passwall)" -eq 5
-          test "$(grep -c '^config acl_rule$' files/etc/config/passwall2)" -eq 5
+          test "$(grep -c '^config acl_rule' files/etc/config/passwall)" -eq 5
+          test "$(grep -c '^config acl_rule' files/etc/config/passwall2)" -eq 5
           grep -Fq "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
           ! grep -q '+npc' package/luci-app-nps/Makefile
           test -x files/usr/bin/npc
