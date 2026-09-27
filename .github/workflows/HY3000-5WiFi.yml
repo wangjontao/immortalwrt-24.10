@@ -223,9 +223,11 @@ jobs:
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           df -h /
-          # The verified LEDE HY3000 baseline selects kmod-mt7915e by default.
-          # ImmortalWrt 24.10 does not, so stage mac80211 first and verify the header
-          # mt76 needs before allowing the long full build to start.
+          # Build prerequisites before package-level wireless compilation.
+          # HY3000 explicitly selects kmod-mt7915e, matching the verified LEDE wireless baseline.
+          make tools/install -j"$(nproc)" || make tools/install -j1 V=s
+          make toolchain/install -j"$(nproc)" || make toolchain/install -j1 V=s
+          make target/linux/compile -j1 V=s
           make package/kernel/mac80211/compile -j1 V=s
           AUTOCONF=staging_dir/target-aarch64_cortex-a53_musl/usr/include/mac80211-backport/backport/autoconf.h
           test -s "$AUTOCONF" || { echo "ERROR: missing $AUTOCONF after mac80211 compile"; exit 1; }
