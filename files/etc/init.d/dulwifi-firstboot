@@ -2,7 +2,6 @@
 START=99
 USE_PROCD=1
 start_service() {
-    [ -e /etc/dulwifi-firstboot.done ] && return 0
     procd_open_instance
     procd_set_param command /usr/libexec/dulwifi-firstboot
     procd_set_param stdout 1
