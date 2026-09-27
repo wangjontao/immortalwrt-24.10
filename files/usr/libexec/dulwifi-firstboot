@@ -1,6 +1,5 @@
 #!/bin/sh
 set -e
-[ -e /etc/dulwifi-firstboot.done ] && exit 0
 sleep 60
 (
 if [ ! -e /etc/dulwifi-wifi.done ]; then
