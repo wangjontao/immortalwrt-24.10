@@ -376,6 +376,11 @@ config acl_rule
 	option filter_proxy_ipv6 '1'
 	option dns_mode 'dns2socks'
 
+
+
+
+
+
 config shunt_rules 'A1'
 	option remarks 'A1'
 	option network 'tcp,udp'

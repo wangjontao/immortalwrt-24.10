@@ -183,6 +183,16 @@ config acl_rule
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
 
+
+
+
+
+ 
+ config shunt_rules 'A1'
+	option remarks 'A1'
+	option network 'tcp,udp'
+	option source '172.16.1.0/24'
+
 config shunt_rules 'A2'
 	option remarks 'A2'
 	option network 'tcp,udp'
