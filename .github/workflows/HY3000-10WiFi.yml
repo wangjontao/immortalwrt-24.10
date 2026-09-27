@@ -15,7 +15,7 @@ env:
   PASSWALL_PACKAGES_COMMIT: 3e11c458c552aefd348232c627fd1ed9f8f08e41
   HOMEPROXY_COMMIT: edece28a0085f36d469ec82c8d45f562f602db53
   OPENCLASH_COMMIT: c3a33c1d3407956fdf8f0e0b7c1a4c52e6ad9593
-  NPC_VERSION: 0.26.10
+  NPC_VERSION: 0.26.24
   LEAN_LUCI_COMMIT: 0fb07d4de6db4bae39cd5c6c399dec0f0dde3cc6
 
 jobs:
@@ -110,11 +110,16 @@ jobs:
           cp -a /tmp/lean-luci/applications/luci-app-nps package/
           sed -i 's#include ../../luci.mk#include $(TOPDIR)/feeds/luci/luci.mk#' package/luci-app-nps/Makefile
           sed -i 's/+npc//g' package/luci-app-nps/Makefile
+          NPS_LUA=package/luci-app-nps/luasrc/model/cbi/nps.lua
+          test -s "$NPS_LUA"
+          sed -i -E 's/server\.datatype[[:space:]]*=[[:space:]]*"ipaddr"/server.datatype="host"/' "$NPS_LUA"
+          sed -i 's/Must an IPv4 address/IPv4 address or domain name/' "$NPS_LUA"
+          grep -q 'server.datatype="host"' "$NPS_LUA"
           NPC_TMP="$(mktemp -d)"
           curl --fail --location --show-error --silent \
             --connect-timeout 30 --max-time 300 \
             --retry 5 --retry-all-errors --retry-delay 10 --retry-max-time 1800 \
-            "https://github.com/ehang-io/nps/releases/download/v${NPC_VERSION}/linux_arm64_client.tar.gz" \
+            "https://github.com/yisier/nps/releases/download/v${NPC_VERSION}/linux_arm64_client.tar.gz" \
             --output "$NPC_TMP/linux_arm64_client.tar.gz"
           tar -xzf "$NPC_TMP/linux_arm64_client.tar.gz" -C "$NPC_TMP"
           test -s "$NPC_TMP/npc"
@@ -211,14 +216,8 @@ jobs:
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           df -h /
-          # Build host tools and cross toolchain before package-level builds.
-          make tools/install -j"$(nproc)"
-          make toolchain/install -j"$(nproc)"
-          # Prepare the target kernel before compiling kernel-module packages.
-          make target/linux/compile -j1 V=s
-          # Stage mac80211 headers before mt76 to avoid their parallel dependency race.
-          make package/kernel/mac80211/compile -j1 V=s
-          make package/kernel/mt76/compile -j1 V=s
+          # Let the OpenWrt build system resolve kernel/mac80211/mt76 dependency order.
+          # Do not force mt76 before mac80211 development headers are staged.
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
 
       - name: Save download cache even after failure
@@ -253,7 +252,7 @@ jobs:
             Philips HY3000 / MT7981 / ported eMMC DTS for immortalwrt-24.10.
             Includes iStore, QuickStart, Argon, TTYD, PassWall, PassWall2, HomeProxy, OpenClash and luci-app-nps.
             Management: 192.168.7.1/@password@. Main WiFi: A-2.4G and A-5G, password a1111111. 10WiFi: A1-A8 on 5GHz and A9-A10 on 2.4GHz, password a1111111, isolated networks 172.16.1.0/24 through 172.16.10.0/24 with no WAN forwarding.
-            NPS server: nps.jontao.top:8024; NPC is ehang-io/nps 0.26.10 (Core 0.26.0); first boot writes the uppercase physical WAN MAC without colons to vkey.
+            NPS server: nps.jontao.top:8024; NPC is yisier/nps 0.26.24; LuCI accepts domain names; every boot writes the uppercase physical WAN MAC without colons to vkey and restarts NPS.
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
