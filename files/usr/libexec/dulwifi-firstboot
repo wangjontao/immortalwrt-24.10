@@ -17,9 +17,10 @@ if [ ! -e /etc/dulwifi-wifi.done ]; then
         [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both wireless radios not ready; retry next boot'; exit 1; }
         sleep 2
     done
+    uci set wireless.$R5.channel='48'
     for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
         radio="$(uci -q get wireless.$iface.device)"
-        case "$radio" in "$R2") ssid='A-2.4G';; "$R5") ssid='A-5G';; *) continue;; esac
+        case "$radio" in "$R2") ssid='DulWiFi-2.4G';; "$R5") ssid='DulWiFi-5G';; *) continue;; esac
         uci set wireless.$iface.ssid="$ssid"
         uci set wireless.$iface.encryption='psk2+ccmp'
         uci set wireless.$iface.key='a1111111'
