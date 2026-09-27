@@ -215,6 +215,10 @@ jobs:
           rm -rf dl/go-mod-cache
           mkdir -p dl/go-mod-cache
           df -h /
+          # mt76 needs the mac80211 backport headers to be staged first. Building
+          # these two packages sequentially avoids a parallel dependency race.
+          make package/kernel/mac80211/compile -j1 V=s
+          make package/kernel/mt76/compile -j1 V=s
           make -j"$(nproc)" || { df -h /; make -j1 V=s; }
 
       - name: Save download cache even after failure
