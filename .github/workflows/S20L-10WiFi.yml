@@ -1,10 +1,10 @@
-name: CLX S20L 10WiFi Stable Native WiFi Realtime-IP
+name: CLX S20L 20WiFi Stable Native Uploaded-ACL Realtime-IP
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-clx-s20l-10wifi-stable-native-realtimeip-v1
+      - jontaoNpS-clx-s20l-20wifi-stable-uploaded-acl-ip-v2
     paths:
       - '.github/workflows/S20L-10WiFi.yml'
       - 'build-configs/S20L.txt'
@@ -235,189 +235,171 @@ jobs:
           rm -f files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
           rm -rf files/root/ap20-wifi-config
 
+          mkdir -p files/etc/juliang-20wifi
+          cp profiles/s20l-uploaded/20wifi/passwall files/etc/juliang-20wifi/passwall
+          cp profiles/s20l-uploaded/20wifi/passwall2 files/etc/juliang-20wifi/passwall2
+          chmod 0600 files/etc/juliang-20wifi/passwall files/etc/juliang-20wifi/passwall2
+          cmp -s profiles/s20l-uploaded/20wifi/passwall files/etc/juliang-20wifi/passwall
+          cmp -s profiles/s20l-uploaded/20wifi/passwall2 files/etc/juliang-20wifi/passwall2
+
           cat > files/usr/libexec/dulwifi-firstboot <<'SCRIPT'
           #!/bin/sh
           set -e
           [ -e /etc/dulwifi-firstboot.done ] && exit 0
           sleep 60
-          (
-          if [ ! -e /etc/dulwifi-wifi.done ]; then
-              tries=0
-              RADIO2=''
-              RADIO5=''
-              while :; do
-                  for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
-                      band="$(uci -q get wireless.$radio.band || true)"
-                      hw="$(uci -q get wireless.$radio.hwmode || true)"
-                      case "$band:$hw" in
-                          2g:*|*:11g) RADIO2="$radio";;
-                          5g:*|*:11a) RADIO5="$radio";;
-                      esac
-                  done
-                  [ -n "$RADIO2" ] && [ -n "$RADIO5" ] && break
-                  tries=$((tries+1))
-                  [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both WiFi radios not ready; retry next boot'; exit 1; }
-                  sleep 2
-              done
 
-              # Configure only the two existing primary APs before adding A1-A10.
-              uci set wireless.$RADIO5.channel='48'
-              for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
-                  radio="$(uci -q get wireless.$iface.device || true)"
-                  case "$radio" in
-                      "$RADIO2") uci set wireless.$iface.ssid='A-2.4G';;
-                      "$RADIO5") uci set wireless.$iface.ssid='A-5G';;
-                      *) continue;;
-                  esac
-                  uci set wireless.$iface.encryption='psk2+ccmp'
-                  uci set wireless.$iface.key='a1111111'
-                  uci set wireless.$iface.disabled='0'
-                  uci set wireless.$radio.disabled='0'
-              done
-              for i in 1 2 3 4 5 6 7 8 9 10; do
-                  n="tk$i"
-                  uci set network.${n}_dev='device'
-                  uci set network.${n}_dev.name="br-$n"
-                  uci set network.${n}_dev.type='bridge'
-                  uci set network.${n}_dev.bridge_empty='1'
-                  uci set network.${n}_dev.ipv6='0'
-                  uci set network.$n='interface'
-                  uci set network.$n.device="br-$n"
-                  uci set network.$n.proto='static'
-                  uci set network.$n.ipaddr="172.16.$i.1"
-                  uci set network.$n.netmask='255.255.255.0'
-                  uci set network.$n.delegate='0'
-                  uci set dhcp.$n='dhcp'
-                  uci set dhcp.$n.interface="$n"
-                  uci set dhcp.$n.start='100'
-                  uci set dhcp.$n.limit='100'
-                  uci set dhcp.$n.leasetime='12h'
-                  uci set dhcp.$n.ra='disabled'
-                  uci set dhcp.$n.dhcpv6='disabled'
-                  uci set dhcp.$n.ndp='disabled'
-                  uci set wireless.$n='wifi-iface'
-                  uci set wireless.$n.device="$RADIO5"
-                  uci set wireless.$n.network="$n"
-                  uci set wireless.$n.mode='ap'
-                  uci set wireless.$n.ssid="A$i"
-                  uci set wireless.$n.encryption='psk2+ccmp'
-                  uci set wireless.$n.key='a1111111'
-                  uci set wireless.$n.isolate='1'
-                  uci set wireless.$n.disabled='0'
-                  uci set firewall.$n='zone'
-                  uci set firewall.$n.name="$n"
-                  uci -q delete firewall.$n.network || true
-                  uci add_list firewall.$n.network="$n"
-                  uci set firewall.$n.input='ACCEPT'
-                  uci set firewall.$n.output='ACCEPT'
-                  uci set firewall.$n.forward='REJECT'
-                  uci set firewall.${n}_dhcp='rule'
-                  uci set firewall.${n}_dhcp.name="TK$i DHCP"
-                  uci set firewall.${n}_dhcp.src="$n"
-                  uci set firewall.${n}_dhcp.proto='udp'
-                  uci set firewall.${n}_dhcp.dest_port='67'
-                  uci set firewall.${n}_dhcp.family='ipv4'
-                  uci set firewall.${n}_dhcp.target='ACCEPT'
-
-                  idx="$(printf '%02d' "$i")"
-                  if [ -f /etc/config/passwall ]; then
-                      uci set passwall.dul_a${idx}='acl_rule'
-                      uci set passwall.dul_a${idx}.enabled='1'
-                      uci set passwall.dul_a${idx}.remarks="A$i"
-                      uci set passwall.dul_a${idx}.sources="172.16.$i.0/24"
-                      uci set passwall.dul_a${idx}.tcp_proxy_mode='proxy'
-                      uci set passwall.dul_a${idx}.udp_proxy_mode='proxy'
-                      uci set passwall.dul_a${idx}.tcp_no_redir_ports='disable'
-                      uci set passwall.dul_a${idx}.udp_no_redir_ports='disable'
-                      uci set passwall.dul_a${idx}.tcp_redir_ports='1:65535'
-                      uci set passwall.dul_a${idx}.udp_redir_ports='1:65535'
-                      uci set passwall.dul_a${idx}.node='default'
-                  fi
-
-                  if [ -f /etc/config/passwall2 ]; then
-                      uci set passwall2.dul_a${idx}='acl_rule'
-                      uci set passwall2.dul_a${idx}.enabled='1'
-                      uci set passwall2.dul_a${idx}.remarks="A$i"
-                      uci set passwall2.dul_a${idx}.sources="172.16.$i.0/24"
-                      uci set passwall2.dul_a${idx}.tcp_proxy_mode='proxy'
-                      uci set passwall2.dul_a${idx}.udp_proxy_mode='proxy'
-                      uci set passwall2.dul_a${idx}.tcp_no_redir_ports='disable'
-                      uci set passwall2.dul_a${idx}.udp_no_redir_ports='disable'
-                      uci set passwall2.dul_a${idx}.tcp_redir_ports='1:65535'
-                      uci set passwall2.dul_a${idx}.udp_redir_ports='1:65535'
-                      uci set passwall2.dul_a${idx}.node='default'
-                  fi
-              done
-              uci set firewall.@defaults[0].flow_offloading='0'
-              uci set firewall.@defaults[0].flow_offloading_hw='0'
-              uci commit network
-              uci commit dhcp
-              uci commit wireless
-              uci commit firewall
-              if [ -f /etc/config/passwall ]; then uci commit passwall; fi
-              if [ -f /etc/config/passwall2 ]; then uci commit passwall2; fi
-              /etc/init.d/firewall reload || true
-              /etc/init.d/network reload || true
-              sleep 5
-              /etc/init.d/dnsmasq restart || true
-              wifi reload || true
-              if [ -x /etc/init.d/passwall ]; then /etc/init.d/passwall restart || true; fi
-              if [ -x /etc/init.d/passwall2 ]; then /etc/init.d/passwall2 restart || true; fi
-              touch /etc/dulwifi-wifi.done
-          fi
-          ) || logger -t dulwifi '10WiFi setup incomplete; continuing NPS setup'
-          valid_mac() {
-              printf '%s\n' "$1" | grep -Eq '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' &&
-                  [ "$1" != '00:00:00:00:00:00' ] && [ "$1" != 'ff:ff:ff:ff:ff:ff' ]
-          }
-          mac=''
           tries=0
-          while ! valid_mac "$mac"; do
-              dev="$(uci -q get network.wan.device || uci -q get network.wan.ifname || true)"
-              case "$dev" in @*) dev="$(uci -q get network.${dev#@}.device || true)";; esac
-              [ -n "$dev" ] || dev="$(ip route | awk '/default/ {print $5; exit}')"
-              if [ -r "/sys/class/net/$dev/address" ]; then mac="$(cat "/sys/class/net/$dev/address")"; fi
-              if ! valid_mac "$mac"; then
-                  for lower in /sys/class/net/"$dev"/lower_*; do
-                      [ -r "$lower/address" ] || continue
-                      mac="$(cat "$lower/address")"
-                      valid_mac "$mac" && break
-                  done
-              fi
-              valid_mac "$mac" && break
+          RADIO2=''
+          RADIO5=''
+          while :; do
+              for radio in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-device$/\1/p'); do
+                  band="$(uci -q get wireless.$radio.band || true)"
+                  hw="$(uci -q get wireless.$radio.hwmode || true)"
+                  case "$band:$hw" in
+                      2g:*|*:11g) RADIO2="$radio";;
+                      5g:*|*:11a) RADIO5="$radio";;
+                  esac
+              done
+              [ -n "$RADIO2" ] && [ -n "$RADIO5" ] && break
               tries=$((tries+1))
-              [ "$tries" -lt 60 ] || { logger -t dulwifi 'WAN MAC unavailable; retry next boot'; exit 1; }
+              [ "$tries" -lt 60 ] || { logger -t dulwifi 'Both WiFi radios not ready; retry next boot'; exit 1; }
               sleep 2
           done
-          [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
-          uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
-          uci set nps.@nps[0].enabled='1'
-          uci set nps.@nps[0].server_addr='nps.jontao.top'
-          uci set nps.@nps[0].server_port='8024'
-          uci set nps.@nps[0].protocol='tcp'
-          uci set nps.@nps[0].compress='1'
-          uci set nps.@nps[0].crypt='1'
-          uci set nps.@nps[0].vkey="$(printf '%s' "$mac" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-          uci commit nps
-          mkdir -p /tmp/etc
-          /etc/init.d/nps enable
-          /etc/init.d/nps restart
-          [ -e /etc/dulwifi-wifi.done ] || exit 1
+
+          uci set wireless.$RADIO2.channel='9'
+          uci set wireless.$RADIO5.channel='48'
+          uci set wireless.$RADIO2.disabled='0'
+          uci set wireless.$RADIO5.disabled='0'
+
+          for iface in $(uci -q show wireless | sed -n 's/^wireless\.\([^=]*\)=wifi-iface$/\1/p'); do
+              radio="$(uci -q get wireless.$iface.device || true)"
+              case "$radio" in
+                  "$RADIO2") uci set wireless.$iface.ssid='A-2.4G';;
+                  "$RADIO5") uci set wireless.$iface.ssid='A-5G';;
+                  *) continue;;
+              esac
+              uci set wireless.$iface.encryption='psk2+ccmp'
+              uci set wireless.$iface.key='a1111111'
+              uci set wireless.$iface.disabled='0'
+          done
+
+          for i in $(seq 1 20); do
+              n="tk$i"
+              radio="$RADIO5"
+              [ "$i" -gt 14 ] && radio="$RADIO2"
+
+              uci -q delete network.${n}_dev || true
+              uci set network.${n}_dev='device'
+              uci set network.${n}_dev.name="br-$n"
+              uci set network.${n}_dev.type='bridge'
+              uci set network.${n}_dev.bridge_empty='1'
+              uci set network.${n}_dev.ipv6='0'
+
+              uci -q delete network.$n || true
+              uci set network.$n='interface'
+              uci set network.$n.device="br-$n"
+              uci set network.$n.proto='static'
+              uci set network.$n.ipaddr="172.16.$i.1"
+              uci set network.$n.netmask='255.255.255.0'
+              uci set network.$n.delegate='0'
+
+              uci -q delete dhcp.$n || true
+              uci set dhcp.$n='dhcp'
+              uci set dhcp.$n.interface="$n"
+              uci set dhcp.$n.start='100'
+              uci set dhcp.$n.limit='100'
+              uci set dhcp.$n.leasetime='12h'
+              uci set dhcp.$n.ra='disabled'
+              uci set dhcp.$n.dhcpv6='disabled'
+              uci set dhcp.$n.ndp='disabled'
+
+              uci -q delete wireless.$n || true
+              uci set wireless.$n='wifi-iface'
+              uci set wireless.$n.device="$radio"
+              uci set wireless.$n.network="$n"
+              uci set wireless.$n.mode='ap'
+              uci set wireless.$n.ssid="A$i"
+              uci set wireless.$n.encryption='psk2+ccmp'
+              uci set wireless.$n.key='a1111111'
+              uci set wireless.$n.isolate='1'
+              uci set wireless.$n.disabled='0'
+
+              uci -q delete firewall.$n || true
+              uci set firewall.$n='zone'
+              uci set firewall.$n.name="$n"
+              uci -q delete firewall.$n.network || true
+              uci add_list firewall.$n.network="$n"
+              uci set firewall.$n.input='ACCEPT'
+              uci set firewall.$n.output='ACCEPT'
+              uci set firewall.$n.forward='REJECT'
+
+              uci -q delete firewall.${n}_dhcp || true
+              uci set firewall.${n}_dhcp='rule'
+              uci set firewall.${n}_dhcp.name="TK$i DHCP"
+              uci set firewall.${n}_dhcp.src="$n"
+              uci set firewall.${n}_dhcp.proto='udp'
+              uci set firewall.${n}_dhcp.dest_port='67'
+              uci set firewall.${n}_dhcp.family='ipv4'
+              uci set firewall.${n}_dhcp.target='ACCEPT'
+          done
+
+          uci set firewall.@defaults[0].flow_offloading='0'
+          uci set firewall.@defaults[0].flow_offloading_hw='0'
+          uci commit network
+          uci commit dhcp
+          uci commit wireless
+          uci commit firewall
+
+          test -s /etc/juliang-20wifi/passwall
+          test -s /etc/juliang-20wifi/passwall2
+          cp -f /etc/juliang-20wifi/passwall /etc/config/passwall
+          cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2
+          chmod 0600 /etc/config/passwall /etc/config/passwall2
+
+          /etc/init.d/firewall restart || true
+          /etc/init.d/network reload || true
+          sleep 5
+          /etc/init.d/dnsmasq restart || true
+          wifi reload || true
+          /etc/init.d/passwall enable || true
+          /etc/init.d/passwall2 enable || true
+          /etc/init.d/passwall restart || true
+          /etc/init.d/passwall2 restart || true
+
+          touch /etc/dulwifi-wifi.done
           touch /etc/dulwifi-firstboot.done
-          logger -t dulwifi '10WiFi and NPS first-boot configuration complete'
+          logger -t dulwifi '20WiFi applied with exact uploaded PassWall/PassWall2 ACL templates'
           SCRIPT
           chmod 0755 files/usr/libexec/dulwifi-firstboot
           chmod 0755 files/etc/init.d/dulwifi-firstboot
           chmod 0755 files/etc/uci-defaults/99-enable-dulwifi-firstboot
 
+          install -D -m0755 profiles/realtime-ip-v4/install-argon-realtime-ip-v4.sh files/usr/bin/install-argon-realtime-ip-v4
+          cat > files/etc/uci-defaults/95-argon-realtime-ip-v4 <<'REALTIMEIP'
+          #!/bin/sh
+          /usr/bin/install-argon-realtime-ip-v4 >/tmp/install-argon-realtime-ip-v4.log 2>&1 || exit 1
+          exit 0
+          REALTIMEIP
+          chmod 0755 files/etc/uci-defaults/95-argon-realtime-ip-v4
+
           make defconfig
           test -x files/usr/libexec/dulwifi-firstboot
           test -x files/etc/init.d/dulwifi-firstboot
           test -x files/etc/uci-defaults/99-enable-dulwifi-firstboot
-          grep -q "A-2.4G" files/usr/libexec/dulwifi-firstboot
-          grep -q "A-5G" files/usr/libexec/dulwifi-firstboot
-          grep -q "server_addr='nps.jontao.top'" files/usr/libexec/dulwifi-firstboot
-          grep -q "server_port='8024'" files/usr/libexec/dulwifi-firstboot
+          test -x files/usr/bin/install-argon-realtime-ip-v4
+          test -x files/etc/uci-defaults/95-argon-realtime-ip-v4
+          ! grep -q "uci set passwall\." files/usr/libexec/dulwifi-firstboot
+          ! grep -q "uci set passwall2\." files/usr/libexec/dulwifi-firstboot
+          grep -q "cp -f /etc/juliang-20wifi/passwall /etc/config/passwall" files/usr/libexec/dulwifi-firstboot
+          grep -q "cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2" files/usr/libexec/dulwifi-firstboot
+          for i in $(seq 1 20); do
+              grep -q "option remarks 'A$i'" profiles/s20l-uploaded/20wifi/passwall
+              grep -q "option remarks 'A$i'" profiles/s20l-uploaded/20wifi/passwall2
+              grep -q "172.16.$i.0/24" profiles/s20l-uploaded/20wifi/passwall
+              grep -q "172.16.$i.0/24" profiles/s20l-uploaded/20wifi/passwall2
+          done
+          grep -q "server_addr='nps.jontao.top'" package/base-files/files/usr/libexec/nps-wan-mac
+          grep -q "server_port='8024'" package/base-files/files/usr/libexec/nps-wan-mac
           grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-store=y' .config
           grep -q '^CONFIG_PACKAGE_luci-app-quickstart=y' .config
@@ -503,7 +485,7 @@ jobs:
       - name: Upload S20L firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CLX-S20L-24.10-Full-LuCI-NPS-${{ env.BUILD_DATE }}
+          name: CLX-S20L-20WiFi-Stable-UploadedACL-RealtimeIP-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -511,15 +493,15 @@ jobs:
       - name: Publish S20L firmware release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: CLX-S20L-Full-LuCI-NPS-24.10-${{ env.BUILD_DATE }}
-          name: CLX S20L Full LuCI NPS 24.10 ${{ env.BUILD_DATE }}
+          tag_name: CLX-S20L-20WiFi-Stable-UploadedACL-RealtimeIP-24.10-${{ env.BUILD_DATE }}
+          name: CLX S20L 20WiFi Stable Uploaded-ACL Realtime-IP 24.10 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             CLX S20L / MT7986A / wangjontao ImmortalWrt 24.10 source. Wireless uses this source's native kmod-mt7915e + MT7986 firmware/WO firmware; closed mt_wifi/WARP is not used.
             Source commit: ${{ env.WRT_HASH }}
             Management IP: 192.168.7.1
             Hostname: DulWiFi
-            Wi-Fi: only two SSIDs are enabled: DulWiFi-2.4G and DulWiFi-5G. Wireless password: password.
-            Included: iStore, QuickStart, Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps. Added tested SK5/HTTP multiline import, Xray SOCKS mark fix, PassWall/PassWall2 actual exit-IP display, A1-A10 ACL realtime IP table with parallel refresh, PassWall2 SOCKS self-heal, and WAN DHCP/MAC self-heal.
-            No AP1-AP20 multi-SSID bootstrap is included.
+            Wi-Fi: A-2.4G/A-5G primary SSIDs plus A1-A20. Password: a1111111 for the multi-SSID set. A1-A14 use 5GHz; A15-A20 use 2.4GHz. IPv6 DHCP/RA/NDP is disabled on A1-A20.
+            Included: iStore, QuickStart, Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps. Uses the exact uploaded 20WiFi PassWall/PassWall2 configuration files; ACLs are not auto-generated. Includes SK5/HTTP multiline import, Xray SOCKS mark fix, PassWall/PassWall2 actual exit-IP display, ACL realtime IP refresh, PassWall2 SOCKS self-heal, WAN DHCP/MAC self-heal, and Argon top-left realtime public IPv4/region display.
+            Multi-SSID profile: A1-A20, subnets 172.16.1.0/24 through 172.16.20.0/24. PassWall/PassWall2 ACL definitions come verbatim from the preserved uploaded 20WiFi profiles.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.jontao.top:8024 TCP, compression and encryption enabled.
