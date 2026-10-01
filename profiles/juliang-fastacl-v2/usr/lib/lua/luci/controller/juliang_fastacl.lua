@@ -74,6 +74,31 @@ local function exec_json(cmd)
     }
 end
 
+local function is_special_protocol(p)
+    return p == "_shunt" or p == "_balancing" or p == "_urltest" or p == "_iface"
+end
+
+local function preproxy_options(uci, current)
+    local out = {}
+    uci:foreach("passwall2", "nodes", function(s)
+        local id = s[".name"] or ""
+        local proto = s.protocol or ""
+        local chained = s.chain_proxy or ""
+        if id ~= "" and id ~= current and not is_special_protocol(proto) and chained == "" then
+            out[#out + 1] = {
+                id = id,
+                remarks = s.remarks or id,
+                type = s.type or "",
+                protocol = proto
+            }
+        end
+    end)
+    table.sort(out, function(a, b)
+        return (a.remarks or "") < (b.remarks or "")
+    end)
+    return out
+end
+
 function handle()
     local http = require "luci.http"
     local util = require "luci.util"
@@ -98,13 +123,27 @@ function handle()
             end
         end
 
+        local preproxy = {}
+        uci:foreach("passwall2", "nodes", function(s)
+            local id = s[".name"] or ""
+            if id ~= "" then
+                local pp = s.preproxy_node or ""
+                preproxy[id] = {
+                    enabled = (s.chain_proxy == "1" and pp ~= ""),
+                    id = pp,
+                    remarks = pp ~= "" and (uci:get("passwall2", pp, "remarks") or pp) or ""
+                }
+            end
+        end)
+
         write_json({
             ok = true,
             engine = runtime_status(),
             map = map,
             ap_to_node = ap_to_node,
             wireless_labels = labels,
-            ips = ips
+            ips = ips,
+            preproxy = preproxy
         })
         return
     end
@@ -131,6 +170,112 @@ function handle()
             ap .. " " .. util.shellquote(node)
         )
         write_json(result)
+        return
+    end
+
+    if action == "preproxy_options" then
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+        write_json({
+            ok = true,
+            current = node_cfg.preproxy_node or "",
+            enabled = node_cfg.chain_proxy == "1",
+            options = preproxy_options(uci, node)
+        })
+        return
+    end
+
+    if action == "set_preproxy" then
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+
+        local pre = http.formvalue("preproxy") or ""
+        if pre == node then
+            write_json({ ok = false, error = "PREPROXY_SELF" })
+            return
+        end
+
+        if pre ~= "" then
+            local p = uci:get_all("passwall2", pre)
+            if not p or p[".type"] ~= "nodes" or is_special_protocol(p.protocol or "") then
+                write_json({ ok = false, error = "BAD_PREPROXY" })
+                return
+            end
+            if (p.chain_proxy or "") ~= "" then
+                write_json({ ok = false, error = "PREPROXY_ALREADY_CHAINED" })
+                return
+            end
+        end
+
+        local old_chain = node_cfg.chain_proxy or ""
+        local old_pre = node_cfg.preproxy_node or ""
+
+        if pre == "" then
+            uci:delete("passwall2", node, "chain_proxy")
+            uci:delete("passwall2", node, "preproxy_node")
+        else
+            uci:set("passwall2", node, "chain_proxy", "1")
+            uci:set("passwall2", node, "preproxy_node", pre)
+        end
+        uci:commit("passwall2")
+
+        local affected = {}
+        local failed = nil
+        for i = 1, 20 do
+            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
+                local ap = "AP" .. i
+                local r = exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
+                if not r.ok then
+                    failed = r
+                    break
+                end
+                affected[#affected + 1] = ap
+            end
+        end
+
+        if failed then
+            if old_chain == "" then
+                uci:delete("passwall2", node, "chain_proxy")
+            else
+                uci:set("passwall2", node, "chain_proxy", old_chain)
+            end
+            if old_pre == "" then
+                uci:delete("passwall2", node, "preproxy_node")
+            else
+                uci:set("passwall2", node, "preproxy_node", old_pre)
+            end
+            uci:commit("passwall2")
+            for _, ap in ipairs(affected) do
+                exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
+            end
+            write_json({
+                ok = false,
+                error = "PREPROXY_START_FAILED",
+                detail = failed,
+                rolled_back = true
+            })
+            return
+        end
+
+        local ip = ""
+        if #affected > 0 then
+            local sys = require "luci.sys"
+            ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. affected[1] .. " 2>/dev/null") or ""):gsub("%s+", "")
+        end
+
+        write_json({
+            ok = true,
+            action = "set_preproxy",
+            node = node,
+            preproxy = pre,
+            preproxy_remarks = pre ~= "" and (uci:get("passwall2", pre, "remarks") or pre) or "",
+            affected = affected,
+            ip = ip
+        })
         return
     end
 
