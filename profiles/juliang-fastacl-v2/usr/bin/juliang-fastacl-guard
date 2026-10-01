@@ -28,14 +28,17 @@ while true; do
 
   disable_passwall2_runtime
 
-  # If no topology exists (e.g. first boot after install), retry discovery.
+  # If persistent topology is unexpectedly missing, first attempt
+  # discovery. If boot services are not ready yet, restore last-good state.
   count="$(uci -q get juliang_fastacl.main.ap_count 2>/dev/null || echo 0)"
   case "$count" in ''|*[!0-9]*) count=0 ;; esac
   if [ "$count" -eq 0 ]; then
     if lua /usr/libexec/juliang-fastacl-discover.lua >/tmp/juliang-fastacl/guard-discover.json 2>/tmp/juliang-fastacl/guard-discover.log; then
       log "wireless topology discovered"
+    elif /usr/bin/juliang-fastacl restore-state >/tmp/juliang-fastacl/guard-restore.log 2>&1; then
+      log "persistent config restored from last-good snapshot"
     else
-      log "wireless not ready; keeping persistent config and retrying"
+      log "wireless not ready and no last-good snapshot; retrying"
       sleep 15
       continue
     fi
