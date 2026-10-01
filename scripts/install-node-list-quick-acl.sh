@@ -258,7 +258,7 @@ text = replace_once(text, top_old, top_new, "top anchor")
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [[
 
-    // JULIANG_QUICK_ACL_V1
+    // JULIANG_QUICK_ACL_V13
     var quickAclNode = "";
     var quickAclMap = {};
 
