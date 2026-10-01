@@ -2,7 +2,10 @@ local jsonc = require "luci.jsonc"
 local uci = require("luci.model.uci").cursor()
 local cfg = "juliang_fastacl"
 local port = tonumber(uci:get(cfg, "main", "tproxy_port") or "12345")
+local dns_mode = uci:get(cfg, "main", "dns_mode") or "doh"
 local dns_addr = uci:get(cfg, "main", "dns_server") or "1.1.1.1"
+local dns_tls_name = uci:get(cfg, "main", "dns_tls_server_name") or "cloudflare-dns.com"
+local dns_path = uci:get(cfg, "main", "dns_path") or "/dns-query"
 
 local aps = {}
 uci:foreach(cfg, "ap", function(s)
@@ -39,13 +42,30 @@ for _, a in ipairs(aps) do
     server_port = a.sport,
     version = "5"
   }
-  dns_servers[#dns_servers + 1] = {
-    type = "tcp",
-    tag = "dns-" .. tag,
-    server = dns_addr,
-    server_port = 53,
-    detour = tag
-  }
+  local dns_server
+  if dns_mode == "tcp" then
+    dns_server = {
+      type = "tcp",
+      tag = "dns-" .. tag,
+      server = dns_addr,
+      server_port = 53,
+      detour = tag
+    }
+  else
+    dns_server = {
+      type = "https",
+      tag = "dns-" .. tag,
+      server = dns_addr,
+      server_port = 443,
+      path = dns_path,
+      tls = {
+        enabled = true,
+        server_name = dns_tls_name
+      },
+      detour = tag
+    }
+  end
+  dns_servers[#dns_servers + 1] = dns_server
   dns_rules[#dns_rules + 1] = {
     source_ip_cidr = { a.subnet },
     action = "route",
