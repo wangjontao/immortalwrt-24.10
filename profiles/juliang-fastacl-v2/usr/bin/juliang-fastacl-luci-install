@@ -22,8 +22,15 @@ if [ -f "$FILE.quick-acl.bak" ]; then
 fi
 
 if grep -q "$MARKER" "$FILE"; then
-    echo "[OK] FastACL v2 LuCI already installed"
+    echo "[OK] FastACL v2.2 LuCI already installed"
     exit 0
+fi
+
+# Upgrade safely from any previous FastACL v2 UI patch. Always repatch from
+# the original PassWall2 node list backup to avoid duplicate buttons/modals.
+if grep -q 'JULIANG_FASTACL_V2' "$FILE" 2>/dev/null && [ -f "$FILE.jfa-v2.bak" ]; then
+    cp -af "$FILE.jfa-v2.bak" "$FILE"
+    echo "[INFO] restored original PassWall2 node list before v2.2 repatch"
 fi
 
 [ -f "$FILE.jfa-v2.bak" ] || cp -a "$FILE" "$FILE.jfa-v2.bak"
