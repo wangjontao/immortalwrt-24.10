@@ -1,0 +1,11 @@
+#!/bin/sh
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$(uci -q get juliang_fastacl.main.enabled 2>/dev/null)" = "1" ] || exit 0
+
+# Re-assert only our dedicated fixed table and policy route.
+# Node processes/router are not restarted.
+case "$INTERFACE" in
+    lan|wan|tk*|loopback)
+        /usr/bin/juliang-fastacl firewall >/dev/null 2>&1 || true
+        ;;
+esac
