@@ -57,7 +57,7 @@ if fs.stat(base) then
     if sid~="." and sid~=".." and sid~="default" and sid~="acl_default" then
       local src=rf(base.."/"..sid.."/source_list")
       local idx=src and tonumber(src:match("172%.16%.(%d+)%.0/24"))
-      if idx and idx>=1 and idx<=10 then
+      if idx and idx>=1 and idx<=20 then
         local tcp=var:match('ACL_'..sid..'_tcp_node="([^"]+)"') or ""
         local udp=var:match('ACL_'..sid..'_udp_node="([^"]+)"') or ""
         local old=var:match('ACL_'..sid..'_node="([^"]+)"') or ""
@@ -67,7 +67,7 @@ if fs.stat(base) then
         if not valid(udp) then udp=tcp end
         if not valid(tcp) then tcp="" end
         if not valid(udp) then udp="" end
-        rows[#rows+1]={index=idx,name="A"..idx,section=sid,network="172.16."..idx..".0/24",tcp_node=tcp,udp_node=udp,node=tcp~="" and tcp or udp}
+        rows[#rows+1]={index=idx,name="AP"..idx,section=sid,network="172.16."..idx..".0/24",tcp_node=tcp,udp_node=udp,node=tcp~="" and tcp or udp}
       end
     end
   end
