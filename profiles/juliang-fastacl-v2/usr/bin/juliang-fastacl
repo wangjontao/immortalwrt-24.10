@@ -85,10 +85,11 @@ start_preproxy(){
 
   plog="$RUN_DIR/ap$n-preproxy-switch.log"
   : > "$plog"
-  /usr/share/passwall2/app.sh socks_node_switch flag="$sec" new_node="$pre" >"$plog" 2>&1 || {
-    log "AP$n 前置代理启动命令失败"
-    return 1
-  }
+  # PassWall2 socks_node_switch may return non-zero when its transparent
+  # runtime cache (USE_TABLES) is absent, even if the local relay was started.
+  # FastACL therefore verifies the actual listening port instead of trusting
+  # the helper's shell return code.
+  /usr/share/passwall2/app.sh socks_node_switch flag="$sec" new_node="$pre" >"$plog" 2>&1 || true
 
   i=0
   while [ "$i" -lt 6 ]; do
@@ -158,10 +159,10 @@ start_ap(){
   else
     swlog="$RUN_DIR/ap$n-switch.log"
     : > "$swlog"
-    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$landing_node" >"$swlog" 2>&1 || {
-      log "AP$n PassWall2 socks_node_switch 返回失败"
-      return 1
-    }
+    # The helper can return 1 after PassWall2 handover simply because its
+    # USE_TABLES cache is empty. Do not fail on the return code; the local
+    # SOCKS listener below is the authoritative health check.
+    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$landing_node" >"$swlog" 2>&1 || true
   fi
   i=0
   while [ "$i" -lt 5 ]; do
