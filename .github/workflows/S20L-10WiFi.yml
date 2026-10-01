@@ -318,7 +318,7 @@ jobs:
               uci set wireless.$n.device="$radio"
               uci set wireless.$n.network="$n"
               uci set wireless.$n.mode='ap'
-              uci set wireless.$n.ssid="A$i"
+              uci set wireless.$n.ssid="AP$i"
               uci set wireless.$n.encryption='psk2+ccmp'
               uci set wireless.$n.key='a1111111'
               uci set wireless.$n.isolate='1'
@@ -408,8 +408,8 @@ jobs:
           grep -q "cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2" files/usr/libexec/dulwifi-firstboot
           [ "$(grep -c '^config acl_rule' profiles/s20l-uploaded/20wifi/passwall)" -eq 20 ]
           [ "$(grep -c '^config acl_rule' profiles/s20l-uploaded/20wifi/passwall2)" -eq 20 ]
-          [ "$(grep -c "^config shunt_rules 'A[0-9][0-9]*'" profiles/s20l-uploaded/20wifi/passwall)" -eq 20 ]
-          [ "$(grep -c "^config shunt_rules 'A[0-9][0-9]*'" profiles/s20l-uploaded/20wifi/passwall2)" -eq 20 ]
+          [ "$(grep -Ec "^[[:space:]]*config[[:space:]]+shunt_rules[[:space:]]+'A[0-9]+'" profiles/s20l-uploaded/20wifi/passwall)" -eq 20 ]
+          [ "$(grep -Ec "^[[:space:]]*config[[:space:]]+shunt_rules[[:space:]]+'A[0-9]+'" profiles/s20l-uploaded/20wifi/passwall2)" -eq 20 ]
           for i in $(seq 1 20); do
               grep -q "option remarks 'AP$i'" profiles/s20l-uploaded/20wifi/passwall
               grep -q "option remarks 'AP$i'" profiles/s20l-uploaded/20wifi/passwall2
@@ -419,6 +419,7 @@ jobs:
           grep -q "option acl_enable '1'" profiles/s20l-uploaded/20wifi/passwall2
           grep -q "option start_delay '60'" profiles/s20l-uploaded/20wifi/passwall
           grep -q "option start_delay '60'" profiles/s20l-uploaded/20wifi/passwall2
+          grep -q 'uci set wireless.$n.ssid="AP$i"' files/usr/libexec/dulwifi-firstboot
           grep -q "server_addr='nps.jontao.top'" package/base-files/files/usr/libexec/nps-wan-mac
           grep -q "server_port='8024'" package/base-files/files/usr/libexec/nps-wan-mac
           grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
@@ -522,7 +523,7 @@ jobs:
             Source commit: ${{ env.WRT_HASH }}
             Management IP: 192.168.7.1
             Hostname: DulWiFi
-            Wi-Fi: A-2.4G/A-5G primary SSIDs plus A1-A20. Password: a1111111 for the multi-SSID set. A1-A14 use 5GHz; A15-A20 use 2.4GHz. IPv6 DHCP/RA/NDP is disabled on A1-A20.
+            Wi-Fi: A-2.4G/A-5G primary SSIDs plus AP1-AP20. Password: a1111111 for the multi-SSID set. AP1-AP14 use 5GHz; AP15-AP20 use 2.4GHz. IPv6 DHCP/RA/NDP is disabled on AP1-AP20.
             Included: iStore, QuickStart, Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps. The 20WiFi PassWall/PassWall2 files in this build are replaced directly from the latest uploaded files; both are build-checked for exactly 20 ACL rules (AP1-AP20). ACLs are not auto-generated. Includes SK5/HTTP multiline import, Xray SOCKS mark fix, PassWall/PassWall2 actual exit-IP display, ACL realtime IP refresh, PassWall2 SOCKS self-heal, WAN DHCP/MAC self-heal, and Argon top-left realtime public IPv4/region display.
-            Multi-SSID profile: A1-A20, subnets 172.16.1.0/24 through 172.16.20.0/24. PassWall/PassWall2 ACL definitions come verbatim from the preserved uploaded 20WiFi profiles.
+            Multi-SSID profile: AP1-AP20, subnets 172.16.1.0/24 through 172.16.20.0/24. PassWall/PassWall2 ACL definitions come verbatim from the preserved uploaded 20WiFi profiles.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.jontao.top:8024 TCP, compression and encryption enabled.
