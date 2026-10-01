@@ -36,7 +36,7 @@ ensure_socks_section(){
   uci set $APP.$sec.bind_local='1'
   uci set $APP.$sec.port="$port"
   uci set $APP.$sec.http_port='0'
-  uci set $APP.$sec.log='0'
+  uci set $APP.$sec.log='1'
   uci set $APP.$sec.enable_autoswitch='0'
   [ -n "$node" ] && uci set $APP.$sec.node="$node" || true
 }
@@ -66,14 +66,29 @@ start_ap(){
     sing-box run -c "$cfg" >"$RUN_DIR/ap$n.log" 2>&1 &
     echo $! > "$RUN_DIR/ap$n.pid"
   else
-    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$node" >/dev/null 2>&1 || return 1
+    swlog="$RUN_DIR/ap$n-switch.log"
+    : > "$swlog"
+    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$node" >"$swlog" 2>&1 || {
+      log "AP$n PassWall2 socks_node_switch 返回失败"
+      return 1
+    }
   fi
   i=0
-  while [ "$i" -lt 30 ]; do
+  while [ "$i" -lt 50 ]; do
     (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
     sleep 0.1; i=$((i+1))
   done
-  log "AP$n 本地 SOCKS 端口 $port 未就绪"
+  {
+    echo "AP$n local SOCKS port $port not ready"
+    echo "node=$node type=$type"
+    echo "===== switch log ====="
+    cat "$RUN_DIR/ap$n-switch.log" 2>/dev/null || true
+    echo "===== passwall2 socks log ====="
+    cat "/tmp/etc/passwall2/SOCKS_jfa_ap$n.log" 2>/dev/null || true
+    echo "===== generated config ====="
+    cat "/tmp/etc/passwall2/SOCKS_jfa_ap$n.json" 2>/dev/null || true
+  } > "$RUN_DIR/ap$n-start-error.log"
+  log "AP$n 本地 SOCKS 端口 $port 未就绪，诊断：$RUN_DIR/ap$n-start-error.log"
   return 1
 }
 
@@ -210,6 +225,49 @@ switch_node(){
   fi
 }
 
+move_node(){
+  ap="$1"; node="$2"; n="$(ap_num "$ap")" || { echo '{"ok":false,"error":"BAD_AP"}'; return 2; }
+  [ "$(uci -q get $APP.$node 2>/dev/null || true)" = "nodes" ] || { echo '{"ok":false,"error":"BAD_NODE"}'; return 3; }
+
+  sources=""
+  i=1
+  while [ "$i" -le 20 ]; do
+    if [ "$i" -ne "$n" ] && [ "$(uci -q get $CFG.ap$i.node 2>/dev/null || true)" = "$node" ]; then
+      sources="$sources $i"
+    fi
+    i=$((i+1))
+  done
+
+  # Unique-binding means MOVE, not duplicate-then-delete. Stop old AP relay(s)
+  # first to avoid protocol/plugin/shared-resource collisions, but keep UCI
+  # mappings until the target is confirmed healthy so rollback is possible.
+  for i in $sources; do
+    kill_ap "$i"
+  done
+
+  if result="$(switch_node "$ap" "$node")"; then
+    for i in $sources; do
+      uci -q delete $CFG.ap$i.node
+      uci -q delete $APP.jfa_ap$i.node
+      old_acl="$(find_acl_section "$i")"
+      [ -n "$old_acl" ] && uci -q delete $APP.$old_acl.node
+      rm -f "$RUN_DIR/ap$i.ip"
+    done
+    uci commit "$CFG"
+    uci commit "$APP"
+    printf '%s\n' "$result"
+    return 0
+  fi
+
+  # Target failed: source UCI mappings were intentionally left intact; restart
+  # them so the previous working wireless AP is restored.
+  for i in $sources; do
+    start_ap "$i" >/dev/null 2>&1 || true
+  done
+  printf '{"ok":false,"ap":"%s","node":"%s","error":"NODE_START_FAILED","rolled_back_sources":true,"diagnostic":"%s"}\n' "$ap" "$node" "$RUN_DIR/ap$n-start-error.log"
+  return 4
+}
+
 clear_ap(){
   ap="$1"; n="$(ap_num "$ap")" || { echo '{"ok":false,"error":"BAD_AP"}'; return 2; }
   old="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
@@ -246,8 +304,9 @@ case "${1:-}" in
   firewall) firewall ;;
   firewall-check) firewall_check ;;
   switch) [ $# -eq 3 ] || exit 2; switch_node "$2" "$3" ;;
+  move) [ $# -eq 3 ] || exit 2; move_node "$2" "$3" ;;
   clear) [ $# -eq 2 ] || exit 2; clear_ap "$2" ;;
   probe) n="$(ap_num "$2")" || exit 2; probe_ap "$n" ;;
   status) status ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|firewall|firewall-check|switch AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
