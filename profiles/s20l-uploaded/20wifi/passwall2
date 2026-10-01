@@ -5,7 +5,7 @@ config global
 	option localhost_proxy '1'
 	option client_proxy '1'
 	option socks_enabled '0'
-	option acl_enable '0'
+	option acl_enable '1'
 	option direct_dns_protocol 'auto'
 	option direct_dns_query_strategy 'UseIP'
 	option remote_dns_protocol 'tcp'
@@ -16,16 +16,19 @@ dns.google.com 8.8.8.8'
 	option log_node '1'
 	option loglevel 'error'
 	option auto_lang 'zh_cn'
-	option timestamp '1786442576'
+	option timestamp '1784449984'
 	option remote_dns_detour 'remote'
 	option dns_redirect '1'
+	option remote_fakedns '0'
+	option dnsmasq_dns_redirect '1'
 
 config global_haproxy
 	option balancing_enable '0'
 
 config global_delay
 	option start_daemon '1'
-	option start_delay '0'
+	option start_delay '60'
+
 config global_forwarding
 	option tcp_no_redir_ports 'disable'
 	option udp_no_redir_ports 'disable'
@@ -41,7 +44,7 @@ config global_xray
 
 config global_other
 	option auto_detection_time 'tcping'
-	option show_node_info '0'
+	option url_test_url 'https://cp.cloudflare.com/'
 
 config global_rules
 	option auto_update '0'
@@ -114,7 +117,7 @@ config nodes 'rulenode'
 
 config acl_rule
 	option enabled '1'
-	option remarks 'A1'
+	option remarks 'AP1'
 	option sources '172.16.1.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -125,10 +128,12 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+	option remote_fakedns '0'
+	option dns_hosts_mode 'default'
 
 config acl_rule
 	option enabled '1'
-	option remarks 'A2'
+	option remarks 'AP2'
 	option sources '172.16.2.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -142,7 +147,7 @@ config acl_rule
 
 config acl_rule
 	option enabled '1'
-	option remarks 'A3'
+	option remarks 'AP3'
 	option sources '172.16.3.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -153,10 +158,12 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+	option remote_fakedns '0'
+	option dns_hosts_mode 'default'
 
 config acl_rule
 	option enabled '1'
-	option remarks 'A4'
+	option remarks 'AP4'
 	option sources '172.16.4.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -170,7 +177,7 @@ config acl_rule
 
 config acl_rule
 	option enabled '1'
-	option remarks 'A5'
+	option remarks 'AP5'
 	option sources '172.16.5.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -181,9 +188,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A6'
+	option remarks 'AP6'
 	option sources '172.16.6.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -194,9 +202,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A7'
+	option remarks 'AP7'
 	option sources '172.16.7.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -207,9 +216,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A8'
+	option remarks 'AP8'
 	option sources '172.16.8.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -220,9 +230,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A9'
+	option remarks 'AP9'
 	option sources '172.16.9.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -233,9 +244,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A10'
+	option remarks 'AP10'
 	option sources '172.16.10.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -246,9 +258,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A11'
+	option remarks 'AP11'
 	option sources '172.16.11.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -259,9 +272,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A12'
+	option remarks 'AP12'
 	option sources '172.16.12.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -272,9 +286,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A13'
+	option remarks 'AP13'
 	option sources '172.16.13.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -285,9 +300,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A14'
+	option remarks 'AP14'
 	option sources '172.16.14.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -298,9 +314,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A15'
+	option remarks 'AP15'
 	option sources '172.16.15.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -311,9 +328,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A16'
+	option remarks 'AP16'
 	option sources '172.16.16.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -324,9 +342,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A17'
+	option remarks 'AP17'
 	option sources '172.16.17.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -337,9 +356,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A18'
+	option remarks 'AP18'
 	option sources '172.16.18.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -350,9 +370,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A19'
+	option remarks 'AP19'
 	option sources '172.16.19.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -363,9 +384,10 @@ config acl_rule
 	option remote_dns_protocol 'tcp'
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
+
 config acl_rule
 	option enabled '1'
-	option remarks 'A20'
+	option remarks 'AP20'
 	option sources '172.16.20.0/24'
 	option remote_dns '1.1.1.1'
 	option tcp_no_redir_ports 'disable'
@@ -377,12 +399,7 @@ config acl_rule
 	option remote_dns_detour 'remote'
 	option remote_dns_query_strategy 'UseIPv4'
 
-
-
-
-
- 
- config shunt_rules 'A1'
+config shunt_rules 'A1'
 	option remarks 'A1'
 	option network 'tcp,udp'
 	option source '172.16.1.0/24'
@@ -407,157 +424,77 @@ config shunt_rules 'A5'
 	option network 'tcp,udp'
 	option source '172.16.5.0/24'
 
-
-
-
-
-
 config shunt_rules 'A6'
 	option remarks 'A6'
 	option network 'tcp,udp'
 	option source '172.16.6.0/24'
-
-
-
-
-
 
 config shunt_rules 'A7'
 	option remarks 'A7'
 	option network 'tcp,udp'
 	option source '172.16.7.0/24'
 
-
-
-
-
-
 config shunt_rules 'A8'
 	option remarks 'A8'
 	option network 'tcp,udp'
 	option source '172.16.8.0/24'
-
-
-
-
-
 
 config shunt_rules 'A9'
 	option remarks 'A9'
 	option network 'tcp,udp'
 	option source '172.16.9.0/24'
 
-
-
-
-
-
 config shunt_rules 'A10'
 	option remarks 'A10'
 	option network 'tcp,udp'
 	option source '172.16.10.0/24'
-
-
-
-
-
 
 config shunt_rules 'A11'
 	option remarks 'A11'
 	option network 'tcp,udp'
 	option source '172.16.11.0/24'
 
-
-
-
-
-
 config shunt_rules 'A12'
 	option remarks 'A12'
 	option network 'tcp,udp'
 	option source '172.16.12.0/24'
-
-
-
-
-
 
 config shunt_rules 'A13'
 	option remarks 'A13'
 	option network 'tcp,udp'
 	option source '172.16.13.0/24'
 
-
-
-
-
-
 config shunt_rules 'A14'
 	option remarks 'A14'
 	option network 'tcp,udp'
 	option source '172.16.14.0/24'
-
-
-
-
-
 
 config shunt_rules 'A15'
 	option remarks 'A15'
 	option network 'tcp,udp'
 	option source '172.16.15.0/24'
 
-
-
-
-
-
 config shunt_rules 'A16'
 	option remarks 'A16'
 	option network 'tcp,udp'
 	option source '172.16.16.0/24'
-
-
-
-
-
 
 config shunt_rules 'A17'
 	option remarks 'A17'
 	option network 'tcp,udp'
 	option source '172.16.17.0/24'
 
-
-
-
-
-
 config shunt_rules 'A18'
 	option remarks 'A18'
 	option network 'tcp,udp'
 	option source '172.16.18.0/24'
-
-
-
-
-
 
 config shunt_rules 'A19'
 	option remarks 'A19'
 	option network 'tcp,udp'
 	option source '172.16.19.0/24'
 
-
-
-
-
-
 config shunt_rules 'A20'
 	option remarks 'A20'
 	option network 'tcp,udp'
 	option source '172.16.20.0/24'
-
-
-
-
-
