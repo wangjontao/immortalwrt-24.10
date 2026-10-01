@@ -12,25 +12,37 @@ touch /tmp/etc/passwall2/var
 
 log(){ echo "[JFA] $*"; }
 
+ap_count(){
+  local c
+  c="$(uci -q get $CFG.main.ap_count 2>/dev/null || echo 0)"
+  case "$c" in ''|*[!0-9]*) c=0 ;; esac
+  echo "$c"
+}
+
 ap_num(){
+  local n
   case "$1" in
-    AP[1-9]) echo "${1#AP}" ;;
-    AP1[0-9]|AP20) echo "${1#AP}" ;;
+    AP[0-9]*) n="${1#AP}" ;;
     *) return 1 ;;
   esac
+  case "$n" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$n" -ge 1 ] 2>/dev/null || return 1
+  [ "$(uci -q get $CFG.ap$n 2>/dev/null || true)" = "ap" ] || return 1
+  echo "$n"
 }
 
 find_acl_section(){
-  n="$1"; subnet="172.16.$n.0/24"
-  uci -q show "$APP" | awk -F'[.=]' -v A="AP$n" -v S="$subnet" '
-    /\.remarks=/{gsub("\047", "", $0); if ($0 ~ "=" A "$") print $2}
+  local n="$1" subnet
+  subnet="$(uci -q get $CFG.ap$n.subnet 2>/dev/null || true)"
+  [ -n "$subnet" ] || return 0
+  uci -q show "$APP" | awk -F'[.=]' -v S="$subnet" '
     /\.sources=/{gsub("\047", "", $0); if ($0 ~ "=" S "$") print $2}
   ' | head -n1
 }
 
 ensure_socks_section(){
   local n="$1" node="${2:-}" sec port type
-  sec="jfa_ap$n"; port=$((13100+n))
+  sec="jfa_ap$n"; port="$(uci -q get $CFG.ap$n.socks_port 2>/dev/null || echo $((13100+n)))"
   type="$(uci -q get $APP.$sec 2>/dev/null || true)"
   [ "$type" = "socks" ] || { uci -q delete $APP.$sec; uci set $APP.$sec='socks'; }
   uci set $APP.$sec.enabled='0'
@@ -44,7 +56,7 @@ ensure_socks_section(){
 
 ensure_pre_section(){
   local n="$1" node="${2:-}" sec port type
-  sec="jfa_pre$n"; port=$((14100+n))
+  sec="jfa_pre$n"; port="$(uci -q get $CFG.ap$n.preproxy_port 2>/dev/null || echo $((14100+n)))"
   type="$(uci -q get $APP.$sec 2>/dev/null || true)"
   [ "$type" = "socks" ] || { uci -q delete $APP.$sec >/dev/null 2>&1 || true; uci set $APP.$sec='socks'; }
   uci set $APP.$sec.enabled='0'
@@ -122,7 +134,7 @@ start_ap(){
   type="$(uci -q get $APP.$landing_node.type 2>/dev/null | tr 'A-Z' 'a-z')"
   proto="$(uci -q get $APP.$landing_node.protocol 2>/dev/null | tr 'A-Z' 'a-z')"
   [ -n "$proto" ] || proto="$type"
-  port=$((13100+n))
+  port="$(uci -q get $CFG.ap$n.socks_port 2>/dev/null || echo $((13100+n)))"
   chain="$(uci -q get $APP.$landing_node.chain_proxy 2>/dev/null || true)"
   pre="$(uci -q get $APP.$landing_node.preproxy_node 2>/dev/null || true)"
 
@@ -133,7 +145,7 @@ start_ap(){
     preport="0"
     if [ "$chain" = "1" ] && [ -n "$pre" ]; then
       start_preproxy "$n" "$pre" || return 1
-      preport=$((14100+n))
+      preport="$(uci -q get $CFG.ap$n.preproxy_port 2>/dev/null || echo $((14100+n)))"
     fi
     cfg="$RUN_DIR/ap$n-direct.json"
     lua /usr/libexec/juliang-fastacl-relay.lua "$landing_node" "$port" "$cfg" "$preport" || return 1
@@ -175,7 +187,7 @@ start_ap(){
 }
 
 probe_ap(){
-  n="$1"; port=$((13100+n))
+  n="$1"; port="$(uci -q get $CFG.ap$n.socks_port 2>/dev/null || echo $((13100+n)))"
   ip="$(curl -4 -fsS --connect-timeout 3 --max-time 6 --socks5-hostname "127.0.0.1:$port" https://api.ipify.org 2>/dev/null || true)"
   [ -n "$ip" ] || ip="-"
   echo "$ip"
@@ -186,15 +198,53 @@ write_router(){
   sing-box check -c "$ROUTER_CFG" >/tmp/jfa-router-check.log 2>&1 || { cat /tmp/jfa-router-check.log; return 1; }
 }
 
+remove_fw4_accept(){
+  local h
+  nft list chain inet fw4 input >/dev/null 2>&1 || return 0
+  for h in $(nft -a list chain inet fw4 input 2>/dev/null | awk '/comment "juliang-fastacl-tproxy"/ {for(i=1;i<=NF;i++) if($i=="handle") print $(i+1)}'); do
+    nft delete rule inet fw4 input handle "$h" >/dev/null 2>&1 || true
+  done
+}
+
+install_fw4_accept(){
+  nft list chain inet fw4 input >/dev/null 2>&1 || {
+    log "warning: fw4 input chain not found; cannot install TProxy input accept rule"
+    return 0
+  }
+  remove_fw4_accept
+  nft insert rule inet fw4 input meta mark $MARK_HEX counter accept comment "juliang-fastacl-tproxy" >/dev/null 2>&1 || {
+    log "failed to install fw4 TProxy input accept rule"
+    return 1
+  }
+}
+
+ap_sources_csv(){
+  local n count subnet out
+  count="$(ap_count)"
+  out=""
+  n=1
+  while [ "$n" -le "$count" ]; do
+    subnet="$(uci -q get $CFG.ap$n.subnet 2>/dev/null || true)"
+    if [ -n "$subnet" ]; then
+      [ -n "$out" ] && out="$out, "
+      out="$out$subnet"
+    fi
+    n=$((n+1))
+  done
+  [ -n "$out" ] || return 1
+  printf '%s' "$out"
+}
+
 firewall(){
   TPROXY_PORT="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
+  AP_SOURCES="$(ap_sources_csv)" || { log "no AP subnets discovered"; return 1; }
   nft list table inet juliang_fastacl >/dev/null 2>&1 && nft delete table inet juliang_fastacl >/dev/null 2>&1 || true
   cat > "$RUN_DIR/rules.nft" <<EOF
  table inet juliang_fastacl {
    set ap_sources {
      type ipv4_addr
      flags interval
-     elements = { 172.16.1.0/24, 172.16.2.0/24, 172.16.3.0/24, 172.16.4.0/24, 172.16.5.0/24, 172.16.6.0/24, 172.16.7.0/24, 172.16.8.0/24, 172.16.9.0/24, 172.16.10.0/24, 172.16.11.0/24, 172.16.12.0/24, 172.16.13.0/24, 172.16.14.0/24, 172.16.15.0/24, 172.16.16.0/24, 172.16.17.0/24, 172.16.18.0/24, 172.16.19.0/24, 172.16.20.0/24 }
+     elements = { $AP_SOURCES }
    }
    set local_dst {
      type ipv4_addr
@@ -211,6 +261,7 @@ firewall(){
 EOF
   nft -c -f "$RUN_DIR/rules.nft" || return 1
   nft -f "$RUN_DIR/rules.nft" || return 1
+  install_fw4_accept || return 1
   ip rule del fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 >/dev/null 2>&1 || true
   ip rule add fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000
   ip route replace local 0.0.0.0/0 dev lo table "$ROUTE_TABLE"
@@ -218,12 +269,13 @@ EOF
 
 firewall_check(){
   TPROXY_PORT="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
+  AP_SOURCES="$(ap_sources_csv)" || { log "no AP subnets discovered"; return 1; }
   cat > "$RUN_DIR/rules-check.nft" <<EOF
  table inet juliang_fastacl_check {
    set ap_sources {
      type ipv4_addr
      flags interval
-     elements = { 172.16.1.0/24, 172.16.2.0/24, 172.16.3.0/24, 172.16.4.0/24, 172.16.5.0/24, 172.16.6.0/24, 172.16.7.0/24, 172.16.8.0/24, 172.16.9.0/24, 172.16.10.0/24, 172.16.11.0/24, 172.16.12.0/24, 172.16.13.0/24, 172.16.14.0/24, 172.16.15.0/24, 172.16.16.0/24, 172.16.17.0/24, 172.16.18.0/24, 172.16.19.0/24, 172.16.20.0/24 }
+     elements = { $AP_SOURCES }
    }
    set local_dst {
      type ipv4_addr
@@ -268,10 +320,12 @@ stop_router(){
 }
 
 start_all(){
-  local n node failed
+  local n node failed count
   failed=0
+  count="$(ap_count)"
+  [ "$count" -gt 0 ] || { log "no discovered APs"; return 1; }
   n=1
-  while [ "$n" -le 20 ]; do
+  while [ "$n" -le "$count" ]; do
     node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
     if [ -n "$node" ]; then
       if [ "$(uci -q get $APP.$node 2>/dev/null || true)" != "nodes" ]; then
@@ -294,9 +348,12 @@ start_all(){
 }
 
 stop_all(){
-  n=1; while [ "$n" -le 20 ]; do kill_ap "$n"; n=$((n+1)); done
+  local n count
+  count="$(ap_count)"
+  n=1; while [ "$n" -le "$count" ]; do kill_ap "$n"; n=$((n+1)); done
   stop_router
   nft list table inet juliang_fastacl >/dev/null 2>&1 && nft delete table inet juliang_fastacl >/dev/null 2>&1 || true
+  remove_fw4_accept
   ip rule del fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 >/dev/null 2>&1 || true
   ip route flush table "$ROUTE_TABLE" >/dev/null 2>&1 || true
 }
@@ -345,8 +402,9 @@ move_node(){
   [ "$(uci -q get $APP.$node 2>/dev/null || true)" = "nodes" ] || { echo '{"ok":false,"error":"BAD_NODE"}'; return 3; }
 
   sources=""
+  count="$(ap_count)"
   i=1
-  while [ "$i" -le 20 ]; do
+  while [ "$i" -le "$count" ]; do
     if [ "$i" -ne "$n" ] && [ "$(uci -q get $CFG.ap$i.node 2>/dev/null || true)" = "$node" ]; then
       sources="$sources $i"
     fi
@@ -398,7 +456,7 @@ clear_ap(){
 }
 
 status(){
-  local tport router_state
+  local tport router_state count
   echo "JuLiang FastACL"
   tport="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
   router_state="stopped"
@@ -411,12 +469,20 @@ status(){
   fi
   echo "router: $router_state"
   nft list table inet juliang_fastacl >/dev/null 2>&1 && echo "nftables: loaded" || echo "nftables: missing"
-  n=1; while [ "$n" -le 20 ]; do
-    node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"; port=$((13100+n))
+  count="$(ap_count)"
+  echo "wireless: $count discovered"
+  n=1; while [ "$n" -le "$count" ]; do
+    node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
+    port="$(uci -q get $CFG.ap$n.socks_port 2>/dev/null || echo $((13100+n)))"
+    ssid="$(uci -q get $CFG.ap$n.ssid 2>/dev/null || echo "AP$n")"
+    net="$(uci -q get $CFG.ap$n.network 2>/dev/null || true)"
+    subnet="$(uci -q get $CFG.ap$n.subnet 2>/dev/null || true)"
     if [ -n "$node" ]; then
       remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
       listen="no"; (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && listen="yes"
-      echo "AP$n -> $remark | socks:$port listen:$listen"
+      echo "AP$n [$ssid | $net | $subnet] -> $remark | socks:$port listen:$listen"
+    else
+      echo "AP$n [$ssid | $net | $subnet] -> unassigned"
     fi
     n=$((n+1))
   done
@@ -433,5 +499,6 @@ case "${1:-}" in
   clear) [ $# -eq 2 ] || exit 2; clear_ap "$2" ;;
   probe) n="$(ap_num "$2")" || exit 2; probe_ap "$n" ;;
   status) status ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  discover) lua /usr/libexec/juliang-fastacl-discover.lua ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
