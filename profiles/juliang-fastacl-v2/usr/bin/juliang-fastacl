@@ -41,13 +41,70 @@ ensure_socks_section(){
   [ -n "$node" ] && uci set $APP.$sec.node="$node" || true
 }
 
-kill_ap(){
-  n="$1"; sec="jfa_ap$n"
-  pidf="$RUN_DIR/ap$n.pid"
-  if [ -s "$pidf" ]; then kill "$(cat "$pidf")" >/dev/null 2>&1 || true; rm -f "$pidf"; fi
+ensure_pre_section(){
+  n="$1"; node="${2:-}"; sec="jfa_pre$n"; port=$((14100+n))
+  type="$(uci -q get $APP.$sec 2>/dev/null || true)"
+  [ "$type" = "socks" ] || { uci -q delete $APP.$sec >/dev/null 2>&1 || true; uci set $APP.$sec='socks'; }
+  uci set $APP.$sec.enabled='0'
+  uci set $APP.$sec.bind_local='1'
+  uci set $APP.$sec.port="$port"
+  uci set $APP.$sec.http_port='0'
+  uci set $APP.$sec.log='1'
+  uci set $APP.$sec.enable_autoswitch='0'
+  [ -n "$node" ] && uci set $APP.$sec.node="$node" || true
+}
+
+start_preproxy(){
+  n="$1"; pre="$2"; sec="jfa_pre$n"; port=$((14100+n))
+  [ -n "$pre" ] || return 0
+  [ "$(uci -q get $APP.$pre 2>/dev/null || true)" = "nodes" ] || {
+    log "AP$n 前置节点不存在: $pre"
+    return 1
+  }
+
+  ensure_pre_section "$n" "$pre"
+  uci commit "$APP"
+
   pgrep -af '/tmp/etc/passwall2/bin' 2>/dev/null | awk -v P="$sec" '$0 ~ P {print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
   pgrep -af "SOCKS_${sec}" 2>/dev/null | awk '!/pgrep/{print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
-  rm -f "$RUN_DIR/ap$n-direct.json"
+
+  plog="$RUN_DIR/ap$n-preproxy-switch.log"
+  : > "$plog"
+  /usr/share/passwall2/app.sh socks_node_switch flag="$sec" new_node="$pre" >"$plog" 2>&1 || {
+    log "AP$n 前置代理启动命令失败"
+    return 1
+  }
+
+  i=0
+  while [ "$i" -lt 60 ]; do
+    (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
+    sleep 0.1
+    i=$((i+1))
+  done
+
+  {
+    echo "AP$n preproxy SOCKS port $port not ready"
+    echo "preproxy=$pre"
+    echo "===== switch log ====="
+    cat "$plog" 2>/dev/null || true
+    echo "===== passwall2 socks log ====="
+    cat "/tmp/etc/passwall2/SOCKS_${sec}.log" 2>/dev/null || true
+    echo "===== generated config ====="
+    cat "/tmp/etc/passwall2/SOCKS_${sec}.json" 2>/dev/null || true
+  } > "$RUN_DIR/ap$n-preproxy-error.log"
+  log "AP$n 前置代理端口 $port 未就绪，诊断：$RUN_DIR/ap$n-preproxy-error.log"
+  return 1
+}
+
+kill_ap(){
+  n="$1"; sec="jfa_ap$n"; psec="jfa_pre$n"
+  pidf="$RUN_DIR/ap$n.pid"
+  if [ -s "$pidf" ]; then kill "$(cat "$pidf")" >/dev/null 2>&1 || true; rm -f "$pidf"; fi
+  for flag in "$sec" "$psec"; do
+    pgrep -af '/tmp/etc/passwall2/bin' 2>/dev/null | awk -v P="$flag" '$0 ~ P {print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
+    pgrep -af "SOCKS_${flag}" 2>/dev/null | awk '!/pgrep/{print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
+  done
+  rm -f "$RUN_DIR/ap$n-direct.json" "$RUN_DIR/ap$n-preproxy-error.log" "$RUN_DIR/ap$n-preproxy-switch.log"
 }
 
 start_ap(){
@@ -58,11 +115,27 @@ start_ap(){
   uci commit "$APP"
   kill_ap "$n"
   type="$(uci -q get $APP.$node.type 2>/dev/null | tr 'A-Z' 'a-z')"
+  proto="$(uci -q get $APP.$node.protocol 2>/dev/null | tr 'A-Z' 'a-z')"
+  [ -n "$proto" ] || proto="$type"
   port=$((13100+n))
-  if [ "$type" = "socks" ] || [ "$type" = "http" ]; then
+  chain="$(uci -q get $APP.$node.chain_proxy 2>/dev/null || true)"
+  pre="$(uci -q get $APP.$node.preproxy_node 2>/dev/null || true)"
+
+  # SOCKS/HTTP landing nodes get a deterministic cross-core bridge:
+  # native preproxy core (Xray or sing-box) -> local SOCKS 141xx ->
+  # sing-box landing SOCKS/HTTP -> local SOCKS 131xx.
+  if [ "$proto" = "socks" ] || [ "$proto" = "http" ]; then
+    preport="0"
+    if [ "$chain" = "1" ] && [ -n "$pre" ]; then
+      start_preproxy "$n" "$pre" || return 1
+      preport=$((14100+n))
+    fi
     cfg="$RUN_DIR/ap$n-direct.json"
-    lua /usr/libexec/juliang-fastacl-relay.lua "$node" "$port" "$cfg" || return 1
-    sing-box check -c "$cfg" >/dev/null 2>&1 || { log "AP$n 直连代理配置检查失败"; return 1; }
+    lua /usr/libexec/juliang-fastacl-relay.lua "$node" "$port" "$cfg" "$preport" || return 1
+    sing-box check -c "$cfg" >"$RUN_DIR/ap$n-relay-check.log" 2>&1 || {
+      log "AP$n SOCKS/HTTP 桥接配置检查失败"
+      return 1
+    }
     sing-box run -c "$cfg" >"$RUN_DIR/ap$n.log" 2>&1 &
     echo $! > "$RUN_DIR/ap$n.pid"
   else
@@ -80,7 +153,11 @@ start_ap(){
   done
   {
     echo "AP$n local SOCKS port $port not ready"
-    echo "node=$node type=$type"
+    echo "node=$node type=$type protocol=$proto chain=$chain preproxy=$pre"
+    echo "===== preproxy error ====="
+    cat "$RUN_DIR/ap$n-preproxy-error.log" 2>/dev/null || true
+    echo "===== relay check ====="
+    cat "$RUN_DIR/ap$n-relay-check.log" 2>/dev/null || true
     echo "===== switch log ====="
     cat "$RUN_DIR/ap$n-switch.log" 2>/dev/null || true
     echo "===== passwall2 socks log ====="
