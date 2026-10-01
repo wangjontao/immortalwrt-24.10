@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 MARKER="JULIANG_QUICK_ACL_V1"
 CTRL="/usr/lib/lua/luci/controller/juliang_quick_acl.lua"
 
@@ -362,7 +362,6 @@ text = replace_once(text, copy_anchor, acl_button .. copy_anchor, "button anchor
 local ping_call = '\n\t\t\tpingAllNodes();'
 text = replace_once(text, ping_call, ping_call .. '\n\t\t\tquick_acl_load_status();', "load status anchor")
 
-local modal_anchor = '\n<div style="display: %-webkit%-flex; display: flex; %-webkit%-align%-items: center; align%-items: center; %-webkit%-justify%-content: center; justify%-content: center;">'
 local modal = [[
 
 <div id="quick_acl_div" style="display:none; width:32rem; max-width:92vw; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:120; padding:20px; text-align:center; background:var(--main-bg-color,#fff); border-radius:10px; box-shadow:0 10px 36px rgba(0,0,0,.35);">
@@ -406,9 +405,10 @@ local modal = [[
     </div>
 </div>
 ]]
-local s,e = text:find(modal_anchor, 1, true)
-assert(s, "modal anchor missing")
-text = text:sub(1, s-1) .. modal .. text:sub(s)
+
+-- Append the modal to the template instead of relying on the exact upstream
+-- set_node_div wrapper markup, which may differ between LuCI/PassWall builds.
+text = text .. modal
 
 local out = assert(io.open(file .. ".new", "w"))
 out:write(text)
