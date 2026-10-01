@@ -29,7 +29,8 @@ find_acl_section(){
 }
 
 ensure_socks_section(){
-  n="$1"; node="${2:-}"; sec="jfa_ap$n"; port=$((13100+n))
+  local n="$1" node="${2:-}" sec port type
+  sec="jfa_ap$n"; port=$((13100+n))
   type="$(uci -q get $APP.$sec 2>/dev/null || true)"
   [ "$type" = "socks" ] || { uci -q delete $APP.$sec; uci set $APP.$sec='socks'; }
   uci set $APP.$sec.enabled='0'
@@ -42,7 +43,8 @@ ensure_socks_section(){
 }
 
 ensure_pre_section(){
-  n="$1"; node="${2:-}"; sec="jfa_pre$n"; port=$((14100+n))
+  local n="$1" node="${2:-}" sec port type
+  sec="jfa_pre$n"; port=$((14100+n))
   type="$(uci -q get $APP.$sec 2>/dev/null || true)"
   [ "$type" = "socks" ] || { uci -q delete $APP.$sec >/dev/null 2>&1 || true; uci set $APP.$sec='socks'; }
   uci set $APP.$sec.enabled='0'
@@ -55,7 +57,8 @@ ensure_pre_section(){
 }
 
 start_preproxy(){
-  n="$1"; pre="$2"; sec="jfa_pre$n"; port=$((14100+n))
+  local n="$1" pre="$2" sec port plog i
+  sec="jfa_pre$n"; port=$((14100+n))
   [ -n "$pre" ] || return 0
   [ "$(uci -q get $APP.$pre 2>/dev/null || true)" = "nodes" ] || {
     log "AP$n 前置节点不存在: $pre"
@@ -97,7 +100,8 @@ start_preproxy(){
 }
 
 kill_ap(){
-  n="$1"; sec="jfa_ap$n"; psec="jfa_pre$n"
+  local n="$1" sec psec pidf flag
+  sec="jfa_ap$n"; psec="jfa_pre$n"
   pidf="$RUN_DIR/ap$n.pid"
   if [ -s "$pidf" ]; then kill "$(cat "$pidf")" >/dev/null 2>&1 || true; rm -f "$pidf"; fi
   for flag in "$sec" "$psec"; do
@@ -108,18 +112,19 @@ kill_ap(){
 }
 
 start_ap(){
-  n="$1"; node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
-  [ -n "$node" ] || { kill_ap "$n"; return 0; }
-  [ "$(uci -q get $APP.$node 2>/dev/null || true)" = "nodes" ] || { log "AP$n 节点不存在: $node"; return 1; }
-  ensure_socks_section "$n" "$node"
+  local n="$1" landing_node type proto port chain pre preport cfg swlog i
+  landing_node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
+  [ -n "$landing_node" ] || { kill_ap "$n"; return 0; }
+  [ "$(uci -q get $APP.$landing_node 2>/dev/null || true)" = "nodes" ] || { log "AP$n 节点不存在: $landing_node"; return 1; }
+  ensure_socks_section "$n" "$landing_node"
   uci commit "$APP"
   kill_ap "$n"
-  type="$(uci -q get $APP.$node.type 2>/dev/null | tr 'A-Z' 'a-z')"
-  proto="$(uci -q get $APP.$node.protocol 2>/dev/null | tr 'A-Z' 'a-z')"
+  type="$(uci -q get $APP.$landing_node.type 2>/dev/null | tr 'A-Z' 'a-z')"
+  proto="$(uci -q get $APP.$landing_node.protocol 2>/dev/null | tr 'A-Z' 'a-z')"
   [ -n "$proto" ] || proto="$type"
   port=$((13100+n))
-  chain="$(uci -q get $APP.$node.chain_proxy 2>/dev/null || true)"
-  pre="$(uci -q get $APP.$node.preproxy_node 2>/dev/null || true)"
+  chain="$(uci -q get $APP.$landing_node.chain_proxy 2>/dev/null || true)"
+  pre="$(uci -q get $APP.$landing_node.preproxy_node 2>/dev/null || true)"
 
   # SOCKS/HTTP landing nodes get a deterministic cross-core bridge:
   # native preproxy core (Xray or sing-box) -> local SOCKS 141xx ->
@@ -131,7 +136,7 @@ start_ap(){
       preport=$((14100+n))
     fi
     cfg="$RUN_DIR/ap$n-direct.json"
-    lua /usr/libexec/juliang-fastacl-relay.lua "$node" "$port" "$cfg" "$preport" || return 1
+    lua /usr/libexec/juliang-fastacl-relay.lua "$landing_node" "$port" "$cfg" "$preport" || return 1
     sing-box check -c "$cfg" >"$RUN_DIR/ap$n-relay-check.log" 2>&1 || {
       log "AP$n SOCKS/HTTP 桥接配置检查失败"
       return 1
@@ -141,7 +146,7 @@ start_ap(){
   else
     swlog="$RUN_DIR/ap$n-switch.log"
     : > "$swlog"
-    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$node" >"$swlog" 2>&1 || {
+    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$landing_node" >"$swlog" 2>&1 || {
       log "AP$n PassWall2 socks_node_switch 返回失败"
       return 1
     }
@@ -153,7 +158,7 @@ start_ap(){
   done
   {
     echo "AP$n local SOCKS port $port not ready"
-    echo "node=$node type=$type protocol=$proto chain=$chain preproxy=$pre"
+    echo "node=$landing_node type=$type protocol=$proto chain=$chain preproxy=$pre"
     echo "===== preproxy error ====="
     cat "$RUN_DIR/ap$n-preproxy-error.log" 2>/dev/null || true
     echo "===== relay check ====="
