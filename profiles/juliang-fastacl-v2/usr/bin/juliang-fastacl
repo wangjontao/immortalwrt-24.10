@@ -415,7 +415,7 @@ heal_other_aps(){
     fi
     i=$((i+1))
   done
-  return 0
+  [ "$failed" -eq 0 ]
 }
 
 reload_router(){
@@ -636,7 +636,8 @@ case "${1:-}" in
   discover) lua /usr/libexec/juliang-fastacl-discover.lua ;;
   repair) repair_all ;;
   heal) heal_other_aps 0 ;;
+  ensure) ensure_dataplane ;;
   router-reload) reload_router ;;
   dns) [ $# -eq 3 ] || exit 2; set_dns_mode "$2" "$3" ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|ensure|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
