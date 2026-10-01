@@ -270,7 +270,33 @@ ap_sources_csv(){
   printf '%s' "$out"
 }
 
+install_killswitch(){
+  local AP_SOURCES
+  AP_SOURCES="$(ap_sources_csv)" || { log "no AP subnets discovered for kill-switch"; return 1; }
+
+  # Separate fail-closed table: proxied packets are diverted to local TProxy
+  # in prerouting and never reach forward. If TProxy/router disappears, AP
+  # traffic falls through to forward and is dropped here instead of WAN.
+  nft list table inet juliang_killswitch >/dev/null 2>&1 && nft delete table inet juliang_killswitch >/dev/null 2>&1 || true
+  cat > "$RUN_DIR/killswitch.nft" <<EOF
+table inet juliang_killswitch {
+  set ap_sources {
+    type ipv4_addr
+    flags interval
+    elements = { $AP_SOURCES }
+  }
+  chain forward {
+    type filter hook forward priority -1; policy accept;
+    ip saddr @ap_sources counter drop
+  }
+}
+EOF
+  nft -c -f "$RUN_DIR/killswitch.nft" || return 1
+  nft -f "$RUN_DIR/killswitch.nft" || return 1
+}
+
 firewall(){
+  install_killswitch || return 1
   TPROXY_PORT="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
   AP_SOURCES="$(ap_sources_csv)" || { log "no AP subnets discovered"; return 1; }
   nft list table inet juliang_fastacl >/dev/null 2>&1 && nft delete table inet juliang_fastacl >/dev/null 2>&1 || true
@@ -377,6 +403,7 @@ router_healthy(){
 }
 
 dataplane_healthy(){
+  nft list table inet juliang_killswitch >/dev/null 2>&1 || return 1
   router_healthy || return 1
   nft list table inet juliang_fastacl >/dev/null 2>&1 || return 1
   ip rule show 2>/dev/null | grep -q 'fwmark 0x66/0xff.*lookup 100' || return 1
@@ -385,6 +412,10 @@ dataplane_healthy(){
 }
 
 ensure_dataplane(){
+  nft list table inet juliang_killswitch >/dev/null 2>&1 || {
+    log "FastACL kill-switch 缺失，自动恢复..."
+    install_killswitch || return 1
+  }
   cleanup_old_passwall2_dataplane
   if ! router_healthy; then
     log "FastACL 主 TProxy 未运行，自动恢复..."
@@ -626,6 +657,7 @@ status(){
   fi
   echo "router: $router_state"
   nft list table inet juliang_fastacl >/dev/null 2>&1 && echo "nftables: loaded" || echo "nftables: missing"
+  nft list table inet juliang_killswitch >/dev/null 2>&1 && echo "killswitch: loaded(fail-closed)" || echo "killswitch: MISSING"
   count="$(ap_count)"
   echo "wireless: $count discovered"
   n=1; while [ "$n" -le "$count" ]; do
@@ -650,6 +682,7 @@ case "${1:-}" in
   stop) stop_all ;;
   restart) stop_all; start_all ;;
   firewall) firewall ;;
+  killswitch) install_killswitch ;;
   firewall-check) firewall_check ;;
   switch) [ $# -eq 3 ] || exit 2; switch_node "$2" "$3" ;;
   move) [ $# -eq 3 ] || exit 2; move_node "$2" "$3" ;;
@@ -664,5 +697,5 @@ case "${1:-}" in
   restore-state) restore_state ;;
   router-reload) reload_router ;;
   dns) [ $# -eq 3 ] || exit 2; set_dns_mode "$2" "$3" ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|ensure|save-state|restore-state|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|ensure|killswitch|save-state|restore-state|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
