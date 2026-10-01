@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="2.0.0"
+VERSION="2.0.1"
 RUNTIME_SHA="f77823de55fb69811ba64681367473009e0811c7"
 BASE="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/$RUNTIME_SHA/profiles/juliang-fastacl-v2"
 BACKUP_DIR="/etc/juliang-fastacl/backup"
@@ -16,8 +16,26 @@ trap cleanup EXIT INT TERM
 fetch() {
     rel="$1"
     dst="$2"
+    url="$BASE/$rel"
     mkdir -p "$(dirname "$dst")"
-    wget -qO "$dst" "$BASE/$rel" || fail "download failed: $rel"
+    log "fetch: $rel"
+
+    # Prefer IPv4 on this S20L. raw.githubusercontent.com may resolve IPv6 first
+    # and wget can sit on an unhealthy v6 path for a long time with no output.
+    if command -v curl >/dev/null 2>&1; then
+        if curl -4 -fL --connect-timeout 5 --max-time 30 --retry 2 --retry-delay 1 -o "$dst" "$url"; then
+            [ -s "$dst" ] || fail "downloaded empty file: $rel"
+            return 0
+        fi
+        log "curl IPv4 failed, trying wget IPv4..."
+    fi
+
+    if wget -4 --timeout=10 --tries=2 -O "$dst" "$url"; then
+        [ -s "$dst" ] || fail "downloaded empty file: $rel"
+        return 0
+    fi
+
+    fail "download failed: $rel"
 }
 
 find_acl_section() {
@@ -92,6 +110,7 @@ if [ ! -f "$BACKUP_DIR/node_list.htm" ]; then
 fi
 
 log "Downloading pinned runtime $RUNTIME_SHA ..."
+log "IPv4 + per-file timeout enabled; this stage should finish in under a few minutes."
 fetch "usr/bin/juliang-fastacl" "$TMP_DIR/juliang-fastacl"
 fetch "usr/bin/juliang-fastacl-luci-install" "$TMP_DIR/juliang-fastacl-luci-install"
 fetch "usr/bin/uninstall-juliang-fastacl" "$TMP_DIR/uninstall-juliang-fastacl"
