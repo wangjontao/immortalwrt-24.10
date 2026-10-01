@@ -1,0 +1,35 @@
+#!/bin/sh
+set -u
+
+BACKUP_DIR="/etc/juliang-fastacl/backup"
+NODE_LIST="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
+
+echo "=================================================="
+echo " JuLiang FastACL v2 rollback"
+echo "=================================================="
+
+/etc/init.d/juliang-fastacl stop >/dev/null 2>&1 || true
+/etc/init.d/juliang-fastacl disable >/dev/null 2>&1 || true
+
+if [ -f "$BACKUP_DIR/passwall2" ]; then
+    cp -af "$BACKUP_DIR/passwall2" /etc/config/passwall2
+    echo "[OK] restored /etc/config/passwall2"
+else
+    echo "[WARN] PassWall2 backup not found"
+fi
+
+if [ -f "$BACKUP_DIR/node_list.htm" ]; then
+    cp -af "$BACKUP_DIR/node_list.htm" "$NODE_LIST"
+    echo "[OK] restored PassWall2 node list UI"
+fi
+
+rm -f /etc/config/juliang_fastacl
+rm -f /tmp/luci-indexcache
+rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
+rm -rf /tmp/juliang-fastacl
+
+/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+/etc/init.d/passwall2 restart >/tmp/passwall2-fastacl-rollback.log 2>&1 &
+
+echo "[OK] rollback requested"
+echo "PassWall2 is restoring in background; log: /tmp/passwall2-fastacl-rollback.log"
