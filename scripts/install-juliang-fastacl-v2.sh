@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="2.0.1"
+VERSION="2.0.3"
 RUNTIME_SHA="f77823de55fb69811ba64681367473009e0811c7"
 BASE="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/$RUNTIME_SHA/profiles/juliang-fastacl-v2"
 BACKUP_DIR="/etc/juliang-fastacl/backup"
@@ -167,7 +167,8 @@ while [ "$n" -le 20 ]; do
     fi
 
     node="$(uci -q get juliang_fastacl.$sec.node 2>/dev/null || true)"
-    uci -q delete passwall2.jfa_ap$n
+    log "migrate AP$n -> ${node:-unassigned}"
+    uci -q delete passwall2.jfa_ap$n >/dev/null 2>&1 || true
     uci set passwall2.jfa_ap$n='socks'
     uci set passwall2.jfa_ap$n.enabled='0'
     uci set passwall2.jfa_ap$n.bind_local='1'
