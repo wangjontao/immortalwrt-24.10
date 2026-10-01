@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 MARKER="JULIANG_QUICK_ACL_V1"
 CTRL="/usr/lib/lua/luci/controller/juliang_quick_acl.lua"
 
@@ -212,8 +212,16 @@ patch_template() {
         return 0
     fi
 
-    [ -f "$FILE.quick-acl.bak" ] || cp -a "$FILE" "$FILE.quick-acl.bak"
+    # v1.0 could leave a partial patch (modal/top variable but no ACL button).
+    # If a backup exists and the marker is absent, restore the original first.
+    if [ -f "$FILE.quick-acl.bak" ]; then
+        echo "[INFO] $APP: restoring original template from previous partial patch"
+        cp -af "$FILE.quick-acl.bak" "$FILE"
+    else
+        cp -a "$FILE" "$FILE.quick-acl.bak"
+    fi
 
+    echo "[INFO] $APP: patching node list template"
     FILE="$FILE" APP="$APP" lua <<'LUA_PATCH'
 local file = assert(os.getenv("FILE"))
 local app = assert(os.getenv("APP"))
@@ -227,10 +235,15 @@ if text:find(marker, 1, true) then
     os.exit(0)
 end
 
+local function replace_once(src, needle, repl, label)
+    local s, e = src:find(needle, 1, true)
+    assert(s, (label or "anchor") .. " missing")
+    return src:sub(1, s - 1) .. repl .. src:sub(e + 1)
+end
+
 local top_old = 'local appname = api.appname\n'
 local top_new = 'local appname = api.appname\nlocal quick_acl_url = require("luci.dispatcher").build_url("admin", "services", "juliang_quick_acl")\n'
-assert(text:find(top_old, 1, true), "top anchor missing")
-text = text:gsub(top_old, top_new, 1)
+text = replace_once(text, top_old, top_new, "top anchor")
 
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [[
@@ -340,17 +353,14 @@ local js = [[
         });
     }
 ]]
-assert(text:find(js_anchor, 1, true), "JS anchor missing")
-text = text:gsub(js_anchor, js .. js_anchor, 1)
+text = replace_once(text, js_anchor, js .. js_anchor, "JS anchor")
 
 local copy_anchor = '\n\t\t\t\t<input class="btn cbi-button cbi-button-add" type="button" value="<%:Copy%>" onclick="copy_node(\'{{id}}\')"/>'
 local acl_button = '\n\t\t\t\t<input class="btn cbi-button cbi-button-edit quick-acl-btn" type="button" id="quick_acl_{{id}}" data-node-id="{{id}}" value="ACL" onclick="quick_acl_open(\'{{id}}\')" title="快捷分配 AP1-AP20"/>'
-assert(text:find(copy_anchor, 1, true), "button anchor missing")
-text = text:gsub(copy_anchor, acl_button .. copy_anchor, 1)
+text = replace_once(text, copy_anchor, acl_button .. copy_anchor, "button anchor")
 
 local ping_call = '\n\t\t\tpingAllNodes();'
-assert(text:find(ping_call, 1, true), "load status anchor missing")
-text = text:gsub(ping_call, ping_call .. '\n\t\t\tquick_acl_load_status();', 1)
+text = replace_once(text, ping_call, ping_call .. '\n\t\t\tquick_acl_load_status();', "load status anchor")
 
 local modal_anchor = '\n<div style="display: %-webkit%-flex; display: flex; %-webkit%-align%-items: center; align%-items: center; %-webkit%-justify%-content: center; justify%-content: center;">'
 local modal = [[
@@ -396,7 +406,7 @@ local modal = [[
     </div>
 </div>
 ]]
-local s,e = text:find(modal_anchor)
+local s,e = text:find(modal_anchor, 1, true)
 assert(s, "modal anchor missing")
 text = text:sub(1, s-1) .. modal .. text:sub(s)
 
@@ -407,6 +417,8 @@ os.rename(file .. ".new", file)
 LUA_PATCH
 
     grep -q "$MARKER" "$FILE"
+    grep -q 'quick-acl-btn' "$FILE"
+    grep -q 'quick_acl_load_status' "$FILE"
     echo "[OK] patched $APP node list"
 }
 
