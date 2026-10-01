@@ -13,32 +13,34 @@ local function write_json(t)
     http.write(jsonc.stringify(t))
 end
 
-local function ap_number(v)
-    local n = tonumber((v or ""):match("^AP(%d+)$"))
-    if n and n >= 1 and n <= 20 then return n end
-    return nil
-end
-
-local function wireless_labels(uci)
-    local labels = {}
-    for i = 1, 20 do
-        labels["AP" .. i] = "无线AP" .. i
-    end
-
-    uci:foreach("wireless", "wifi-iface", function(s)
-        local network = s.network or ""
-        local ssid = s.ssid or ""
-        if ssid ~= "" then
-            for i = 1, 20 do
-                local tk = "tk" .. i
-                if (" " .. network .. " "):find(" " .. tk .. " ", 1, true) then
-                    labels["AP" .. i] = "无线" .. ssid
-                end
-            end
+local function ap_sections(uci)
+    local out = {}
+    uci:foreach("juliang_fastacl", "ap", function(s)
+        local n = tonumber(s.slot or (s[".name"] or ""):match("^ap(%d+)$"))
+        if n then
+            out[#out + 1] = {
+                n = n,
+                ap = "AP" .. n,
+                section = s[".name"] or ("ap" .. n),
+                ssid = s.ssid or ("AP" .. n),
+                network = s.network or "",
+                subnet = s.subnet or "",
+                router_ip = s.router_ip or "",
+                socks_port = tonumber(s.socks_port or "") or (13100 + n),
+                preproxy_port = tonumber(s.preproxy_port or "") or (14100 + n),
+                node = s.node or ""
+            }
         end
     end)
+    table.sort(out, function(a,b) return a.n < b.n end)
+    return out
+end
 
-    return labels
+local function ap_number(uci, v)
+    local n = tonumber((v or ""):match("^AP(%d+)$"))
+    if not n or n < 1 then return nil end
+    if uci:get("juliang_fastacl", "ap" .. n) ~= "ap" then return nil end
+    return n
 end
 
 local function read_ip(n)
@@ -56,7 +58,10 @@ local function runtime_status()
     f:close()
     if not pid then return "stopped" end
     local sys = require "luci.sys"
-    return sys.call("kill -0 " .. pid .. " >/dev/null 2>&1") == 0 and "running" or "stopped"
+    if sys.call("kill -0 " .. pid .. " >/dev/null 2>&1") ~= 0 then return "stopped" end
+    local port = tonumber(require("luci.model.uci").cursor():get("juliang_fastacl", "main", "tproxy_port") or "12345")
+    local ok = sys.call("(ss -lnut 2>/dev/null || netstat -lnut 2>/dev/null) | grep -q ':" .. port .. " '") == 0
+    return ok and "running" or "broken"
 end
 
 local function exec_json(cmd)
@@ -64,14 +69,8 @@ local function exec_json(cmd)
     local jsonc = require "luci.jsonc"
     local raw = sys.exec(cmd .. " 2>/tmp/juliang-fastacl/luci-error.log")
     local ok, data = pcall(jsonc.parse, raw or "")
-    if ok and type(data) == "table" then
-        return data
-    end
-    return {
-        ok = false,
-        error = "ENGINE_ERROR",
-        detail = raw or ""
-    }
+    if ok and type(data) == "table" then return data end
+    return { ok = false, error = "ENGINE_ERROR", detail = raw or "" }
 end
 
 local function is_special_protocol(p)
@@ -93,9 +92,7 @@ local function preproxy_options(uci, current)
             }
         end
     end)
-    table.sort(out, function(a, b)
-        return (a.remarks or "") < (b.remarks or "")
-    end)
+    table.sort(out, function(a,b) return (a.remarks or "") < (b.remarks or "") end)
     return out
 end
 
@@ -103,23 +100,30 @@ function handle()
     local http = require "luci.http"
     local util = require "luci.util"
     local uci = require("luci.model.uci").cursor()
-
     local action = http.formvalue("action") or "status"
+    local aps = ap_sections(uci)
 
     if action == "status" then
-        local map = {}
-        local ap_to_node = {}
-        local ips = {}
-        local labels = wireless_labels(uci)
+        local map, ap_to_node, ips, labels = {}, {}, {}, {}
+        local ap_meta = {}
 
-        for i = 1, 20 do
-            local ap = "AP" .. i
-            local node = uci:get("juliang_fastacl", "ap" .. i, "node") or ""
-            ap_to_node[ap] = node
-            ips[ap] = read_ip(i)
+        for _, a in ipairs(aps) do
+            local node = uci:get("juliang_fastacl", a.section, "node") or ""
+            ap_to_node[a.ap] = node
+            ips[a.ap] = read_ip(a.n)
+            labels[a.ap] = a.ssid
+            ap_meta[#ap_meta + 1] = {
+                ap = a.ap,
+                slot = a.n,
+                ssid = a.ssid,
+                network = a.network,
+                subnet = a.subnet,
+                router_ip = a.router_ip,
+                socks_port = a.socks_port
+            }
             if node ~= "" then
                 map[node] = map[node] or {}
-                map[node][#map[node] + 1] = ap
+                map[node][#map[node] + 1] = a.ap
             end
         end
 
@@ -139,6 +143,8 @@ function handle()
         write_json({
             ok = true,
             engine = runtime_status(),
+            count = #aps,
+            aps = ap_meta,
             map = map,
             ap_to_node = ap_to_node,
             wireless_labels = labels,
@@ -153,31 +159,17 @@ function handle()
 
     if action == "assign" then
         local ap = http.formvalue("ap") or ""
-        local n = ap_number(ap)
-        if not n then
-            write_json({ ok = false, error = "BAD_AP" })
-            return
-        end
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
-
+        local n = ap_number(uci, ap)
+        if not n then write_json({ok=false,error="BAD_AP"}); return end
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then write_json({ok=false,error="BAD_NODE"}); return end
         local exclusive = http.formvalue("exclusive") ~= "0"
         local verb = exclusive and "move" or "switch"
-        local result = exec_json(
-            "/usr/bin/juliang-fastacl " .. verb .. " " ..
-            ap .. " " .. util.shellquote(node)
-        )
-        write_json(result)
+        write_json(exec_json("/usr/bin/juliang-fastacl " .. verb .. " " .. ap .. " " .. util.shellquote(node)))
         return
     end
 
     if action == "preproxy_options" then
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then write_json({ok=false,error="BAD_NODE"}); return end
         write_json({
             ok = true,
             current = node_cfg.preproxy_node or "",
@@ -188,32 +180,22 @@ function handle()
     end
 
     if action == "set_preproxy" then
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
-
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then write_json({ok=false,error="BAD_NODE"}); return end
         local pre = http.formvalue("preproxy") or ""
-        if pre == node then
-            write_json({ ok = false, error = "PREPROXY_SELF" })
-            return
-        end
+        if pre == node then write_json({ok=false,error="PREPROXY_SELF"}); return end
 
         if pre ~= "" then
             local p = uci:get_all("passwall2", pre)
             if not p or p[".type"] ~= "nodes" or is_special_protocol(p.protocol or "") then
-                write_json({ ok = false, error = "BAD_PREPROXY" })
-                return
+                write_json({ok=false,error="BAD_PREPROXY"}); return
             end
             if (p.chain_proxy or "") ~= "" then
-                write_json({ ok = false, error = "PREPROXY_ALREADY_CHAINED" })
-                return
+                write_json({ok=false,error="PREPROXY_ALREADY_CHAINED"}); return
             end
         end
 
         local old_chain = node_cfg.chain_proxy or ""
         local old_pre = node_cfg.preproxy_node or ""
-
         if pre == "" then
             uci:delete("passwall2", node, "chain_proxy")
             uci:delete("passwall2", node, "preproxy_node")
@@ -223,41 +205,25 @@ function handle()
         end
         uci:commit("passwall2")
 
-        local affected = {}
-        local failed = nil
-        for i = 1, 20 do
-            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
-                local ap = "AP" .. i
-                local r = exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
-                if not r.ok then
-                    failed = r
-                    break
-                end
-                affected[#affected + 1] = ap
+        local affected, failed = {}, nil
+        for _, a in ipairs(aps) do
+            if (uci:get("juliang_fastacl", a.section, "node") or "") == node then
+                local rr = exec_json("/usr/bin/juliang-fastacl switch " .. a.ap .. " " .. util.shellquote(node))
+                if not rr.ok then failed = rr; break end
+                affected[#affected + 1] = a.ap
             end
         end
 
         if failed then
-            if old_chain == "" then
-                uci:delete("passwall2", node, "chain_proxy")
-            else
-                uci:set("passwall2", node, "chain_proxy", old_chain)
-            end
-            if old_pre == "" then
-                uci:delete("passwall2", node, "preproxy_node")
-            else
-                uci:set("passwall2", node, "preproxy_node", old_pre)
-            end
+            if old_chain == "" then uci:delete("passwall2", node, "chain_proxy")
+            else uci:set("passwall2", node, "chain_proxy", old_chain) end
+            if old_pre == "" then uci:delete("passwall2", node, "preproxy_node")
+            else uci:set("passwall2", node, "preproxy_node", old_pre) end
             uci:commit("passwall2")
             for _, ap in ipairs(affected) do
                 exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
             end
-            write_json({
-                ok = false,
-                error = "PREPROXY_START_FAILED",
-                detail = failed,
-                rolled_back = true
-            })
+            write_json({ok=false,error="PREPROXY_START_FAILED",detail=failed,rolled_back=true})
             return
         end
 
@@ -266,7 +232,6 @@ function handle()
             local sys = require "luci.sys"
             ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. affected[1] .. " 2>/dev/null") or ""):gsub("%s+", "")
         end
-
         write_json({
             ok = true,
             action = "set_preproxy",
@@ -280,36 +245,33 @@ function handle()
     end
 
     if action == "clear_node" then
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
-
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then write_json({ok=false,error="BAD_NODE"}); return end
         local cleared = {}
-        for i = 1, 20 do
-            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
-                local ap = "AP" .. i
-                local r = exec_json("/usr/bin/juliang-fastacl clear " .. ap)
-                if r.ok then cleared[#cleared + 1] = ap end
+        for _, a in ipairs(aps) do
+            if (uci:get("juliang_fastacl", a.section, "node") or "") == node then
+                local rr = exec_json("/usr/bin/juliang-fastacl clear " .. a.ap)
+                if rr.ok then cleared[#cleared + 1] = a.ap end
             end
         end
-
-        write_json({ ok = true, action = "clear_node", node = node, cleared = cleared })
+        write_json({ok=true,action="clear_node",node=node,cleared=cleared})
         return
     end
 
     if action == "probe" then
         local ap = http.formvalue("ap") or ""
-        local n = ap_number(ap)
-        if not n then
-            write_json({ ok = false, error = "BAD_AP" })
-            return
-        end
+        local n = ap_number(uci, ap)
+        if not n then write_json({ok=false,error="BAD_AP"}); return end
         local sys = require "luci.sys"
         local ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. ap .. " 2>/dev/null") or ""):gsub("%s+", "")
-        write_json({ ok = ip ~= "" and ip ~= "-", ap = ap, ip = ip })
+        write_json({ok = ip ~= "" and ip ~= "-", ap=ap, ip=ip})
         return
     end
 
-    write_json({ ok = false, error = "BAD_ACTION" })
+    if action == "rediscover" then
+        local rr = exec_json("/usr/bin/juliang-fastacl discover")
+        write_json(rr)
+        return
+    end
+
+    write_json({ok=false,error="BAD_ACTION"})
 end
