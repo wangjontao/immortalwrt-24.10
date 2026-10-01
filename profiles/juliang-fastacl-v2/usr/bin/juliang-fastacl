@@ -12,6 +12,24 @@ touch /tmp/etc/passwall2/var
 
 log(){ echo "[JFA] $*"; }
 
+save_state(){
+  local dir tmp
+  dir="$STATE_DIR/last-good"
+  tmp="$dir/juliang_fastacl.tmp"
+  mkdir -p "$dir" || return 0
+  cp -af /etc/config/juliang_fastacl "$tmp" 2>/dev/null || return 0
+  mv -f "$tmp" "$dir/juliang_fastacl" 2>/dev/null || true
+}
+
+restore_state(){
+  local src
+  src="$STATE_DIR/last-good/juliang_fastacl"
+  [ -s "$src" ] || return 1
+  cp -af "$src" /etc/config/juliang_fastacl || return 1
+  log "restored FastACL last-good persistent config"
+  return 0
+}
+
 has_tcp_listener(){
   local port="$1"
   ss -lnt 2>/dev/null | grep -q ":$port " && return 0
