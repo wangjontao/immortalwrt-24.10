@@ -5,6 +5,7 @@ STOP=14
 start() {
     [ "$(uci -q get juliang_fastacl.main.enabled 2>/dev/null)" = "1" ] || return 0
     mkdir -p /tmp/juliang-fastacl
+    lua /usr/libexec/juliang-fastacl-discover.lua >/tmp/juliang-fastacl/discover-boot.json 2>/tmp/juliang-fastacl/discover-boot.log || true
     /usr/bin/juliang-fastacl start >/tmp/juliang-fastacl/start.log 2>&1 &
 }
 
