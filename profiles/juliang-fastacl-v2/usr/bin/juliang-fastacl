@@ -12,6 +12,22 @@ touch /tmp/etc/passwall2/var
 
 log(){ echo "[JFA] $*"; }
 
+has_tcp_listener(){
+  local port="$1"
+  ss -lnt 2>/dev/null | grep -q ":$port " && return 0
+  netstat -lnt 2>/dev/null | grep -q ":$port " && return 0
+  return 1
+}
+
+has_any_listener(){
+  local port="$1"
+  ss -lnt 2>/dev/null | grep -q ":$port " && return 0
+  ss -lnu 2>/dev/null | grep -q ":$port " && return 0
+  netstat -lnt 2>/dev/null | grep -q ":$port " && return 0
+  netstat -lnu 2>/dev/null | grep -q ":$port " && return 0
+  return 1
+}
+
 ap_count(){
   local c
   c="$(uci -q get $CFG.main.ap_count 2>/dev/null || echo 0)"
@@ -93,7 +109,7 @@ start_preproxy(){
 
   i=0
   while [ "$i" -lt 6 ]; do
-    (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
+    has_tcp_listener "$port" && return 0
     sleep 1
     i=$((i+1))
   done
@@ -166,7 +182,7 @@ start_ap(){
   fi
   i=0
   while [ "$i" -lt 5 ]; do
-    (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
+    has_tcp_listener "$port" && return 0
     sleep 1; i=$((i+1))
   done
   {
@@ -305,7 +321,7 @@ start_router(){
   i=0
   while [ "$i" -lt 5 ]; do
     kill -0 "$pid" >/dev/null 2>&1 || { cat "$RUN_DIR/router.log"; return 1; }
-    if (ss -lnut 2>/dev/null || netstat -lnut 2>/dev/null) | grep -q ":$tport "; then
+    if has_any_listener "$tport"; then
       return 0
     fi
     sleep 1
@@ -318,6 +334,60 @@ start_router(){
 
 stop_router(){
   if [ -s "$RUN_DIR/router.pid" ]; then kill "$(cat "$RUN_DIR/router.pid")" >/dev/null 2>&1 || true; rm -f "$RUN_DIR/router.pid"; fi
+}
+
+cleanup_old_passwall2_dataplane(){
+  # FastACL keeps PassWall2 only as node DB/UI. Any old transparent proxy
+  # dataplane must not intercept AP traffic before our dedicated table.
+  if [ "$(uci -q get passwall2.@global[0].enabled 2>/dev/null || echo 0)" = "0" ]; then
+    nft list table inet passwall2 >/dev/null 2>&1 && nft delete table inet passwall2 >/dev/null 2>&1 || true
+    pgrep -af '/tmp/etc/passwall2/acl/default/global.json' 2>/dev/null | awk '!/pgrep|awk/ {print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
+    ip rule del fwmark 0x1 table 100 priority 9999 >/dev/null 2>&1 || true
+  fi
+}
+
+router_healthy(){
+  local tport pid
+  tport="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
+  [ -s "$RUN_DIR/router.pid" ] || return 1
+  pid="$(cat "$RUN_DIR/router.pid" 2>/dev/null || true)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" >/dev/null 2>&1 || return 1
+  has_any_listener "$tport"
+}
+
+dataplane_healthy(){
+  router_healthy || return 1
+  nft list table inet juliang_fastacl >/dev/null 2>&1 || return 1
+  ip rule show 2>/dev/null | grep -q 'fwmark 0x66/0xff.*lookup 100' || return 1
+  ip route show table "$ROUTE_TABLE" 2>/dev/null | grep -q '^local default dev lo' || return 1
+  return 0
+}
+
+ensure_dataplane(){
+  cleanup_old_passwall2_dataplane
+  if ! router_healthy; then
+    log "FastACL 主 TProxy 未运行，自动恢复..."
+    start_router || return 1
+  fi
+  if ! nft list table inet juliang_fastacl >/dev/null 2>&1; then
+    log "FastACL nftables 表缺失，自动恢复..."
+    firewall || return 1
+  else
+    install_fw4_accept || return 1
+    if ! ip rule show 2>/dev/null | grep -q 'fwmark 0x66/0xff.*lookup 100'; then
+      ip rule del fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 >/dev/null 2>&1 || true
+      ip rule add fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 || return 1
+    fi
+    ip route replace local 0.0.0.0/0 dev lo table "$ROUTE_TABLE" || return 1
+  fi
+  dataplane_healthy
+}
+
+repair_all(){
+  lua /usr/libexec/juliang-fastacl-discover.lua >"$RUN_DIR/repair-discover.json" 2>"$RUN_DIR/repair-discover.log" || true
+  cleanup_old_passwall2_dataplane
+  start_all
 }
 
 start_all(){
@@ -344,6 +414,7 @@ start_all(){
     log "$failed assigned AP relay(s) failed to start"
     return 1
   }
+  cleanup_old_passwall2_dataplane
   start_router || return 1
   firewall || return 1
 }
@@ -374,12 +445,12 @@ switch_node(){
   uci commit "$CFG"; uci commit "$APP"
 
   t0="$(date +%s)"
-  if start_ap "$n"; then
+  if start_ap "$n" && ensure_dataplane; then
     ip="$(probe_ap "$n")"
     printf '%s\n' "$ip" > "$RUN_DIR/ap$n.ip"
     t1="$(date +%s)"; sec=$((t1-t0))
     remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
-    printf '{"ok":true,"ap":"AP%s","node":"%s","remark":"%s","ip":"%s","seconds":%s}\n' "$n" "$node" "$(echo "$remark" | sed 's/"/\\"/g')" "$ip" "$sec"
+    printf '{"ok":true,"ap":"AP%s","node":"%s","remark":"%s","ip":"%s","seconds":%s,"dataplane":"running"}\n' "$n" "$node" "$(echo "$remark" | sed 's/"/\\"/g')" "$ip" "$sec"
   else
     if [ -n "$old" ]; then
       uci set $CFG.ap$n.node="$old"
@@ -461,12 +532,10 @@ status(){
   echo "JuLiang FastACL"
   tport="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
   router_state="stopped"
-  if [ -s "$RUN_DIR/router.pid" ] && kill -0 "$(cat "$RUN_DIR/router.pid")" 2>/dev/null; then
-    if (ss -lnut 2>/dev/null || netstat -lnut 2>/dev/null) | grep -q ":$tport "; then
-      router_state="running"
-    else
-      router_state="broken(no-listener:$tport)"
-    fi
+  if router_healthy; then
+    router_state="running"
+  elif [ -s "$RUN_DIR/router.pid" ] && kill -0 "$(cat "$RUN_DIR/router.pid")" 2>/dev/null; then
+    router_state="broken(no-listener:$tport)"
   fi
   echo "router: $router_state"
   nft list table inet juliang_fastacl >/dev/null 2>&1 && echo "nftables: loaded" || echo "nftables: missing"
@@ -480,7 +549,7 @@ status(){
     subnet="$(uci -q get $CFG.ap$n.subnet 2>/dev/null || true)"
     if [ -n "$node" ]; then
       remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
-      listen="no"; (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && listen="yes"
+      listen="no"; has_tcp_listener "$port" && listen="yes"
       echo "AP$n [$ssid | $net | $subnet] -> $remark | socks:$port listen:$listen"
     else
       echo "AP$n [$ssid | $net | $subnet] -> unassigned"
@@ -501,5 +570,6 @@ case "${1:-}" in
   probe) n="$(ap_num "$2")" || exit 2; probe_ap "$n" ;;
   status) status ;;
   discover) lua /usr/libexec/juliang-fastacl-discover.lua ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  repair) repair_all ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
