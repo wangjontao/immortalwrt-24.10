@@ -125,23 +125,11 @@ function handle()
         end
 
         local exclusive = http.formvalue("exclusive") ~= "0"
+        local verb = exclusive and "move" or "switch"
         local result = exec_json(
-            "/usr/bin/juliang-fastacl switch " ..
+            "/usr/bin/juliang-fastacl " .. verb .. " " ..
             ap .. " " .. util.shellquote(node)
         )
-
-        local cleared = {}
-        if result.ok and exclusive then
-            for i = 1, 20 do
-                if i ~= n and (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
-                    local old_ap = "AP" .. i
-                    local r = exec_json("/usr/bin/juliang-fastacl clear " .. old_ap)
-                    if r.ok then cleared[#cleared + 1] = old_ap end
-                end
-            end
-        end
-
-        result.cleared = cleared
         write_json(result)
         return
     end
