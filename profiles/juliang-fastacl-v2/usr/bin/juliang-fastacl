@@ -342,7 +342,9 @@ cleanup_old_passwall2_dataplane(){
   if [ "$(uci -q get passwall2.@global[0].enabled 2>/dev/null || echo 0)" = "0" ]; then
     nft list table inet passwall2 >/dev/null 2>&1 && nft delete table inet passwall2 >/dev/null 2>&1 || true
     pgrep -af '/tmp/etc/passwall2/acl/default/global.json' 2>/dev/null | awk '!/pgrep|awk/ {print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
-    ip rule del fwmark 0x1 table 100 priority 9999 >/dev/null 2>&1 || true
+    for pref in $(ip rule show 2>/dev/null | awk '/fwmark 0x1/ && /lookup 100/ {gsub(":", "", $1); print $1}'); do
+      ip rule del priority "$pref" >/dev/null 2>&1 || true
+    done
   fi
 }
 
