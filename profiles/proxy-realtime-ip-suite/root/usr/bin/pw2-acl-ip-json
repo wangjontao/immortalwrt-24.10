@@ -55,12 +55,12 @@ if fs.stat(base) then
     if sid~="." and sid~=".." and sid~="default" and sid~="acl_default" then
       local src=rf(base.."/"..sid.."/source_list")
       local idx=src and tonumber(src:match("172%.16%.(%d+)%.0/24"))
-      if idx and idx>=1 and idx<=10 then
+      if idx and idx>=1 and idx<=20 then
         local node=var:match('ACL_'..sid..'_node="([^"]+)"') or ""
         if not valid(node) then node=uci:get("passwall2",sid,"node") or "" end
         if (node=="" or node=="default") and (uci:get("passwall2",sid,"mode") or "")=="2" then node=global end
         if not valid(node) then node="" end
-        rows[#rows+1]={index=idx,name="A"..idx,section=sid,network="172.16."..idx..".0/24",node=node}
+        rows[#rows+1]={index=idx,name="AP"..idx,section=sid,network="172.16."..idx..".0/24",node=node}
       end
     end
   end
