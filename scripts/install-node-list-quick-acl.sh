@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-VERSION="1.2.0"
-MARKER="JULIANG_QUICK_ACL_V1"
+VERSION="1.3.0"
+MARKER="JULIANG_QUICK_ACL_V13"
 CTRL="/usr/lib/lua/luci/controller/juliang_quick_acl.lua"
 
 echo "=================================================="
@@ -163,14 +163,16 @@ function handle()
         end
 
         uci:commit(app)
-        restart_async(app)
+        local pf = io.open("/tmp/juliang-quick-acl-" .. app .. ".pending", "w")
+        if pf then pf:write(os.time(), "\n"); pf:close() end
 
         write_json({
             ok = true,
             action = "assign",
             node = node,
             acl = acl,
-            exclusive = exclusive
+            exclusive = exclusive,
+            pending = true
         })
         return
     end
@@ -186,9 +188,17 @@ function handle()
         end)
 
         uci:commit(app)
-        restart_async(app)
+        local pf = io.open("/tmp/juliang-quick-acl-" .. app .. ".pending", "w")
+        if pf then pf:write(os.time(), "\n"); pf:close() end
 
-        write_json({ ok = true, action = "clear_node", node = node, cleared = cleared })
+        write_json({ ok = true, action = "clear_node", node = node, cleared = cleared, pending = true })
+        return
+    end
+
+    if action == "apply" then
+        os.remove("/tmp/juliang-quick-acl-" .. app .. ".pending")
+        restart_async(app)
+        write_json({ ok = true, action = "apply", restarting = true })
         return
     end
 
@@ -230,7 +240,7 @@ local f = assert(io.open(file, "r"))
 local text = f:read("*a")
 f:close()
 
-local marker = "JULIANG_QUICK_ACL_V1"
+local marker = "JULIANG_QUICK_ACL_V13"
 if text:find(marker, 1, true) then
     os.exit(0)
 end
@@ -299,6 +309,29 @@ local js = [[
         quickAclNode = "";
     }
 
+    function quick_acl_apply(btn) {
+        if (btn) {
+            btn.disabled = true;
+            btn.value = "应用中…";
+        }
+
+        XHR.get('<%=quick_acl_url%>', {
+            app: '<%=appname%>',
+            action: 'apply'
+        }, function(x, result) {
+            if (btn) {
+                btn.disabled = false;
+                btn.value = "保存并应用 ACL";
+            }
+
+            if (x && x.status == 200 && result && result.ok) {
+                alert("ACL 已保存，正在统一重载代理规则。\n这次只重启一次。");
+            } else {
+                alert("应用失败：" + ((result && result.error) || "ERROR"));
+            }
+        });
+    }
+
     function quick_acl_assign() {
         if (!quickAclNode) return;
         var acl = document.getElementById("quick_acl_select").value;
@@ -319,7 +352,7 @@ local js = [[
             exclusive: exclusive
         }, function(x, result) {
             if (x && x.status == 200 && result && result.ok) {
-                status.innerText = "已分配到 " + acl + "，代理正在重启";
+                status.innerText = "已保存到 " + acl + "，尚未应用";
                 quick_acl_load_status(function() {
                     document.getElementById("quick_acl_current").innerText =
                         quick_acl_summary(quickAclMap[quickAclNode] || []);
@@ -343,7 +376,7 @@ local js = [[
             node: quickAclNode
         }, function(x, result) {
             if (x && x.status == 200 && result && result.ok) {
-                status.innerText = "已解除，代理正在重启";
+                status.innerText = "已解除绑定，尚未应用";
                 quick_acl_load_status(function() {
                     document.getElementById("quick_acl_current").innerText = "未分配";
                 });
@@ -399,7 +432,7 @@ local modal = [[
     </label>
     <div id="quick_acl_status" style="min-height:22px;margin:8px 0;color:#159957;"></div>
     <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
-        <input class="btn cbi-button cbi-button-apply" type="button" value="立即分配" onclick="quick_acl_assign()"/>
+        <input class="btn cbi-button cbi-button-apply" type="button" value="保存分配" onclick="quick_acl_assign()"/>
         <input class="btn cbi-button cbi-button-remove" type="button" value="解除绑定" onclick="quick_acl_clear_node()"/>
         <input class="btn cbi-button cbi-button-edit" type="button" value="关闭" onclick="quick_acl_close()"/>
     </div>
@@ -419,6 +452,8 @@ LUA_PATCH
     grep -q "$MARKER" "$FILE"
     grep -q 'quick-acl-btn' "$FILE"
     grep -q 'quick_acl_load_status' "$FILE"
+    grep -q 'quick_acl_apply' "$FILE"
+    grep -q '保存并应用 ACL' "$FILE"
     echo "[OK] patched $APP node list"
 }
 
@@ -455,6 +490,7 @@ echo "打开 PassWall / PassWall2 -> 节点列表"
 echo "每个节点右侧新增 ACL 按钮"
 echo "可直接分配 AP1-AP20，无需进入访问控制页面"
 echo "默认“唯一绑定”，同一节点只绑定一个 AP"
+echo "节点分配只保存配置，不再每次重启；全部分配完后点击“保存并应用 ACL”统一生效"
 echo
 echo "如需卸载："
 echo "  /usr/bin/uninstall-juliang-quick-acl"
