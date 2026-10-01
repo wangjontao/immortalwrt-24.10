@@ -15,8 +15,9 @@ echo "=================================================="
 # the original ACL sections. Only remove our shadow SOCKS holders and restore
 # the three original engine switches.
 n=1
-while [ "$n" -le 20 ]; do
+while [ "$n" -le 64 ]; do
     uci -q delete passwall2.jfa_ap$n
+    uci -q delete passwall2.jfa_pre$n
     n=$((n + 1))
 done
 
