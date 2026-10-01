@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-VERSION="1.4.0"
-MARKER="JULIANG_QUICK_ACL_V14"
+VERSION="1.5.0"
+MARKER="JULIANG_QUICK_ACL_V15"
 CTRL="/usr/lib/lua/luci/controller/juliang_quick_acl.lua"
 
 echo "=================================================="
@@ -85,7 +85,7 @@ end
 local function restart_async(app)
     local sys = require "luci.sys"
     sys.call(string.format(
-        "(sleep 1; /etc/init.d/%s restart >/tmp/%s-quick-acl.log 2>&1) >/dev/null 2>&1 &",
+        "(sleep 1; /usr/bin/juliang-quick-acl-apply %s >/tmp/%s-quick-acl.log 2>&1) >/dev/null 2>&1 &",
         app, app
     ))
 end
@@ -235,6 +235,71 @@ LUA_CTRL
 
 lua -e "assert(loadfile('$CTRL'))"
 
+cat > /usr/bin/juliang-quick-acl-apply <<'FAST_APPLY'
+#!/bin/sh
+set -u
+
+APP="$1"
+case "$APP" in
+    passwall2)
+        ;;
+    passwall)
+        exec /etc/init.d/passwall restart
+        ;;
+    *)
+        echo "BAD_APP"
+        exit 2
+        ;;
+esac
+
+# PassWall2 ACL-only fast restart:
+# while PassWall2 is already running, ImmortalWrt's dnsmasq dns_redirect is
+# normally held at 0 and the original value is saved in passwall2 global config.
+# A normal restart restores/restarts dnsmasq during stop, then disables/restarts
+# it again during start. On the 20-WiFi S20L this can cost ~60-70s each time.
+GLOBAL_ENABLED="$(uci -q get passwall2.@global[0].enabled 2>/dev/null || echo 0)"
+GLOBAL_NODE="$(uci -q get passwall2.@global[0].node 2>/dev/null || true)"
+DHCP_REDIRECT="$(uci -q get dhcp.@dnsmasq[0].dns_redirect 2>/dev/null || true)"
+PW2_BACKUP="$(uci -q get passwall2.@global[0].dnsmasq_dns_redirect 2>/dev/null || true)"
+VAR="/tmp/etc/passwall2/var"
+
+# Only use the optimization for ACL-only mode with an existing running runtime.
+# Otherwise fall back to the upstream full restart.
+if [ "$GLOBAL_ENABLED" != "1" ] && [ -z "$GLOBAL_NODE" ] &&    [ "$DHCP_REDIRECT" = "0" ] && [ -n "$PW2_BACKUP" ] && [ -s "$VAR" ]; then
+    echo "[FAST] PassWall2 ACL-only restart: keep system dnsmasq untouched"
+    START_TS="$(date +%s)"
+
+    # Prevent stop() from restarting the system dnsmasq. The temporary runtime
+    # marker disappears naturally when PassWall2 recreates /tmp/etc/passwall2.
+    sed -i '/^ACL_default_dns_port=/d' "$VAR"
+    echo 'ACL_default_dns_port="1"' >> "$VAR"
+
+    # Keep the saved original dns_redirect value outside UCI only during restart,
+    # so stop() does not restore it and start() therefore does not toggle it back.
+    uci -q delete passwall2.@global[0].dnsmasq_dns_redirect
+    uci -q commit passwall2
+
+    restore_backup() {
+        if [ -n "$PW2_BACKUP" ]; then
+            uci -q set passwall2.@global[0].dnsmasq_dns_redirect="$PW2_BACKUP"
+            uci -q commit passwall2
+        fi
+    }
+    trap restore_backup EXIT INT TERM
+
+    /etc/init.d/passwall2 restart
+    RC=$?
+
+    END_TS="$(date +%s)"
+    echo "[FAST] restart finished in $((END_TS - START_TS))s"
+    exit "$RC"
+fi
+
+echo "[NORMAL] PassWall2 full restart"
+exec /etc/init.d/passwall2 restart
+FAST_APPLY
+chmod 0755 /usr/bin/juliang-quick-acl-apply
+
 patch_template() {
     APP="$1"
     FILE="/usr/lib/lua/luci/view/$APP/node_list/node_list.htm"
@@ -267,7 +332,7 @@ local f = assert(io.open(file, "r"))
 local text = f:read("*a")
 f:close()
 
-local marker = "JULIANG_QUICK_ACL_V14"
+local marker = "JULIANG_QUICK_ACL_V15"
 if text:find(marker, 1, true) then
     os.exit(0)
 end
@@ -285,7 +350,7 @@ text = replace_once(text, top_old, top_new, "top anchor")
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [[
 
-    // JULIANG_QUICK_ACL_V14
+    // JULIANG_QUICK_ACL_V15
     var quickAclNode = "";
     var quickAclMap = {};
     var quickAclWirelessLabels = {};
@@ -371,7 +436,7 @@ local js = [[
             }
 
             if (x && x.status == 200 && result && result.ok) {
-                alert("无线分配已保存，正在统一重载代理规则。\n这次只重启一次。");
+                alert("无线分配已保存，正在统一应用。\nPassWall2 ACL-only 模式会跳过两次系统 DNS 重启。");
             } else {
                 alert("应用失败：" + ((result && result.error) || "ERROR"));
             }
@@ -517,6 +582,7 @@ for APP in passwall passwall2; do
     fi
 done
 rm -f /usr/lib/lua/luci/controller/juliang_quick_acl.lua
+rm -f /usr/bin/juliang-quick-acl-apply
 rm -f /tmp/luci-indexcache
 rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
 /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
@@ -537,6 +603,7 @@ echo "每个节点右侧新增“分配无线/无线SSID”按钮"
 echo "可直接分配无线 AP1-AP20（界面读取实际 SSID 名称），无需进入访问控制页面"
 echo "默认“唯一绑定”，同一节点只绑定一个 AP"
 echo "节点分配只保存配置，不再每次重启；全部分配完后点击“保存并应用无线”统一生效"
+echo "PassWall2 ACL-only 快速应用：跳过不必要的系统 dnsmasq 双重重启"
 echo
 echo "如需卸载："
 echo "  /usr/bin/uninstall-juliang-quick-acl"
