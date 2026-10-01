@@ -70,7 +70,7 @@ ensure_pre_section(){
 
 start_preproxy(){
   local n="$1" pre="$2" sec port plog i
-  sec="jfa_pre$n"; port=$((14100+n))
+  sec="jfa_pre$n"; port="$(uci -q get $CFG.ap$n.preproxy_port 2>/dev/null || echo $((14100+n)))"
   [ -n "$pre" ] || return 0
   [ "$(uci -q get $APP.$pre 2>/dev/null || true)" = "nodes" ] || {
     log "AP$n 前置节点不存在: $pre"
