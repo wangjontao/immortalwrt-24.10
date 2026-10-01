@@ -3,7 +3,7 @@ set -eu
 
 FILE="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
 CTRL="/usr/lib/lua/luci/controller/juliang_fastacl.lua"
-MARKER="JULIANG_FASTACL_V209"
+MARKER="JULIANG_FASTACL_V220"
 
 [ -f "$FILE" ] || {
     echo "[ERROR] PassWall2 node_list.htm not found: $FILE"
@@ -47,13 +47,14 @@ text = replace_once(text, top_old, top_new, "top anchor")
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [=[
 
-    // JULIANG_FASTACL_V209
+    // JULIANG_FASTACL_V220
     var jfaNode = "";
     var jfaMap = {};
     var jfaLabels = {};
     var jfaIps = {};
     var jfaEngine = "unknown";
     var jfaPreproxy = {};
+    var jfaAps = [];
 
     function jfa_label(ap) {
         return jfaLabels[ap] || ("无线" + ap);
@@ -94,13 +95,26 @@ local js = [=[
         var sel = document.getElementById("jfa_select");
         if (!sel) return;
 
-        for (var i = 0; i < sel.options.length; i++) {
-            var ap = sel.options[i].value;
-            if (/^AP([1-9]|1[0-9]|20)$/.test(ap)) {
-                var n = ap.replace("AP", "");
-                sel.options[i].text = jfa_label(ap) + " · 172.16." + n + ".0/24";
-            }
+        var keep = sel.value || "";
+        while (sel.options.length) sel.remove(0);
+
+        var head = document.createElement("option");
+        head.value = "";
+        head.text = "请选择无线";
+        sel.add(head);
+
+        for (var i = 0; i < jfaAps.length; i++) {
+            var a = jfaAps[i];
+            var o = document.createElement("option");
+            o.value = a.ap;
+            var name = a.ssid || a.ap;
+            var net = a.network ? (" · " + a.network) : "";
+            var subnet = a.subnet ? (" · " + a.subnet) : "";
+            o.text = name + net + subnet;
+            sel.add(o);
         }
+
+        if (keep) sel.value = keep;
     }
 
     function jfa_load_status(done) {
@@ -111,6 +125,7 @@ local js = [=[
                 jfaIps = result.ips || {};
                 jfaEngine = result.engine || "unknown";
                 jfaPreproxy = result.preproxy || {};
+                jfaAps = result.aps || [];
                 jfa_refresh_select();
                 jfa_update_buttons();
             }
@@ -209,7 +224,7 @@ local js = [=[
             document.getElementById("jfa_preproxy_status").innerText = "";
             jfa_load_preproxy_options(cbi_id);
 
-            if (aps.length && /^AP([1-9]|1[0-9]|20)$/.test(aps[0]))
+            if (aps.length && /^AP[0-9]+$/.test(aps[0]))
                 document.getElementById("jfa_select").value = aps[0];
         });
     }
@@ -300,33 +315,13 @@ local modal = [=[
 
 <div id="jfa_div" style="display:none;width:35rem;max-width:94vw;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:220;padding:22px;text-align:center;background:var(--main-bg-color,#fff);border-radius:12px;box-shadow:0 12px 42px rgba(0,0,0,.38);">
     <div style="font-size:17px;font-weight:700;margin-bottom:7px;">FastACL 即时分配无线</div>
-    <div style="font-size:12px;opacity:.72;margin-bottom:13px;">不重建 nftables · 不重启系统 DNS · 只切换当前 AP 节点</div>
+    <div style="font-size:12px;opacity:.72;margin-bottom:13px;">自动读取 SSID / network / IPv4 网段 · 不重启系统 DNS · 只切换当前无线</div>
     <div style="margin:7px 0;">节点：<strong id="jfa_node_name" style="color:#159957"></strong></div>
     <div style="margin:7px 0;">当前：<strong id="jfa_current" style="color:#e6a23c">读取中…</strong></div>
     <div id="jfa_engine" style="margin:7px 0;font-weight:600;">FastACL：检测中…</div>
     <div style="margin:13px 0;">
-        <select id="jfa_select" class="cbi-input-select" style="min-width:240px;">
-            <option value="">请选择无线 AP</option>
-            <option value="AP1">无线AP1 · 172.16.1.0/24</option>
-            <option value="AP2">无线AP2 · 172.16.2.0/24</option>
-            <option value="AP3">无线AP3 · 172.16.3.0/24</option>
-            <option value="AP4">无线AP4 · 172.16.4.0/24</option>
-            <option value="AP5">无线AP5 · 172.16.5.0/24</option>
-            <option value="AP6">无线AP6 · 172.16.6.0/24</option>
-            <option value="AP7">无线AP7 · 172.16.7.0/24</option>
-            <option value="AP8">无线AP8 · 172.16.8.0/24</option>
-            <option value="AP9">无线AP9 · 172.16.9.0/24</option>
-            <option value="AP10">无线AP10 · 172.16.10.0/24</option>
-            <option value="AP11">无线AP11 · 172.16.11.0/24</option>
-            <option value="AP12">无线AP12 · 172.16.12.0/24</option>
-            <option value="AP13">无线AP13 · 172.16.13.0/24</option>
-            <option value="AP14">无线AP14 · 172.16.14.0/24</option>
-            <option value="AP15">无线AP15 · 172.16.15.0/24</option>
-            <option value="AP16">无线AP16 · 172.16.16.0/24</option>
-            <option value="AP17">无线AP17 · 172.16.17.0/24</option>
-            <option value="AP18">无线AP18 · 172.16.18.0/24</option>
-            <option value="AP19">无线AP19 · 172.16.19.0/24</option>
-            <option value="AP20">无线AP20 · 172.16.20.0/24</option>
+        <select id="jfa_select" class="cbi-input-select" style="min-width:300px;">
+            <option value="">自动读取中…</option>
         </select>
     </div>
     <div style="margin:16px 0 8px;padding:12px;border-top:1px solid rgba(128,128,128,.22);">
@@ -372,4 +367,4 @@ rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
 /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 
 echo "[OK] FastACL v2 LuCI installed"
-echo "PassWall2 -> 节点列表：支持即时分配无线 + 跨内核快速前置（Xray/VLESS -> sing-box/SOCKS5），并显示出口 IP。"
+echo "PassWall2 -> 节点列表：自动读取真实无线/网段 + 即时分配 + 跨内核快速前置，并显示出口 IP。"
