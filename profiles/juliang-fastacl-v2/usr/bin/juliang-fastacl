@@ -274,7 +274,12 @@ start_all(){
   while [ "$n" -le 20 ]; do
     node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
     if [ -n "$node" ]; then
-      start_ap "$n" || failed=$((failed+1))
+      if [ "$(uci -q get $APP.$node 2>/dev/null || true)" != "nodes" ]; then
+        log "AP$n stale mapping cleared: node '$node' no longer exists"
+        clear_ap "AP$n" >/dev/null 2>&1 || true
+      else
+        start_ap "$n" || failed=$((failed+1))
+      fi
     else
       kill_ap "$n"
     fi
