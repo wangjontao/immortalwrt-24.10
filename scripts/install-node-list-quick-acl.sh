@@ -343,7 +343,7 @@ local js = [[
 assert(text:find(js_anchor, 1, true), "JS anchor missing")
 text = text:gsub(js_anchor, js .. js_anchor, 1)
 
-local copy_anchor = '\n\t\t\t\t<input class="btn cbi-button cbi-button-add" type="button" value="<%%:Copy%%>" onclick="copy_node(\'{{id}}\')"/>'
+local copy_anchor = '\n\t\t\t\t<input class="btn cbi-button cbi-button-add" type="button" value="<%:Copy%>" onclick="copy_node(\'{{id}}\')"/>'
 local acl_button = '\n\t\t\t\t<input class="btn cbi-button cbi-button-edit quick-acl-btn" type="button" id="quick_acl_{{id}}" data-node-id="{{id}}" value="ACL" onclick="quick_acl_open(\'{{id}}\')" title="快捷分配 AP1-AP20"/>'
 assert(text:find(copy_anchor, 1, true), "button anchor missing")
 text = text:gsub(copy_anchor, acl_button .. copy_anchor, 1)
