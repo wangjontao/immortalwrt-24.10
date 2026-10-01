@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-VERSION="1.3.0"
-MARKER="JULIANG_QUICK_ACL_V13"
+VERSION="1.4.0"
+MARKER="JULIANG_QUICK_ACL_V14"
 CTRL="/usr/lib/lua/luci/controller/juliang_quick_acl.lua"
 
 echo "=================================================="
@@ -90,6 +90,28 @@ local function restart_async(app)
     ))
 end
 
+local function wireless_labels(uci)
+    local labels = {}
+    for i = 1, 20 do
+        labels["AP" .. i] = "无线AP" .. i
+    end
+
+    uci:foreach("wireless", "wifi-iface", function(s)
+        local network = s.network or ""
+        local ssid = s.ssid or ""
+        if ssid ~= "" then
+            for i = 1, 20 do
+                local tk = "tk" .. i
+                if (" " .. network .. " "):find(" " .. tk .. " ", 1, true) then
+                    labels["AP" .. i] = "无线" .. ssid
+                end
+            end
+        end
+    end)
+
+    return labels
+end
+
 function handle()
     local http = require "luci.http"
     local uci = require("luci.model.uci").cursor()
@@ -118,7 +140,12 @@ function handle()
             end
         end)
 
-        write_json({ ok = true, map = map, acl_to_node = acl_to_node })
+        write_json({
+            ok = true,
+            map = map,
+            acl_to_node = acl_to_node,
+            wireless_labels = wireless_labels(uci)
+        })
         return
     end
 
@@ -240,7 +267,7 @@ local f = assert(io.open(file, "r"))
 local text = f:read("*a")
 f:close()
 
-local marker = "JULIANG_QUICK_ACL_V13"
+local marker = "JULIANG_QUICK_ACL_V14"
 if text:find(marker, 1, true) then
     os.exit(0)
 end
@@ -258,13 +285,30 @@ text = replace_once(text, top_old, top_new, "top anchor")
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [[
 
-    // JULIANG_QUICK_ACL_V13
+    // JULIANG_QUICK_ACL_V14
     var quickAclNode = "";
     var quickAclMap = {};
+    var quickAclWirelessLabels = {};
+
+    function quick_acl_label(acl) {
+        return quickAclWirelessLabels[acl] || ("无线" + acl);
+    }
 
     function quick_acl_summary(list) {
         if (!list || !list.length) return "未分配";
-        return list.join(", ");
+        return list.map(quick_acl_label).join(", ");
+    }
+
+    function quick_acl_refresh_select_labels() {
+        var sel = document.getElementById("quick_acl_select");
+        if (!sel) return;
+        for (var i = 0; i < sel.options.length; i++) {
+            var v = sel.options[i].value;
+            if (/^AP([1-9]|1[0-9]|20)$/.test(v)) {
+                var n = v.replace("AP", "");
+                sel.options[i].text = quick_acl_label(v) + " · 172.16." + n + ".0/24";
+            }
+        }
     }
 
     function quick_acl_update_buttons() {
@@ -272,8 +316,8 @@ local js = [[
         for (var i = 0; i < buttons.length; i++) {
             var id = buttons[i].getAttribute("data-node-id");
             var list = quickAclMap[id] || [];
-            buttons[i].value = list.length ? ("ACL:" + list.join(",")) : "ACL";
-            buttons[i].title = list.length ? ("已分配：" + list.join(", ")) : "未分配 ACL";
+            buttons[i].value = list.length ? list.map(quick_acl_label).join(",") : "分配无线";
+            buttons[i].title = list.length ? ("已分配：" + list.map(quick_acl_label).join(", ")) : "未分配无线";
         }
     }
 
@@ -284,6 +328,8 @@ local js = [[
         }, function(x, result) {
             if (x && x.status == 200 && result && result.ok) {
                 quickAclMap = result.map || {};
+                quickAclWirelessLabels = result.wireless_labels || {};
+                quick_acl_refresh_select_labels();
                 quick_acl_update_buttons();
             }
             if (done) done(result || {});
@@ -321,11 +367,11 @@ local js = [[
         }, function(x, result) {
             if (btn) {
                 btn.disabled = false;
-                btn.value = "保存并应用 ACL";
+                btn.value = "保存并应用无线";
             }
 
             if (x && x.status == 200 && result && result.ok) {
-                alert("ACL 已保存，正在统一重载代理规则。\n这次只重启一次。");
+                alert("无线分配已保存，正在统一重载代理规则。\n这次只重启一次。");
             } else {
                 alert("应用失败：" + ((result && result.error) || "ERROR"));
             }
@@ -352,7 +398,7 @@ local js = [[
             exclusive: exclusive
         }, function(x, result) {
             if (x && x.status == 200 && result && result.ok) {
-                status.innerText = "已保存到 " + acl + "，尚未应用";
+                status.innerText = "已保存到 " + quick_acl_label(acl) + "，尚未应用";
                 quick_acl_load_status(function() {
                     document.getElementById("quick_acl_current").innerText =
                         quick_acl_summary(quickAclMap[quickAclNode] || []);
@@ -398,12 +444,12 @@ text = replace_once(text, ping_call, ping_call .. '\n\t\t\tquick_acl_load_status
 local modal = [[
 
 <div id="quick_acl_div" style="display:none; width:32rem; max-width:92vw; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:120; padding:20px; text-align:center; background:var(--main-bg-color,#fff); border-radius:10px; box-shadow:0 10px 36px rgba(0,0,0,.35);">
-    <div style="font-size:16px;font-weight:700;margin-bottom:12px;">快捷分配 ACL</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:12px;">快捷分配无线</div>
     <div style="margin:7px 0;">节点：<strong id="quick_acl_node_name" style="color:#159957"></strong></div>
     <div style="margin:7px 0;">当前：<strong id="quick_acl_current" style="color:#e6a23c">读取中…</strong></div>
     <div style="margin:12px 0;">
         <select id="quick_acl_select" class="cbi-input-select" style="min-width:180px;">
-            <option value="">请选择 ACL</option>
+            <option value="">请选择无线</option>
             <option value="AP1">AP1 · 172.16.1.0/24</option>
             <option value="AP2">AP2 · 172.16.2.0/24</option>
             <option value="AP3">AP3 · 172.16.3.0/24</option>
@@ -428,7 +474,7 @@ local modal = [[
     </div>
     <label style="display:block;margin:9px 0;">
         <input id="quick_acl_exclusive" type="checkbox" checked="checked"/>
-        唯一绑定：分配后自动解除该节点原来的其它 AP
+        唯一绑定：分配后自动解除该节点原来的其它无线
     </label>
     <div id="quick_acl_status" style="min-height:22px;margin:8px 0;color:#159957;"></div>
     <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
@@ -453,7 +499,7 @@ LUA_PATCH
     grep -q 'quick-acl-btn' "$FILE"
     grep -q 'quick_acl_load_status' "$FILE"
     grep -q 'quick_acl_apply' "$FILE"
-    grep -q '保存并应用 ACL' "$FILE"
+    grep -q '保存并应用无线' "$FILE"
     echo "[OK] patched $APP node list"
 }
 
@@ -487,10 +533,10 @@ echo "=================================================="
 echo " 安装完成"
 echo "=================================================="
 echo "打开 PassWall / PassWall2 -> 节点列表"
-echo "每个节点右侧新增 ACL 按钮"
-echo "可直接分配 AP1-AP20，无需进入访问控制页面"
+echo "每个节点右侧新增“分配无线/无线SSID”按钮"
+echo "可直接分配无线 AP1-AP20（界面读取实际 SSID 名称），无需进入访问控制页面"
 echo "默认“唯一绑定”，同一节点只绑定一个 AP"
-echo "节点分配只保存配置，不再每次重启；全部分配完后点击“保存并应用 ACL”统一生效"
+echo "节点分配只保存配置，不再每次重启；全部分配完后点击“保存并应用无线”统一生效"
 echo
 echo "如需卸载："
 echo "  /usr/bin/uninstall-juliang-quick-acl"
