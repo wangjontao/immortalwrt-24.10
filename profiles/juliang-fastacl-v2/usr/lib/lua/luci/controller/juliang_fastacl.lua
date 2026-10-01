@@ -60,8 +60,11 @@ local function runtime_status()
     local sys = require "luci.sys"
     if sys.call("kill -0 " .. pid .. " >/dev/null 2>&1") ~= 0 then return "stopped" end
     local port = tonumber(require("luci.model.uci").cursor():get("juliang_fastacl", "main", "tproxy_port") or "12345")
-    local ok = sys.call("(ss -lnut 2>/dev/null || netstat -lnut 2>/dev/null) | grep -q ':" .. port .. " '") == 0
-    return ok and "running" or "broken"
+    local cmd = "(ss -lnt 2>/dev/null; ss -lnu 2>/dev/null; netstat -lnt 2>/dev/null; netstat -lnu 2>/dev/null) | grep -q ':" .. port .. " '"
+    local listener = sys.call(cmd) == 0
+    local nft = sys.call("nft list table inet juliang_fastacl >/dev/null 2>&1") == 0
+    local rule = sys.call("ip rule show 2>/dev/null | grep -q 'fwmark 0x66/0xff.*lookup 100'") == 0
+    return (listener and nft and rule) and "running" or "broken"
 end
 
 local function exec_json(cmd)
