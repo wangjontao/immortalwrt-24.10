@@ -3,7 +3,7 @@ set -eu
 
 FILE="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
 CTRL="/usr/lib/lua/luci/controller/juliang_fastacl.lua"
-MARKER="JULIANG_FASTACL_V208"
+MARKER="JULIANG_FASTACL_V209"
 
 [ -f "$FILE" ] || {
     echo "[ERROR] PassWall2 node_list.htm not found: $FILE"
@@ -47,7 +47,7 @@ text = replace_once(text, top_old, top_new, "top anchor")
 local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
 local js = [=[
 
-    // JULIANG_FASTACL_V208
+    // JULIANG_FASTACL_V209
     var jfaNode = "";
     var jfaMap = {};
     var jfaLabels = {};
@@ -141,7 +141,12 @@ local js = [=[
                     for (var i = 0; i < opts.length; i++) {
                         var o = document.createElement("option");
                         o.value = opts[i].id;
-                        o.text = opts[i].remarks + (opts[i].protocol ? (" · " + opts[i].protocol) : "");
+                        var core = opts[i].type || "";
+                        var proto = opts[i].protocol || "";
+                        var suffix = "";
+                        if (core || proto)
+                            suffix = " · " + core + (proto && proto.toLowerCase() != core.toLowerCase() ? ("/" + proto) : "");
+                        o.text = opts[i].remarks + suffix;
                         sel.add(o);
                     }
                     sel.value = result.enabled ? (result.current || "") : "";
@@ -326,7 +331,7 @@ local modal = [=[
     </div>
     <div style="margin:16px 0 8px;padding:12px;border-top:1px solid rgba(128,128,128,.22);">
         <div style="font-weight:700;margin-bottom:8px;">快速前置代理</div>
-        <div style="font-size:12px;opacity:.72;margin-bottom:9px;">适合大陆直连不通的 SK5：前置节点 → 当前节点（只支持一层）</div>
+        <div style="font-size:12px;opacity:.72;margin-bottom:9px;">支持跨内核：Xray/VLESS 前置 → sing-box/SOCKS5 落地；只切当前 AP，本地桥接端口 141xx</div>
         <div style="margin:6px 0;">当前前置：<strong id="jfa_preproxy_current" style="color:#e6a23c">读取中…</strong></div>
         <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;align-items:center;">
             <select id="jfa_preproxy_select" class="cbi-input-select" style="min-width:260px;">
@@ -367,4 +372,4 @@ rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
 /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 
 echo "[OK] FastACL v2 LuCI installed"
-echo "PassWall2 -> 节点列表：支持即时分配无线 + 快速选择一层前置代理，并显示已检测出口 IP。"
+echo "PassWall2 -> 节点列表：支持即时分配无线 + 跨内核快速前置（Xray/VLESS -> sing-box/SOCKS5），并显示出口 IP。"
