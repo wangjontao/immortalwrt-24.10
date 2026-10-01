@@ -17,7 +17,11 @@ uci:foreach(cfg, "ap", function(s)
       slot = slot,
       subnet = subnet,
       sport = sport,
-      name = s[".name"] or ("ap" .. slot)
+      name = s[".name"] or ("ap" .. slot),
+      dns_mode = s.dns_mode or dns_mode,
+      dns_server = s.dns_server or dns_addr,
+      dns_tls_server_name = s.dns_tls_server_name or dns_tls_name,
+      dns_path = s.dns_path or dns_path
     }
   end
 end)
@@ -43,11 +47,11 @@ for _, a in ipairs(aps) do
     version = "5"
   }
   local dns_server
-  if dns_mode == "tcp" then
+  if a.dns_mode == "tcp" then
     dns_server = {
       type = "tcp",
       tag = "dns-" .. tag,
-      server = dns_addr,
+      server = a.dns_server,
       server_port = 53,
       detour = tag
     }
@@ -55,12 +59,12 @@ for _, a in ipairs(aps) do
     dns_server = {
       type = "https",
       tag = "dns-" .. tag,
-      server = dns_addr,
+      server = a.dns_server,
       server_port = 443,
-      path = dns_path,
+      path = a.dns_path,
       tls = {
         enabled = true,
-        server_name = dns_tls_name
+        server_name = a.dns_tls_server_name
       },
       detour = tag
     }
