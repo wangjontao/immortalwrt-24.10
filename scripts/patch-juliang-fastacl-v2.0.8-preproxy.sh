@@ -1,0 +1,740 @@
+#!/bin/sh
+set -eu
+VERSION="2.0.8-hotfix"
+
+TMP="/tmp/jfa-v208-$$"
+mkdir -p "$TMP"
+trap 'rm -rf "$TMP"' EXIT INT TERM
+
+extract_embedded() {
+    tag="$1"; dst="$2"
+    awk -v b="__JFA_BEGIN_${tag}__" -v e="__JFA_END_${tag}__" '
+        $0 == b { on=1; next }
+        $0 == e { found=1; exit }
+        on { print }
+        END { if (!found) exit 2 }
+    ' "$0" > "$dst"
+}
+
+echo "=================================================="
+echo " JuLiang FastACL $VERSION"
+echo " quick preproxy selector for PassWall2 node list"
+echo "=================================================="
+
+extract_embedded CONTROLLER "$TMP/juliang_fastacl.lua"
+extract_embedded LUCI_INSTALL "$TMP/juliang-fastacl-luci-install"
+
+lua -e 'assert(loadfile("'"$TMP"'/juliang_fastacl.lua"))'
+sh -n "$TMP/juliang-fastacl-luci-install"
+
+cp -af /usr/lib/lua/luci/controller/juliang_fastacl.lua /usr/lib/lua/luci/controller/juliang_fastacl.lua.pre-v208 2>/dev/null || true
+cp -af /usr/bin/juliang-fastacl-luci-install /usr/bin/juliang-fastacl-luci-install.pre-v208 2>/dev/null || true
+
+cp -af "$TMP/juliang_fastacl.lua" /usr/lib/lua/luci/controller/juliang_fastacl.lua
+cp -af "$TMP/juliang-fastacl-luci-install" /usr/bin/juliang-fastacl-luci-install
+chmod 0644 /usr/lib/lua/luci/controller/juliang_fastacl.lua
+chmod 0755 /usr/bin/juliang-fastacl-luci-install
+
+/usr/bin/juliang-fastacl-luci-install
+
+rm -f /tmp/luci-indexcache
+rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
+/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+
+echo "[OK] FastACL $VERSION installed"
+echo "[OK] 节点列表弹窗新增：快速前置代理"
+echo "[OK] 应用前置时仅重启这个节点当前绑定的 AP relay，不重建 nftables，不重启系统 DNS"
+echo "[OK] 关闭前置同样即时生效"
+exit 0
+
+__JFA_BEGIN_CONTROLLER__
+module("luci.controller.juliang_fastacl", package.seeall)
+
+function index()
+    local page = entry({"admin", "services", "juliang_fastacl"}, call("handle"), nil)
+    page.leaf = true
+    page.dependent = false
+end
+
+local function write_json(t)
+    local http = require "luci.http"
+    local jsonc = require "luci.jsonc"
+    http.prepare_content("application/json")
+    http.write(jsonc.stringify(t))
+end
+
+local function ap_number(v)
+    local n = tonumber((v or ""):match("^AP(%d+)$"))
+    if n and n >= 1 and n <= 20 then return n end
+    return nil
+end
+
+local function wireless_labels(uci)
+    local labels = {}
+    for i = 1, 20 do
+        labels["AP" .. i] = "无线AP" .. i
+    end
+
+    uci:foreach("wireless", "wifi-iface", function(s)
+        local network = s.network or ""
+        local ssid = s.ssid or ""
+        if ssid ~= "" then
+            for i = 1, 20 do
+                local tk = "tk" .. i
+                if (" " .. network .. " "):find(" " .. tk .. " ", 1, true) then
+                    labels["AP" .. i] = "无线" .. ssid
+                end
+            end
+        end
+    end)
+
+    return labels
+end
+
+local function read_ip(n)
+    local f = io.open("/tmp/juliang-fastacl/ap" .. n .. ".ip", "r")
+    if not f then return "" end
+    local ip = (f:read("*l") or ""):gsub("%s+", "")
+    f:close()
+    return ip
+end
+
+local function runtime_status()
+    local f = io.open("/tmp/juliang-fastacl/router.pid", "r")
+    if not f then return "stopped" end
+    local pid = tonumber(f:read("*l") or "")
+    f:close()
+    if not pid then return "stopped" end
+    local sys = require "luci.sys"
+    return sys.call("kill -0 " .. pid .. " >/dev/null 2>&1") == 0 and "running" or "stopped"
+end
+
+local function exec_json(cmd)
+    local sys = require "luci.sys"
+    local jsonc = require "luci.jsonc"
+    local raw = sys.exec(cmd .. " 2>/tmp/juliang-fastacl/luci-error.log")
+    local ok, data = pcall(jsonc.parse, raw or "")
+    if ok and type(data) == "table" then
+        return data
+    end
+    return {
+        ok = false,
+        error = "ENGINE_ERROR",
+        detail = raw or ""
+    }
+end
+
+local function is_special_protocol(p)
+    return p == "_shunt" or p == "_balancing" or p == "_urltest" or p == "_iface"
+end
+
+local function preproxy_options(uci, current)
+    local out = {}
+    uci:foreach("passwall2", "nodes", function(s)
+        local id = s[".name"] or ""
+        local proto = s.protocol or ""
+        local chained = s.chain_proxy or ""
+        if id ~= "" and id ~= current and not is_special_protocol(proto) and chained == "" then
+            out[#out + 1] = {
+                id = id,
+                remarks = s.remarks or id,
+                type = s.type or "",
+                protocol = proto
+            }
+        end
+    end)
+    table.sort(out, function(a, b)
+        return (a.remarks or "") < (b.remarks or "")
+    end)
+    return out
+end
+
+function handle()
+    local http = require "luci.http"
+    local util = require "luci.util"
+    local uci = require("luci.model.uci").cursor()
+
+    local action = http.formvalue("action") or "status"
+
+    if action == "status" then
+        local map = {}
+        local ap_to_node = {}
+        local ips = {}
+        local labels = wireless_labels(uci)
+
+        for i = 1, 20 do
+            local ap = "AP" .. i
+            local node = uci:get("juliang_fastacl", "ap" .. i, "node") or ""
+            ap_to_node[ap] = node
+            ips[ap] = read_ip(i)
+            if node ~= "" then
+                map[node] = map[node] or {}
+                map[node][#map[node] + 1] = ap
+            end
+        end
+
+        local preproxy = {}
+        uci:foreach("passwall2", "nodes", function(s)
+            local id = s[".name"] or ""
+            if id ~= "" then
+                local pp = s.preproxy_node or ""
+                preproxy[id] = {
+                    enabled = (s.chain_proxy == "1" and pp ~= ""),
+                    id = pp,
+                    remarks = pp ~= "" and (uci:get("passwall2", pp, "remarks") or pp) or ""
+                }
+            end
+        end)
+
+        write_json({
+            ok = true,
+            engine = runtime_status(),
+            map = map,
+            ap_to_node = ap_to_node,
+            wireless_labels = labels,
+            ips = ips,
+            preproxy = preproxy
+        })
+        return
+    end
+
+    local node = http.formvalue("node") or ""
+    local node_cfg = node ~= "" and uci:get_all("passwall2", node) or nil
+
+    if action == "assign" then
+        local ap = http.formvalue("ap") or ""
+        local n = ap_number(ap)
+        if not n then
+            write_json({ ok = false, error = "BAD_AP" })
+            return
+        end
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+
+        local exclusive = http.formvalue("exclusive") ~= "0"
+        local verb = exclusive and "move" or "switch"
+        local result = exec_json(
+            "/usr/bin/juliang-fastacl " .. verb .. " " ..
+            ap .. " " .. util.shellquote(node)
+        )
+        write_json(result)
+        return
+    end
+
+    if action == "preproxy_options" then
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+        write_json({
+            ok = true,
+            current = node_cfg.preproxy_node or "",
+            enabled = node_cfg.chain_proxy == "1",
+            options = preproxy_options(uci, node)
+        })
+        return
+    end
+
+    if action == "set_preproxy" then
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+
+        local pre = http.formvalue("preproxy") or ""
+        if pre == node then
+            write_json({ ok = false, error = "PREPROXY_SELF" })
+            return
+        end
+
+        if pre ~= "" then
+            local p = uci:get_all("passwall2", pre)
+            if not p or p[".type"] ~= "nodes" or is_special_protocol(p.protocol or "") then
+                write_json({ ok = false, error = "BAD_PREPROXY" })
+                return
+            end
+            if (p.chain_proxy or "") ~= "" then
+                write_json({ ok = false, error = "PREPROXY_ALREADY_CHAINED" })
+                return
+            end
+        end
+
+        local old_chain = node_cfg.chain_proxy or ""
+        local old_pre = node_cfg.preproxy_node or ""
+
+        if pre == "" then
+            uci:delete("passwall2", node, "chain_proxy")
+            uci:delete("passwall2", node, "preproxy_node")
+        else
+            uci:set("passwall2", node, "chain_proxy", "1")
+            uci:set("passwall2", node, "preproxy_node", pre)
+        end
+        uci:commit("passwall2")
+
+        local affected = {}
+        local failed = nil
+        for i = 1, 20 do
+            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
+                local ap = "AP" .. i
+                local r = exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
+                if not r.ok then
+                    failed = r
+                    break
+                end
+                affected[#affected + 1] = ap
+            end
+        end
+
+        if failed then
+            if old_chain == "" then
+                uci:delete("passwall2", node, "chain_proxy")
+            else
+                uci:set("passwall2", node, "chain_proxy", old_chain)
+            end
+            if old_pre == "" then
+                uci:delete("passwall2", node, "preproxy_node")
+            else
+                uci:set("passwall2", node, "preproxy_node", old_pre)
+            end
+            uci:commit("passwall2")
+            for _, ap in ipairs(affected) do
+                exec_json("/usr/bin/juliang-fastacl switch " .. ap .. " " .. util.shellquote(node))
+            end
+            write_json({
+                ok = false,
+                error = "PREPROXY_START_FAILED",
+                detail = failed,
+                rolled_back = true
+            })
+            return
+        end
+
+        local ip = ""
+        if #affected > 0 then
+            local sys = require "luci.sys"
+            ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. affected[1] .. " 2>/dev/null") or ""):gsub("%s+", "")
+        end
+
+        write_json({
+            ok = true,
+            action = "set_preproxy",
+            node = node,
+            preproxy = pre,
+            preproxy_remarks = pre ~= "" and (uci:get("passwall2", pre, "remarks") or pre) or "",
+            affected = affected,
+            ip = ip
+        })
+        return
+    end
+
+    if action == "clear_node" then
+        if not node_cfg or node_cfg[".type"] ~= "nodes" then
+            write_json({ ok = false, error = "BAD_NODE" })
+            return
+        end
+
+        local cleared = {}
+        for i = 1, 20 do
+            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
+                local ap = "AP" .. i
+                local r = exec_json("/usr/bin/juliang-fastacl clear " .. ap)
+                if r.ok then cleared[#cleared + 1] = ap end
+            end
+        end
+
+        write_json({ ok = true, action = "clear_node", node = node, cleared = cleared })
+        return
+    end
+
+    if action == "probe" then
+        local ap = http.formvalue("ap") or ""
+        local n = ap_number(ap)
+        if not n then
+            write_json({ ok = false, error = "BAD_AP" })
+            return
+        end
+        local sys = require "luci.sys"
+        local ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. ap .. " 2>/dev/null") or ""):gsub("%s+", "")
+        write_json({ ok = ip ~= "" and ip ~= "-", ap = ap, ip = ip })
+        return
+    end
+
+    write_json({ ok = false, error = "BAD_ACTION" })
+end
+
+__JFA_END_CONTROLLER__
+__JFA_BEGIN_LUCI_INSTALL__
+#!/bin/sh
+set -eu
+
+FILE="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
+CTRL="/usr/lib/lua/luci/controller/juliang_fastacl.lua"
+MARKER="JULIANG_FASTACL_V208"
+
+[ -f "$FILE" ] || {
+    echo "[ERROR] PassWall2 node_list.htm not found: $FILE"
+    exit 1
+}
+[ -f "$CTRL" ] || {
+    echo "[ERROR] FastACL LuCI controller not found: $CTRL"
+    exit 1
+}
+
+# Remove the old Quick-ACL UI cleanly. Its backup is the original PassWall2
+# node list from before the experimental v1 patch.
+if [ -f "$FILE.quick-acl.bak" ]; then
+    cp -af "$FILE.quick-acl.bak" "$FILE"
+    echo "[INFO] restored original PassWall2 node list from Quick-ACL backup"
+fi
+
+if grep -q "$MARKER" "$FILE"; then
+    echo "[OK] FastACL v2 LuCI already installed"
+    exit 0
+fi
+
+[ -f "$FILE.jfa-v2.bak" ] || cp -a "$FILE" "$FILE.jfa-v2.bak"
+
+FILE="$FILE" lua <<'LUA_PATCH'
+local file = assert(os.getenv("FILE"))
+local f = assert(io.open(file, "r"))
+local text = f:read("*a")
+f:close()
+
+local function replace_once(src, needle, repl, label)
+    local s, e = src:find(needle, 1, true)
+    assert(s, (label or "anchor") .. " missing")
+    return src:sub(1, s - 1) .. repl .. src:sub(e + 1)
+end
+
+local top_old = 'local appname = api.appname\n'
+local top_new = 'local appname = api.appname\nlocal jfa_url = require("luci.dispatcher").build_url("admin", "services", "juliang_fastacl")\n'
+text = replace_once(text, top_old, top_new, "top anchor")
+
+local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
+local js = [=[
+
+    // JULIANG_FASTACL_V208
+    var jfaNode = "";
+    var jfaMap = {};
+    var jfaLabels = {};
+    var jfaIps = {};
+    var jfaEngine = "unknown";
+    var jfaPreproxy = {};
+
+    function jfa_label(ap) {
+        return jfaLabels[ap] || ("无线" + ap);
+    }
+
+    function jfa_assignments(node) {
+        return jfaMap[node] || [];
+    }
+
+    function jfa_update_buttons() {
+        var buttons = document.getElementsByClassName("jfa-btn");
+        for (var i = 0; i < buttons.length; i++) {
+            var node = buttons[i].getAttribute("data-node-id");
+            var aps = jfa_assignments(node);
+            var labels = [];
+            var ips = [];
+
+            for (var j = 0; j < aps.length; j++) {
+                labels.push(jfa_label(aps[j]));
+                if (jfaIps[aps[j]])
+                    ips.push(jfaIps[aps[j]]);
+            }
+
+            buttons[i].value = labels.length ? labels.join(",") : "分配无线";
+            buttons[i].title = labels.length
+                ? ("FastACL 已绑定：" + labels.join(", ") + (ips.length ? "\n出口 IP：" + ips.join(", ") : ""))
+                : "FastACL：点击即时分配到无线 AP";
+
+            var ipNode = document.getElementById("jfa_ip_" + node);
+            if (ipNode) {
+                ipNode.textContent = ips.join(" / ");
+                ipNode.style.display = ips.length ? "inline-block" : "none";
+            }
+        }
+    }
+
+    function jfa_refresh_select() {
+        var sel = document.getElementById("jfa_select");
+        if (!sel) return;
+
+        for (var i = 0; i < sel.options.length; i++) {
+            var ap = sel.options[i].value;
+            if (/^AP([1-9]|1[0-9]|20)$/.test(ap)) {
+                var n = ap.replace("AP", "");
+                sel.options[i].text = jfa_label(ap) + " · 172.16." + n + ".0/24";
+            }
+        }
+    }
+
+    function jfa_load_status(done) {
+        XHR.get('<%=jfa_url%>', { action: 'status' }, function(x, result) {
+            if (x && x.status == 200 && result && result.ok) {
+                jfaMap = result.map || {};
+                jfaLabels = result.wireless_labels || {};
+                jfaIps = result.ips || {};
+                jfaEngine = result.engine || "unknown";
+                jfaPreproxy = result.preproxy || {};
+                jfa_refresh_select();
+                jfa_update_buttons();
+            }
+            if (done) done(result || {});
+        });
+    }
+
+    function jfa_preproxy_current(node) {
+        var p = jfaPreproxy[node] || {};
+        return (p.enabled && p.remarks) ? p.remarks : "不使用";
+    }
+
+    function jfa_load_preproxy_options(node, done) {
+        XHR.get('<%=jfa_url%>', {
+            action: 'preproxy_options',
+            node: node
+        }, function(x, result) {
+            var sel = document.getElementById("jfa_preproxy_select");
+            if (sel) {
+                while (sel.options.length) sel.remove(0);
+                var o0 = document.createElement("option");
+                o0.value = "";
+                o0.text = "不使用前置代理（直连落地）";
+                sel.add(o0);
+
+                if (x && x.status == 200 && result && result.ok) {
+                    var opts = result.options || [];
+                    for (var i = 0; i < opts.length; i++) {
+                        var o = document.createElement("option");
+                        o.value = opts[i].id;
+                        o.text = opts[i].remarks + (opts[i].protocol ? (" · " + opts[i].protocol) : "");
+                        sel.add(o);
+                    }
+                    sel.value = result.enabled ? (result.current || "") : "";
+                }
+            }
+            if (done) done(result || {});
+        });
+    }
+
+    function jfa_apply_preproxy() {
+        if (!jfaNode) return;
+
+        var sel = document.getElementById("jfa_preproxy_select");
+        var pre = sel ? sel.value : "";
+        var status = document.getElementById("jfa_preproxy_status");
+        status.innerText = pre ? "正在切换前置代理…" : "正在关闭前置代理…";
+        status.style.color = "#606266";
+
+        XHR.get('<%=jfa_url%>', {
+            action: 'set_preproxy',
+            node: jfaNode,
+            preproxy: pre
+        }, function(x, result) {
+            if (x && x.status == 200 && result && result.ok) {
+                var msg = pre ? ("✓ 前置已切换：" + (result.preproxy_remarks || pre)) : "✓ 已关闭前置代理";
+                if (result.affected && result.affected.length)
+                    msg += "；即时刷新 " + result.affected.join(",");
+                if (result.ip && result.ip != "-")
+                    msg += "；出口 IP " + result.ip;
+                status.innerText = msg;
+                status.style.color = "#159957";
+                jfa_load_status(function() {
+                    document.getElementById("jfa_preproxy_current").innerText = jfa_preproxy_current(jfaNode);
+                });
+            } else {
+                status.innerText = "前置切换失败：" + ((result && result.error) || "ERROR");
+                status.style.color = "#e43f3b";
+            }
+        });
+    }
+
+    function jfa_open(cbi_id) {
+        jfaNode = cbi_id;
+        var remarks = (document.getElementById("cbid.<%=appname%>." + cbi_id + ".remarks") || {}).value || cbi_id;
+        document.getElementById("jfa_node_name").innerText = remarks;
+        document.getElementById("jfa_div").style.display = "block";
+        document.getElementById("jfa_status").innerText = "";
+
+        jfa_load_status(function() {
+            var aps = jfa_assignments(cbi_id);
+            var labels = [];
+            for (var i = 0; i < aps.length; i++) labels.push(jfa_label(aps[i]));
+
+            document.getElementById("jfa_current").innerText = labels.length ? labels.join(", ") : "未分配";
+            document.getElementById("jfa_engine").innerText =
+                jfaEngine == "running" ? "FastACL：运行中" : "FastACL：未运行";
+            document.getElementById("jfa_engine").style.color =
+                jfaEngine == "running" ? "#159957" : "#e43f3b";
+            document.getElementById("jfa_preproxy_current").innerText = jfa_preproxy_current(cbi_id);
+            document.getElementById("jfa_preproxy_status").innerText = "";
+            jfa_load_preproxy_options(cbi_id);
+
+            if (aps.length && /^AP([1-9]|1[0-9]|20)$/.test(aps[0]))
+                document.getElementById("jfa_select").value = aps[0];
+        });
+    }
+
+    function jfa_close() {
+        document.getElementById("jfa_div").style.display = "none";
+        jfaNode = "";
+    }
+
+    function jfa_assign() {
+        if (!jfaNode) return;
+
+        var ap = document.getElementById("jfa_select").value;
+        if (!ap) {
+            alert("请选择无线 AP");
+            return;
+        }
+
+        var exclusive = document.getElementById("jfa_exclusive").checked ? "1" : "0";
+        var status = document.getElementById("jfa_status");
+        status.innerText = "正在即时切换 " + jfa_label(ap) + "…";
+
+        XHR.get('<%=jfa_url%>', {
+            action: 'assign',
+            node: jfaNode,
+            ap: ap,
+            exclusive: exclusive
+        }, function(x, result) {
+            if (x && x.status == 200 && result && result.ok) {
+                var msg = "✓ " + jfa_label(ap) + " 已切换";
+                if (result.ip && result.ip != "-")
+                    msg += "；出口 IP " + result.ip;
+                if (result.seconds != null)
+                    msg += "；耗时 " + result.seconds + "s";
+                status.innerText = msg;
+                status.style.color = "#159957";
+
+                jfa_load_status(function() {
+                    var aps = jfa_assignments(jfaNode);
+                    var labels = [];
+                    for (var i = 0; i < aps.length; i++) labels.push(jfa_label(aps[i]));
+                    document.getElementById("jfa_current").innerText = labels.length ? labels.join(", ") : "未分配";
+                });
+            } else {
+                status.innerText = "切换失败：" + ((result && result.error) || "ERROR");
+                status.style.color = "#e43f3b";
+            }
+        });
+    }
+
+    function jfa_clear() {
+        if (!jfaNode) return;
+        if (!confirm("解除这个节点当前绑定的无线 AP？")) return;
+
+        var status = document.getElementById("jfa_status");
+        status.innerText = "正在解除…";
+
+        XHR.get('<%=jfa_url%>', {
+            action: 'clear_node',
+            node: jfaNode
+        }, function(x, result) {
+            if (x && x.status == 200 && result && result.ok) {
+                status.innerText = "✓ 已解除绑定";
+                status.style.color = "#159957";
+                jfa_load_status(function() {
+                    document.getElementById("jfa_current").innerText = "未分配";
+                });
+            } else {
+                status.innerText = "解除失败：" + ((result && result.error) || "ERROR");
+                status.style.color = "#e43f3b";
+            }
+        });
+    }
+]=]
+text = replace_once(text, js_anchor, js .. js_anchor, "JS anchor")
+
+local copy_anchor = '\n\t\t\t\t<input class="btn cbi-button cbi-button-add" type="button" value="<%:Copy%>" onclick="copy_node(\'{{id}}\')"/>'
+local button = [=[
+				<input class="btn cbi-button cbi-button-edit jfa-btn" type="button" id="jfa_{{id}}" data-node-id="{{id}}" value="分配无线" onclick="jfa_open('{{id}}')" title="FastACL 即时分配无线"/>
+				<span id="jfa_ip_{{id}}" style="display:none;margin-left:5px;color:#159957;font-weight:600;font-size:12px;white-space:nowrap;"></span>
+]=]
+text = replace_once(text, copy_anchor, "\n" .. button .. copy_anchor, "button anchor")
+
+local ping_call = '\n\t\t\tpingAllNodes();'
+text = replace_once(text, ping_call, ping_call .. '\n\t\t\tjfa_load_status();', "load-status anchor")
+
+local modal = [=[
+
+<div id="jfa_div" style="display:none;width:35rem;max-width:94vw;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:220;padding:22px;text-align:center;background:var(--main-bg-color,#fff);border-radius:12px;box-shadow:0 12px 42px rgba(0,0,0,.38);">
+    <div style="font-size:17px;font-weight:700;margin-bottom:7px;">FastACL 即时分配无线</div>
+    <div style="font-size:12px;opacity:.72;margin-bottom:13px;">不重建 nftables · 不重启系统 DNS · 只切换当前 AP 节点</div>
+    <div style="margin:7px 0;">节点：<strong id="jfa_node_name" style="color:#159957"></strong></div>
+    <div style="margin:7px 0;">当前：<strong id="jfa_current" style="color:#e6a23c">读取中…</strong></div>
+    <div id="jfa_engine" style="margin:7px 0;font-weight:600;">FastACL：检测中…</div>
+    <div style="margin:13px 0;">
+        <select id="jfa_select" class="cbi-input-select" style="min-width:240px;">
+            <option value="">请选择无线 AP</option>
+            <option value="AP1">无线AP1 · 172.16.1.0/24</option>
+            <option value="AP2">无线AP2 · 172.16.2.0/24</option>
+            <option value="AP3">无线AP3 · 172.16.3.0/24</option>
+            <option value="AP4">无线AP4 · 172.16.4.0/24</option>
+            <option value="AP5">无线AP5 · 172.16.5.0/24</option>
+            <option value="AP6">无线AP6 · 172.16.6.0/24</option>
+            <option value="AP7">无线AP7 · 172.16.7.0/24</option>
+            <option value="AP8">无线AP8 · 172.16.8.0/24</option>
+            <option value="AP9">无线AP9 · 172.16.9.0/24</option>
+            <option value="AP10">无线AP10 · 172.16.10.0/24</option>
+            <option value="AP11">无线AP11 · 172.16.11.0/24</option>
+            <option value="AP12">无线AP12 · 172.16.12.0/24</option>
+            <option value="AP13">无线AP13 · 172.16.13.0/24</option>
+            <option value="AP14">无线AP14 · 172.16.14.0/24</option>
+            <option value="AP15">无线AP15 · 172.16.15.0/24</option>
+            <option value="AP16">无线AP16 · 172.16.16.0/24</option>
+            <option value="AP17">无线AP17 · 172.16.17.0/24</option>
+            <option value="AP18">无线AP18 · 172.16.18.0/24</option>
+            <option value="AP19">无线AP19 · 172.16.19.0/24</option>
+            <option value="AP20">无线AP20 · 172.16.20.0/24</option>
+        </select>
+    </div>
+    <div style="margin:16px 0 8px;padding:12px;border-top:1px solid rgba(128,128,128,.22);">
+        <div style="font-weight:700;margin-bottom:8px;">快速前置代理</div>
+        <div style="font-size:12px;opacity:.72;margin-bottom:9px;">适合大陆直连不通的 SK5：前置节点 → 当前节点（只支持一层）</div>
+        <div style="margin:6px 0;">当前前置：<strong id="jfa_preproxy_current" style="color:#e6a23c">读取中…</strong></div>
+        <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="jfa_preproxy_select" class="cbi-input-select" style="min-width:260px;">
+                <option value="">不使用前置代理（直连落地）</option>
+            </select>
+            <input class="btn cbi-button cbi-button-apply" type="button" value="应用前置" onclick="jfa_apply_preproxy()"/>
+        </div>
+        <div id="jfa_preproxy_status" style="min-height:22px;margin-top:8px;font-weight:600;"></div>
+    </div>
+    <label style="display:block;margin:10px 0;">
+        <input id="jfa_exclusive" type="checkbox" checked="checked"/>
+        唯一绑定：同一个节点只分配给一个无线 AP
+    </label>
+    <div id="jfa_status" style="min-height:24px;margin:9px 0;font-weight:600;color:#159957;"></div>
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+        <input class="btn cbi-button cbi-button-apply" type="button" value="立即切换" onclick="jfa_assign()"/>
+        <input class="btn cbi-button cbi-button-remove" type="button" value="解除绑定" onclick="jfa_clear()"/>
+        <input class="btn cbi-button cbi-button-edit" type="button" value="关闭" onclick="jfa_close()"/>
+    </div>
+</div>
+]=]
+
+text = text .. modal
+
+local out = assert(io.open(file .. ".new", "w"))
+out:write(text)
+out:close()
+os.rename(file .. ".new", file)
+LUA_PATCH
+
+grep -q "$MARKER" "$FILE"
+grep -q 'jfa-btn' "$FILE"
+grep -q 'FastACL 即时分配无线' "$FILE"
+grep -q '快速前置代理' "$FILE"
+
+rm -f /tmp/luci-indexcache
+rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
+/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+
+echo "[OK] FastACL v2 LuCI installed"
+echo "PassWall2 -> 节点列表：支持即时分配无线 + 快速选择一层前置代理，并显示已检测出口 IP。"
+
+__JFA_END_LUCI_INSTALL__
