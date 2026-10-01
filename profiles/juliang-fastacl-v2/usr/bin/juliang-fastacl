@@ -460,6 +460,7 @@ set_dns_mode(){
       ;;
   esac
   uci commit "$CFG"
+  save_state
   if reload_router; then
     printf '{"ok":true,"ap":"AP%s","dns_mode":"%s"}\n' "$n" "$mode"
   else
@@ -495,6 +496,7 @@ start_all(){
   cleanup_old_passwall2_dataplane
   start_router || return 1
   firewall || return 1
+  save_state
 }
 
 stop_all(){
@@ -532,6 +534,7 @@ switch_node(){
     printf '%s\n' "$ip" > "$RUN_DIR/ap$n.ip"
     t1="$(date +%s)"; sec=$((t1-t0))
     remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
+    save_state
     printf '{"ok":true,"ap":"AP%s","node":"%s","remark":"%s","ip":"%s","seconds":%s,"dataplane":"running"}\n' "$n" "$node" "$(echo "$remark" | sed 's/"/\\"/g')" "$ip" "$sec"
   else
     if [ -n "$old" ]; then
@@ -582,6 +585,7 @@ move_node(){
     done
     uci commit "$CFG"
     uci commit "$APP"
+    save_state
     printf '%s\n' "$result"
     return 0
   fi
@@ -604,6 +608,7 @@ clear_ap(){
   acl="$(find_acl_section "$n")"
   [ -n "$acl" ] && uci -q delete $APP.$acl.node
   uci commit "$CFG"; uci commit "$APP"
+  save_state
   kill_ap "$n"
   rm -f "$RUN_DIR/ap$n.ip"
   printf '{"ok":true,"ap":"AP%s","old_node":"%s"}\n' "$n" "$old"
@@ -655,7 +660,9 @@ case "${1:-}" in
   repair) repair_all ;;
   heal) heal_other_aps 0 ;;
   ensure) ensure_dataplane ;;
+  save-state) save_state ;;
+  restore-state) restore_state ;;
   router-reload) reload_router ;;
   dns) [ $# -eq 3 ] || exit 2; set_dns_mode "$2" "$3" ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|ensure|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
+  *) echo "Usage: juliang-fastacl {start|stop|restart|repair|heal|ensure|save-state|restore-state|router-reload|dns AP1 doh|dns AP1 tcp|dns AP1 auto|discover|firewall|firewall-check|switch AP1 nodeid|move AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
 esac
