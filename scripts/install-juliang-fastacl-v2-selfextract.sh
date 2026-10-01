@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="2.0.5"
+VERSION="2.0.6"
 RUNTIME_SHA="f77823de55fb69811ba64681367473009e0811c7"
 BASE="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/$RUNTIME_SHA/profiles/juliang-fastacl-v2"
 BACKUP_DIR="/etc/juliang-fastacl/backup"
@@ -380,9 +380,9 @@ firewall(){
    }
    chain prerouting {
      type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
      ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
    }
  }
 EOF
@@ -409,9 +409,9 @@ firewall_check(){
    }
    chain prerouting {
      type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
      ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
    }
  }
 EOF
