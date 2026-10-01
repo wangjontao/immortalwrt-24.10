@@ -1,10 +1,10 @@
-name: CLX S20L 20WiFi Stable Native Uploaded-ACL Realtime-IP
+name: CLX S20L 20WiFi Exact Uploaded-ACL FastStart V3
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - jontaoNpS-clx-s20l-20wifi-stable-uploaded-acl-ip-v2
+      - jontaoNpS-clx-s20l-20wifi-exact-uploaded-acl-faststart-v3
     paths:
       - '.github/workflows/S20L-10WiFi.yml'
       - 'build-configs/S20L.txt'
@@ -245,8 +245,8 @@ jobs:
           cat > files/usr/libexec/dulwifi-firstboot <<'SCRIPT'
           #!/bin/sh
           set -e
-          [ -e /etc/dulwifi-firstboot.done ] && exit 0
-          sleep 60
+          [ -e /etc/dulwifi-20wifi-exact-v3.done ] && exit 0
+          sleep 10
 
           tries=0
           RADIO2=''
@@ -356,6 +356,11 @@ jobs:
           cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2
           chmod 0600 /etc/config/passwall /etc/config/passwall2
 
+          PW_ACL_COUNT="$(grep -c '^config acl_rule' /etc/config/passwall || true)"
+          PW2_ACL_COUNT="$(grep -c '^config acl_rule' /etc/config/passwall2 || true)"
+          [ "$PW_ACL_COUNT" -eq 20 ] || { logger -t dulwifi "PassWall ACL count wrong: $PW_ACL_COUNT"; exit 1; }
+          [ "$PW2_ACL_COUNT" -eq 20 ] || { logger -t dulwifi "PassWall2 ACL count wrong: $PW2_ACL_COUNT"; exit 1; }
+
           /etc/init.d/firewall restart || true
           /etc/init.d/network reload || true
           sleep 5
@@ -363,16 +368,25 @@ jobs:
           wifi reload || true
           /etc/init.d/passwall enable || true
           /etc/init.d/passwall2 enable || true
-          /etc/init.d/passwall restart || true
-          /etc/init.d/passwall2 restart || true
+          /etc/init.d/passwall start || true
+          /etc/init.d/passwall2 start || true
 
           touch /etc/dulwifi-wifi.done
           touch /etc/dulwifi-firstboot.done
+          touch /etc/dulwifi-20wifi-exact-v3.done
           logger -t dulwifi '20WiFi applied with exact uploaded PassWall/PassWall2 ACL templates'
           SCRIPT
           chmod 0755 files/usr/libexec/dulwifi-firstboot
           chmod 0755 files/etc/init.d/dulwifi-firstboot
           chmod 0755 files/etc/uci-defaults/99-enable-dulwifi-firstboot
+
+          cat > files/etc/uci-defaults/93-hold-passwall-until-20wifi-profile <<'PWBOOT'
+          #!/bin/sh
+          /etc/init.d/passwall disable >/dev/null 2>&1 || true
+          /etc/init.d/passwall2 disable >/dev/null 2>&1 || true
+          exit 0
+          PWBOOT
+          chmod 0755 files/etc/uci-defaults/93-hold-passwall-until-20wifi-profile
 
           install -D -m0755 profiles/realtime-ip-v4/install-argon-realtime-ip-v4.sh files/usr/bin/install-argon-realtime-ip-v4
           cat > files/etc/uci-defaults/95-argon-realtime-ip-v4 <<'REALTIMEIP'
@@ -392,12 +406,19 @@ jobs:
           ! grep -q "uci set passwall2\." files/usr/libexec/dulwifi-firstboot
           grep -q "cp -f /etc/juliang-20wifi/passwall /etc/config/passwall" files/usr/libexec/dulwifi-firstboot
           grep -q "cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2" files/usr/libexec/dulwifi-firstboot
+          [ "$(grep -c '^config acl_rule' profiles/s20l-uploaded/20wifi/passwall)" -eq 20 ]
+          [ "$(grep -c '^config acl_rule' profiles/s20l-uploaded/20wifi/passwall2)" -eq 20 ]
+          [ "$(grep -c "^config shunt_rules 'A[0-9][0-9]*'" profiles/s20l-uploaded/20wifi/passwall)" -eq 20 ]
+          [ "$(grep -c "^config shunt_rules 'A[0-9][0-9]*'" profiles/s20l-uploaded/20wifi/passwall2)" -eq 20 ]
           for i in $(seq 1 20); do
-              grep -q "option remarks 'A$i'" profiles/s20l-uploaded/20wifi/passwall
-              grep -q "option remarks 'A$i'" profiles/s20l-uploaded/20wifi/passwall2
+              grep -q "option remarks 'AP$i'" profiles/s20l-uploaded/20wifi/passwall
+              grep -q "option remarks 'AP$i'" profiles/s20l-uploaded/20wifi/passwall2
               grep -q "172.16.$i.0/24" profiles/s20l-uploaded/20wifi/passwall
               grep -q "172.16.$i.0/24" profiles/s20l-uploaded/20wifi/passwall2
           done
+          grep -q "option acl_enable '1'" profiles/s20l-uploaded/20wifi/passwall2
+          grep -q "option start_delay '60'" profiles/s20l-uploaded/20wifi/passwall
+          grep -q "option start_delay '60'" profiles/s20l-uploaded/20wifi/passwall2
           grep -q "server_addr='nps.jontao.top'" package/base-files/files/usr/libexec/nps-wan-mac
           grep -q "server_port='8024'" package/base-files/files/usr/libexec/nps-wan-mac
           grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
@@ -485,7 +506,7 @@ jobs:
       - name: Upload S20L firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CLX-S20L-20WiFi-Stable-UploadedACL-RealtimeIP-${{ env.BUILD_DATE }}
+          name: CLX-S20L-20WiFi-ExactUploadedACL-FastStart-V3-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -493,8 +514,8 @@ jobs:
       - name: Publish S20L firmware release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: CLX-S20L-20WiFi-Stable-UploadedACL-RealtimeIP-24.10-${{ env.BUILD_DATE }}
-          name: CLX S20L 20WiFi Stable Uploaded-ACL Realtime-IP 24.10 ${{ env.BUILD_DATE }}
+          tag_name: CLX-S20L-20WiFi-ExactUploadedACL-FastStart-V3-24.10-${{ env.BUILD_DATE }}
+          name: CLX S20L 20WiFi Exact Uploaded-ACL FastStart V3 24.10 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             CLX S20L / MT7986A / wangjontao ImmortalWrt 24.10 source. Wireless uses this source's native kmod-mt7915e + MT7986 firmware/WO firmware; closed mt_wifi/WARP is not used.
@@ -502,6 +523,6 @@ jobs:
             Management IP: 192.168.7.1
             Hostname: DulWiFi
             Wi-Fi: A-2.4G/A-5G primary SSIDs plus A1-A20. Password: a1111111 for the multi-SSID set. A1-A14 use 5GHz; A15-A20 use 2.4GHz. IPv6 DHCP/RA/NDP is disabled on A1-A20.
-            Included: iStore, QuickStart, Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps. Uses the exact uploaded 20WiFi PassWall/PassWall2 configuration files; ACLs are not auto-generated. Includes SK5/HTTP multiline import, Xray SOCKS mark fix, PassWall/PassWall2 actual exit-IP display, ACL realtime IP refresh, PassWall2 SOCKS self-heal, WAN DHCP/MAC self-heal, and Argon top-left realtime public IPv4/region display.
+            Included: iStore, QuickStart, Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps. The 20WiFi PassWall/PassWall2 files in this build are replaced directly from the latest uploaded files; both are build-checked for exactly 20 ACL rules (AP1-AP20). ACLs are not auto-generated. Includes SK5/HTTP multiline import, Xray SOCKS mark fix, PassWall/PassWall2 actual exit-IP display, ACL realtime IP refresh, PassWall2 SOCKS self-heal, WAN DHCP/MAC self-heal, and Argon top-left realtime public IPv4/region display.
             Multi-SSID profile: A1-A20, subnets 172.16.1.0/24 through 172.16.20.0/24. PassWall/PassWall2 ACL definitions come verbatim from the preserved uploaded 20WiFi profiles.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.jontao.top:8024 TCP, compression and encryption enabled.
