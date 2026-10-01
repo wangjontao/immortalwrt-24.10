@@ -1,11 +1,12 @@
 #!/bin/sh
 [ "$ACTION" = "ifup" ] || exit 0
 [ "$(uci -q get juliang_fastacl.main.enabled 2>/dev/null)" = "1" ] || exit 0
+[ "$INTERFACE" = "loopback" ] && exit 0
 
-# Re-assert only our dedicated fixed table and policy route.
-# Node processes/router are not restarted.
-case "$INTERFACE" in
-    lan|wan|tk*|loopback)
-        /usr/bin/juliang-fastacl firewall >/dev/null 2>&1 || true
-        ;;
-esac
+# Dynamic version: any interface may be one of the discovered wireless
+# networks (a1/a2/tk1/custom names). Re-assert only FastACL's nft/policy rules.
+# Node relays and the FastACL router are not restarted.
+(
+    sleep 1
+    /usr/bin/juliang-fastacl firewall >/dev/null 2>&1 || true
+) &
