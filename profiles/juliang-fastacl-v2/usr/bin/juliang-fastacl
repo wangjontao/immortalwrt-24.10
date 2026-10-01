@@ -79,9 +79,9 @@ start_preproxy(){
   }
 
   i=0
-  while [ "$i" -lt 60 ]; do
+  while [ "$i" -lt 6 ]; do
     (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
-    sleep 0.1
+    sleep 1
     i=$((i+1))
   done
 
@@ -152,9 +152,9 @@ start_ap(){
     }
   fi
   i=0
-  while [ "$i" -lt 50 ]; do
+  while [ "$i" -lt 5 ]; do
     (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
-    sleep 0.1; i=$((i+1))
+    sleep 1; i=$((i+1))
   done
   {
     echo "AP$n local SOCKS port $port not ready"
@@ -250,12 +250,12 @@ start_router(){
   echo "$pid" > "$RUN_DIR/router.pid"
   tport="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
   i=0
-  while [ "$i" -lt 50 ]; do
+  while [ "$i" -lt 5 ]; do
     kill -0 "$pid" >/dev/null 2>&1 || { cat "$RUN_DIR/router.log"; return 1; }
     if (ss -lnut 2>/dev/null || netstat -lnut 2>/dev/null) | grep -q ":$tport "; then
       return 0
     fi
-    sleep 0.1
+    sleep 1
     i=$((i+1))
   done
   log "FastACL router process exists but TProxy port $tport is not listening"
