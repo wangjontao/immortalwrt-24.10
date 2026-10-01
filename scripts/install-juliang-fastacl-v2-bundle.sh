@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="2.0.3"
+VERSION="2.0.4"
 RUNTIME_SHA="f77823de55fb69811ba64681367473009e0811c7"
 BASE="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/$RUNTIME_SHA/profiles/juliang-fastacl-v2"
 BACKUP_DIR="/etc/juliang-fastacl/backup"
@@ -77,7 +77,7 @@ echo "=================================================="
 [ -f /usr/share/passwall2/app.sh ] || fail "PassWall2 runtime not found"
 [ -f "$NODE_LIST" ] || fail "PassWall2 node list UI not found"
 
-for cmd in uci nft ip lua sing-box curl wget; do
+for cmd in uci nft ip lua sing-box curl wget base64; do
     command -v "$cmd" >/dev/null 2>&1 || fail "missing command: $cmd"
 done
 
@@ -109,928 +109,608 @@ if [ ! -f "$BACKUP_DIR/node_list.htm" ]; then
     fi
 fi
 
-log "Using bundled runtime payload; no additional GitHub downloads are needed."\ncat > "$TMP_DIR/juliang-fastacl" <<'JFA_PAYLOAD_1'
-#!/bin/sh
-set -u
-CFG="juliang_fastacl"
-APP="passwall2"
-STATE_DIR="/etc/juliang-fastacl"
-RUN_DIR="/tmp/juliang-fastacl"
-ROUTER_CFG="$STATE_DIR/router.json"
-MARK_HEX="0x66"
-ROUTE_TABLE="100"
-mkdir -p "$STATE_DIR" "$RUN_DIR" /tmp/etc/passwall2/bin /tmp/etc/passwall2/script_func /tmp/etc/passwall2/acl /tmp/etc/passwall2/route /tmp/etc/passwall2/iface /tmp/log /tmp/lock 2>/dev/null || true
-touch /tmp/etc/passwall2/var
-
-log(){ echo "[JFA] $*"; }
-
-ap_num(){
-  case "$1" in
-    AP[1-9]) echo "${1#AP}" ;;
-    AP1[0-9]|AP20) echo "${1#AP}" ;;
-    *) return 1 ;;
-  esac
-}
-
-find_acl_section(){
-  n="$1"; subnet="172.16.$n.0/24"
-  uci -q show "$APP" | awk -F'[.=]' -v A="AP$n" -v S="$subnet" '
-    /\.remarks=/{gsub("\047", "", $0); if ($0 ~ "=" A "$") print $2}
-    /\.sources=/{gsub("\047", "", $0); if ($0 ~ "=" S "$") print $2}
-  ' | head -n1
-}
-
-ensure_socks_section(){
-  n="$1"; node="${2:-}"; sec="jfa_ap$n"; port=$((13100+n))
-  type="$(uci -q get $APP.$sec 2>/dev/null || true)"
-  [ "$type" = "socks" ] || { uci -q delete $APP.$sec; uci set $APP.$sec='socks'; }
-  uci set $APP.$sec.enabled='0'
-  uci set $APP.$sec.bind_local='1'
-  uci set $APP.$sec.port="$port"
-  uci set $APP.$sec.http_port='0'
-  uci set $APP.$sec.log='0'
-  uci set $APP.$sec.enable_autoswitch='0'
-  [ -n "$node" ] && uci set $APP.$sec.node="$node" || true
-}
-
-kill_ap(){
-  n="$1"; sec="jfa_ap$n"
-  pidf="$RUN_DIR/ap$n.pid"
-  if [ -s "$pidf" ]; then kill "$(cat "$pidf")" >/dev/null 2>&1 || true; rm -f "$pidf"; fi
-  pgrep -af '/tmp/etc/passwall2/bin' 2>/dev/null | awk -v P="$sec" '$0 ~ P {print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
-  pgrep -af "SOCKS_${sec}" 2>/dev/null | awk '!/pgrep/{print $1}' | xargs -r kill -9 >/dev/null 2>&1 || true
-  rm -f "$RUN_DIR/ap$n-direct.json"
-}
-
-start_ap(){
-  n="$1"; node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
-  [ -n "$node" ] || { kill_ap "$n"; return 0; }
-  [ "$(uci -q get $APP.$node 2>/dev/null || true)" = "nodes" ] || { log "AP$n 节点不存在: $node"; return 1; }
-  ensure_socks_section "$n" "$node"
-  uci commit "$APP"
-  kill_ap "$n"
-  type="$(uci -q get $APP.$node.type 2>/dev/null | tr 'A-Z' 'a-z')"
-  port=$((13100+n))
-  if [ "$type" = "socks" ] || [ "$type" = "http" ]; then
-    cfg="$RUN_DIR/ap$n-direct.json"
-    lua /usr/libexec/juliang-fastacl-relay.lua "$node" "$port" "$cfg" || return 1
-    sing-box check -c "$cfg" >/dev/null 2>&1 || { log "AP$n 直连代理配置检查失败"; return 1; }
-    sing-box run -c "$cfg" >"$RUN_DIR/ap$n.log" 2>&1 &
-    echo $! > "$RUN_DIR/ap$n.pid"
-  else
-    /usr/share/passwall2/app.sh socks_node_switch flag="jfa_ap$n" new_node="$node" >/dev/null 2>&1 || return 1
-  fi
-  i=0
-  while [ "$i" -lt 30 ]; do
-    (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && return 0
-    sleep 0.1; i=$((i+1))
-  done
-  log "AP$n 本地 SOCKS 端口 $port 未就绪"
-  return 1
-}
-
-probe_ap(){
-  n="$1"; port=$((13100+n))
-  ip="$(curl -4 -fsS --connect-timeout 3 --max-time 6 --socks5-hostname "127.0.0.1:$port" https://api.ipify.org 2>/dev/null || true)"
-  [ -n "$ip" ] || ip="-"
-  echo "$ip"
-}
-
-write_router(){
-  lua /usr/libexec/juliang-fastacl-router.lua > "$ROUTER_CFG" || return 1
-  sing-box check -c "$ROUTER_CFG" >/tmp/jfa-router-check.log 2>&1 || { cat /tmp/jfa-router-check.log; return 1; }
-}
-
-firewall(){
-  TPROXY_PORT="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
-  nft list table inet juliang_fastacl >/dev/null 2>&1 && nft delete table inet juliang_fastacl >/dev/null 2>&1 || true
-  cat > "$RUN_DIR/rules.nft" <<EOF
- table inet juliang_fastacl {
-   set ap_sources {
-     type ipv4_addr
-     flags interval
-     elements = { 172.16.1.0/24, 172.16.2.0/24, 172.16.3.0/24, 172.16.4.0/24, 172.16.5.0/24, 172.16.6.0/24, 172.16.7.0/24, 172.16.8.0/24, 172.16.9.0/24, 172.16.10.0/24, 172.16.11.0/24, 172.16.12.0/24, 172.16.13.0/24, 172.16.14.0/24, 172.16.15.0/24, 172.16.16.0/24, 172.16.17.0/24, 172.16.18.0/24, 172.16.19.0/24, 172.16.20.0/24 }
-   }
-   set local_dst {
-     type ipv4_addr
-     flags interval
-     elements = { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 }
-   }
-   chain prerouting {
-     type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
-     ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
-   }
- }
-EOF
-  nft -c -f "$RUN_DIR/rules.nft" || return 1
-  nft -f "$RUN_DIR/rules.nft" || return 1
-  ip rule del fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 >/dev/null 2>&1 || true
-  ip rule add fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000
-  ip route replace local 0.0.0.0/0 dev lo table "$ROUTE_TABLE"
-}
-
-firewall_check(){
-  TPROXY_PORT="$(uci -q get $CFG.main.tproxy_port 2>/dev/null || echo 12345)"
-  cat > "$RUN_DIR/rules-check.nft" <<EOF
- table inet juliang_fastacl_check {
-   set ap_sources {
-     type ipv4_addr
-     flags interval
-     elements = { 172.16.1.0/24, 172.16.2.0/24, 172.16.3.0/24, 172.16.4.0/24, 172.16.5.0/24, 172.16.6.0/24, 172.16.7.0/24, 172.16.8.0/24, 172.16.9.0/24, 172.16.10.0/24, 172.16.11.0/24, 172.16.12.0/24, 172.16.13.0/24, 172.16.14.0/24, 172.16.15.0/24, 172.16.16.0/24, 172.16.17.0/24, 172.16.18.0/24, 172.16.19.0/24, 172.16.20.0/24 }
-   }
-   set local_dst {
-     type ipv4_addr
-     flags interval
-     elements = { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 }
-   }
-   chain prerouting {
-     type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
-     ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
-   }
- }
-EOF
-  nft -c -f "$RUN_DIR/rules-check.nft"
-}
-
-start_router(){
-  write_router || return 1
-  [ -s "$RUN_DIR/router.pid" ] && kill "$(cat "$RUN_DIR/router.pid")" >/dev/null 2>&1 || true
-  sing-box run -c "$ROUTER_CFG" >"$RUN_DIR/router.log" 2>&1 &
-  echo $! > "$RUN_DIR/router.pid"
-  sleep 0.3
-  kill -0 "$(cat "$RUN_DIR/router.pid")" >/dev/null 2>&1 || { cat "$RUN_DIR/router.log"; return 1; }
-}
-
-stop_router(){
-  if [ -s "$RUN_DIR/router.pid" ]; then kill "$(cat "$RUN_DIR/router.pid")" >/dev/null 2>&1 || true; rm -f "$RUN_DIR/router.pid"; fi
-}
-
-start_all(){
-  n=1; while [ "$n" -le 20 ]; do start_ap "$n" || true; n=$((n+1)); done
-  start_router || return 1
-  firewall || return 1
-}
-
-stop_all(){
-  n=1; while [ "$n" -le 20 ]; do kill_ap "$n"; n=$((n+1)); done
-  stop_router
-  nft list table inet juliang_fastacl >/dev/null 2>&1 && nft delete table inet juliang_fastacl >/dev/null 2>&1 || true
-  ip rule del fwmark "$MARK_HEX/0xff" table "$ROUTE_TABLE" priority 10000 >/dev/null 2>&1 || true
-  ip route flush table "$ROUTE_TABLE" >/dev/null 2>&1 || true
-}
-
-switch_node(){
-  ap="$1"; node="$2"; n="$(ap_num "$ap")" || { echo '{"ok":false,"error":"BAD_AP"}'; return 2; }
-  [ "$(uci -q get $APP.$node 2>/dev/null || true)" = "nodes" ] || { echo '{"ok":false,"error":"BAD_NODE"}'; return 3; }
-
-  old="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
-  acl="$(find_acl_section "$n")"
-  old_acl_node=""
-  [ -n "$acl" ] && old_acl_node="$(uci -q get $APP.$acl.node 2>/dev/null || true)"
-
-  uci set $CFG.ap$n.node="$node"
-  ensure_socks_section "$n" "$node"
-  [ -n "$acl" ] && { uci set $APP.$acl.node="$node"; uci set $APP.$acl.enabled='1'; }
-  uci commit "$CFG"; uci commit "$APP"
-
-  t0="$(date +%s)"
-  if start_ap "$n"; then
-    ip="$(probe_ap "$n")"
-    printf '%s\n' "$ip" > "$RUN_DIR/ap$n.ip"
-    t1="$(date +%s)"; sec=$((t1-t0))
-    remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
-    printf '{"ok":true,"ap":"AP%s","node":"%s","remark":"%s","ip":"%s","seconds":%s}\n' "$n" "$node" "$(echo "$remark" | sed 's/"/\\"/g')" "$ip" "$sec"
-  else
-    if [ -n "$old" ]; then
-      uci set $CFG.ap$n.node="$old"
-      ensure_socks_section "$n" "$old"
-    else
-      uci -q delete $CFG.ap$n.node
-      uci -q delete $APP.jfa_ap$n.node
-    fi
-    if [ -n "$acl" ]; then
-      if [ -n "$old_acl_node" ]; then uci set $APP.$acl.node="$old_acl_node"; else uci -q delete $APP.$acl.node; fi
-    fi
-    uci commit "$CFG"; uci commit "$APP"
-    [ -n "$old" ] && start_ap "$n" >/dev/null 2>&1 || kill_ap "$n"
-    printf '{"ok":false,"ap":"AP%s","node":"%s","error":"NODE_START_FAILED","rolled_back":true}\n' "$n" "$node"
-    return 4
-  fi
-}
-
-clear_ap(){
-  ap="$1"; n="$(ap_num "$ap")" || { echo '{"ok":false,"error":"BAD_AP"}'; return 2; }
-  old="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"
-  uci -q delete $CFG.ap$n.node
-  ensure_socks_section "$n" ""
-  uci -q delete $APP.jfa_ap$n.node
-  acl="$(find_acl_section "$n")"
-  [ -n "$acl" ] && uci -q delete $APP.$acl.node
-  uci commit "$CFG"; uci commit "$APP"
-  kill_ap "$n"
-  rm -f "$RUN_DIR/ap$n.ip"
-  printf '{"ok":true,"ap":"AP%s","old_node":"%s"}\n' "$n" "$old"
-}
-
-status(){
-  echo "JuLiang FastACL"
-  echo "router: $([ -s "$RUN_DIR/router.pid" ] && kill -0 "$(cat "$RUN_DIR/router.pid")" 2>/dev/null && echo running || echo stopped)"
-  nft list table inet juliang_fastacl >/dev/null 2>&1 && echo "nftables: loaded" || echo "nftables: missing"
-  n=1; while [ "$n" -le 20 ]; do
-    node="$(uci -q get $CFG.ap$n.node 2>/dev/null || true)"; port=$((13100+n))
-    if [ -n "$node" ]; then
-      remark="$(uci -q get $APP.$node.remarks 2>/dev/null || echo "$node")"
-      listen="no"; (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$port " && listen="yes"
-      echo "AP$n -> $remark | socks:$port listen:$listen"
-    fi
-    n=$((n+1))
-  done
-}
-
-case "${1:-}" in
-  start) start_all ;;
-  stop) stop_all ;;
-  restart) stop_all; start_all ;;
-  firewall) firewall ;;
-  firewall-check) firewall_check ;;
-  switch) [ $# -eq 3 ] || exit 2; switch_node "$2" "$3" ;;
-  clear) [ $# -eq 2 ] || exit 2; clear_ap "$2" ;;
-  probe) n="$(ap_num "$2")" || exit 2; probe_ap "$n" ;;
-  status) status ;;
-  *) echo "Usage: juliang-fastacl {start|stop|restart|firewall|firewall-check|switch AP1 nodeid|clear AP1|probe AP1|status}"; exit 1 ;;
-esac
-JFA_PAYLOAD_1
-cat > "$TMP_DIR/juliang-fastacl-luci-install" <<'JFA_PAYLOAD_2'
-#!/bin/sh
-set -eu
-
-FILE="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
-CTRL="/usr/lib/lua/luci/controller/juliang_fastacl.lua"
-MARKER="JULIANG_FASTACL_V2"
-
-[ -f "$FILE" ] || {
-    echo "[ERROR] PassWall2 node_list.htm not found: $FILE"
-    exit 1
-}
-[ -f "$CTRL" ] || {
-    echo "[ERROR] FastACL LuCI controller not found: $CTRL"
-    exit 1
-}
-
-# Remove the old Quick-ACL UI cleanly. Its backup is the original PassWall2
-# node list from before the experimental v1 patch.
-if [ -f "$FILE.quick-acl.bak" ]; then
-    cp -af "$FILE.quick-acl.bak" "$FILE"
-    echo "[INFO] restored original PassWall2 node list from Quick-ACL backup"
-fi
-
-if grep -q "$MARKER" "$FILE"; then
-    echo "[OK] FastACL v2 LuCI already installed"
-    exit 0
-fi
-
-[ -f "$FILE.jfa-v2.bak" ] || cp -a "$FILE" "$FILE.jfa-v2.bak"
-
-FILE="$FILE" lua <<'LUA_PATCH'
-local file = assert(os.getenv("FILE"))
-local f = assert(io.open(file, "r"))
-local text = f:read("*a")
-f:close()
-
-local function replace_once(src, needle, repl, label)
-    local s, e = src:find(needle, 1, true)
-    assert(s, (label or "anchor") .. " missing")
-    return src:sub(1, s - 1) .. repl .. src:sub(e + 1)
-end
-
-local top_old = 'local appname = api.appname\n'
-local top_new = 'local appname = api.appname\nlocal jfa_url = require("luci.dispatcher").build_url("admin", "services", "juliang_fastacl")\n'
-text = replace_once(text, top_old, top_new, "top anchor")
-
-local js_anchor = '\n\tfunction to_edit_node(cbi_id) {'
-local js = [=[
-
-    // JULIANG_FASTACL_V2
-    var jfaNode = "";
-    var jfaMap = {};
-    var jfaLabels = {};
-    var jfaIps = {};
-    var jfaEngine = "unknown";
-
-    function jfa_label(ap) {
-        return jfaLabels[ap] || ("无线" + ap);
-    }
-
-    function jfa_assignments(node) {
-        return jfaMap[node] || [];
-    }
-
-    function jfa_update_buttons() {
-        var buttons = document.getElementsByClassName("jfa-btn");
-        for (var i = 0; i < buttons.length; i++) {
-            var node = buttons[i].getAttribute("data-node-id");
-            var aps = jfa_assignments(node);
-            var labels = [];
-            var ips = [];
-
-            for (var j = 0; j < aps.length; j++) {
-                labels.push(jfa_label(aps[j]));
-                if (jfaIps[aps[j]])
-                    ips.push(jfaIps[aps[j]]);
-            }
-
-            buttons[i].value = labels.length ? labels.join(",") : "分配无线";
-            buttons[i].title = labels.length
-                ? ("FastACL 已绑定：" + labels.join(", ") + (ips.length ? "\n出口 IP：" + ips.join(", ") : ""))
-                : "FastACL：点击即时分配到无线 AP";
-
-            var ipNode = document.getElementById("jfa_ip_" + node);
-            if (ipNode) {
-                ipNode.textContent = ips.join(" / ");
-                ipNode.style.display = ips.length ? "inline-block" : "none";
-            }
-        }
-    }
-
-    function jfa_refresh_select() {
-        var sel = document.getElementById("jfa_select");
-        if (!sel) return;
-
-        for (var i = 0; i < sel.options.length; i++) {
-            var ap = sel.options[i].value;
-            if (/^AP([1-9]|1[0-9]|20)$/.test(ap)) {
-                var n = ap.replace("AP", "");
-                sel.options[i].text = jfa_label(ap) + " · 172.16." + n + ".0/24";
-            }
-        }
-    }
-
-    function jfa_load_status(done) {
-        XHR.get('<%=jfa_url%>', { action: 'status' }, function(x, result) {
-            if (x && x.status == 200 && result && result.ok) {
-                jfaMap = result.map || {};
-                jfaLabels = result.wireless_labels || {};
-                jfaIps = result.ips || {};
-                jfaEngine = result.engine || "unknown";
-                jfa_refresh_select();
-                jfa_update_buttons();
-            }
-            if (done) done(result || {});
-        });
-    }
-
-    function jfa_open(cbi_id) {
-        jfaNode = cbi_id;
-        var remarks = (document.getElementById("cbid.<%=appname%>." + cbi_id + ".remarks") || {}).value || cbi_id;
-        document.getElementById("jfa_node_name").innerText = remarks;
-        document.getElementById("jfa_div").style.display = "block";
-        document.getElementById("jfa_status").innerText = "";
-
-        jfa_load_status(function() {
-            var aps = jfa_assignments(cbi_id);
-            var labels = [];
-            for (var i = 0; i < aps.length; i++) labels.push(jfa_label(aps[i]));
-
-            document.getElementById("jfa_current").innerText = labels.length ? labels.join(", ") : "未分配";
-            document.getElementById("jfa_engine").innerText =
-                jfaEngine == "running" ? "FastACL：运行中" : "FastACL：未运行";
-            document.getElementById("jfa_engine").style.color =
-                jfaEngine == "running" ? "#159957" : "#e43f3b";
-
-            if (aps.length && /^AP([1-9]|1[0-9]|20)$/.test(aps[0]))
-                document.getElementById("jfa_select").value = aps[0];
-        });
-    }
-
-    function jfa_close() {
-        document.getElementById("jfa_div").style.display = "none";
-        jfaNode = "";
-    }
-
-    function jfa_assign() {
-        if (!jfaNode) return;
-
-        var ap = document.getElementById("jfa_select").value;
-        if (!ap) {
-            alert("请选择无线 AP");
-            return;
-        }
-
-        var exclusive = document.getElementById("jfa_exclusive").checked ? "1" : "0";
-        var status = document.getElementById("jfa_status");
-        status.innerText = "正在即时切换 " + jfa_label(ap) + "…";
-
-        XHR.get('<%=jfa_url%>', {
-            action: 'assign',
-            node: jfaNode,
-            ap: ap,
-            exclusive: exclusive
-        }, function(x, result) {
-            if (x && x.status == 200 && result && result.ok) {
-                var msg = "✓ " + jfa_label(ap) + " 已切换";
-                if (result.ip && result.ip != "-")
-                    msg += "；出口 IP " + result.ip;
-                if (result.seconds != null)
-                    msg += "；耗时 " + result.seconds + "s";
-                status.innerText = msg;
-                status.style.color = "#159957";
-
-                jfa_load_status(function() {
-                    var aps = jfa_assignments(jfaNode);
-                    var labels = [];
-                    for (var i = 0; i < aps.length; i++) labels.push(jfa_label(aps[i]));
-                    document.getElementById("jfa_current").innerText = labels.length ? labels.join(", ") : "未分配";
-                });
-            } else {
-                status.innerText = "切换失败：" + ((result && result.error) || "ERROR");
-                status.style.color = "#e43f3b";
-            }
-        });
-    }
-
-    function jfa_clear() {
-        if (!jfaNode) return;
-        if (!confirm("解除这个节点当前绑定的无线 AP？")) return;
-
-        var status = document.getElementById("jfa_status");
-        status.innerText = "正在解除…";
-
-        XHR.get('<%=jfa_url%>', {
-            action: 'clear_node',
-            node: jfaNode
-        }, function(x, result) {
-            if (x && x.status == 200 && result && result.ok) {
-                status.innerText = "✓ 已解除绑定";
-                status.style.color = "#159957";
-                jfa_load_status(function() {
-                    document.getElementById("jfa_current").innerText = "未分配";
-                });
-            } else {
-                status.innerText = "解除失败：" + ((result && result.error) || "ERROR");
-                status.style.color = "#e43f3b";
-            }
-        });
-    }
-]=]
-text = replace_once(text, js_anchor, js .. js_anchor, "JS anchor")
-
-local copy_anchor = '\n\t\t\t\t<input class="btn cbi-button cbi-button-add" type="button" value="<%:Copy%>" onclick="copy_node(\'{{id}}\')"/>'
-local button = [=[
-				<input class="btn cbi-button cbi-button-edit jfa-btn" type="button" id="jfa_{{id}}" data-node-id="{{id}}" value="分配无线" onclick="jfa_open('{{id}}')" title="FastACL 即时分配无线"/>
-				<span id="jfa_ip_{{id}}" style="display:none;margin-left:5px;color:#159957;font-weight:600;font-size:12px;white-space:nowrap;"></span>
-]=]
-text = replace_once(text, copy_anchor, "\n" .. button .. copy_anchor, "button anchor")
-
-local ping_call = '\n\t\t\tpingAllNodes();'
-text = replace_once(text, ping_call, ping_call .. '\n\t\t\tjfa_load_status();', "load-status anchor")
-
-local modal = [=[
-
-<div id="jfa_div" style="display:none;width:35rem;max-width:94vw;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:220;padding:22px;text-align:center;background:var(--main-bg-color,#fff);border-radius:12px;box-shadow:0 12px 42px rgba(0,0,0,.38);">
-    <div style="font-size:17px;font-weight:700;margin-bottom:7px;">FastACL 即时分配无线</div>
-    <div style="font-size:12px;opacity:.72;margin-bottom:13px;">不重建 nftables · 不重启系统 DNS · 只切换当前 AP 节点</div>
-    <div style="margin:7px 0;">节点：<strong id="jfa_node_name" style="color:#159957"></strong></div>
-    <div style="margin:7px 0;">当前：<strong id="jfa_current" style="color:#e6a23c">读取中…</strong></div>
-    <div id="jfa_engine" style="margin:7px 0;font-weight:600;">FastACL：检测中…</div>
-    <div style="margin:13px 0;">
-        <select id="jfa_select" class="cbi-input-select" style="min-width:240px;">
-            <option value="">请选择无线 AP</option>
-            <option value="AP1">无线AP1 · 172.16.1.0/24</option>
-            <option value="AP2">无线AP2 · 172.16.2.0/24</option>
-            <option value="AP3">无线AP3 · 172.16.3.0/24</option>
-            <option value="AP4">无线AP4 · 172.16.4.0/24</option>
-            <option value="AP5">无线AP5 · 172.16.5.0/24</option>
-            <option value="AP6">无线AP6 · 172.16.6.0/24</option>
-            <option value="AP7">无线AP7 · 172.16.7.0/24</option>
-            <option value="AP8">无线AP8 · 172.16.8.0/24</option>
-            <option value="AP9">无线AP9 · 172.16.9.0/24</option>
-            <option value="AP10">无线AP10 · 172.16.10.0/24</option>
-            <option value="AP11">无线AP11 · 172.16.11.0/24</option>
-            <option value="AP12">无线AP12 · 172.16.12.0/24</option>
-            <option value="AP13">无线AP13 · 172.16.13.0/24</option>
-            <option value="AP14">无线AP14 · 172.16.14.0/24</option>
-            <option value="AP15">无线AP15 · 172.16.15.0/24</option>
-            <option value="AP16">无线AP16 · 172.16.16.0/24</option>
-            <option value="AP17">无线AP17 · 172.16.17.0/24</option>
-            <option value="AP18">无线AP18 · 172.16.18.0/24</option>
-            <option value="AP19">无线AP19 · 172.16.19.0/24</option>
-            <option value="AP20">无线AP20 · 172.16.20.0/24</option>
-        </select>
-    </div>
-    <label style="display:block;margin:10px 0;">
-        <input id="jfa_exclusive" type="checkbox" checked="checked"/>
-        唯一绑定：同一个节点只分配给一个无线 AP
-    </label>
-    <div id="jfa_status" style="min-height:24px;margin:9px 0;font-weight:600;color:#159957;"></div>
-    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
-        <input class="btn cbi-button cbi-button-apply" type="button" value="立即切换" onclick="jfa_assign()"/>
-        <input class="btn cbi-button cbi-button-remove" type="button" value="解除绑定" onclick="jfa_clear()"/>
-        <input class="btn cbi-button cbi-button-edit" type="button" value="关闭" onclick="jfa_close()"/>
-    </div>
-</div>
-]=]
-
-text = text .. modal
-
-local out = assert(io.open(file .. ".new", "w"))
-out:write(text)
-out:close()
-os.rename(file .. ".new", file)
-LUA_PATCH
-
-grep -q "$MARKER" "$FILE"
-grep -q 'jfa-btn' "$FILE"
-grep -q 'FastACL 即时分配无线' "$FILE"
-
-rm -f /tmp/luci-indexcache
-rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
-/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
-
-echo "[OK] FastACL v2 LuCI installed"
-echo "PassWall2 -> 节点列表：每个节点右侧显示“分配无线/无线SSID”，并显示已检测出口 IP。"
-
-JFA_PAYLOAD_2
-cat > "$TMP_DIR/uninstall-juliang-fastacl" <<'JFA_PAYLOAD_3'
-#!/bin/sh
-set -u
-
-BACKUP_DIR="/etc/juliang-fastacl/backup"
-NODE_LIST="/usr/lib/lua/luci/view/passwall2/node_list/node_list.htm"
-
-echo "=================================================="
-echo " JuLiang FastACL v2 rollback"
-echo "=================================================="
-
-/etc/init.d/juliang-fastacl stop >/dev/null 2>&1 || true
-/etc/init.d/juliang-fastacl disable >/dev/null 2>&1 || true
-
-# Keep all current PassWall2 nodes and the AP mappings FastACL mirrored into
-# the original ACL sections. Only remove our shadow SOCKS holders and restore
-# the three original engine switches.
-n=1
-while [ "$n" -le 20 ]; do
-    uci -q delete passwall2.jfa_ap$n
-    n=$((n + 1))
-done
-
-if [ -f "$BACKUP_DIR/original-flags" ]; then
-    . "$BACKUP_DIR/original-flags"
-    uci -q set passwall2.@global[0].enabled="${PW2_ENABLED:-0}"
-    uci -q set passwall2.@global[0].acl_enable="${PW2_ACL_ENABLE:-1}"
-    uci -q set passwall2.@global[0].socks_enabled="${PW2_SOCKS_ENABLED:-0}"
-fi
-uci -q commit passwall2
-
-if [ -f "$BACKUP_DIR/node_list.htm" ]; then
-    cp -af "$BACKUP_DIR/node_list.htm" "$NODE_LIST"
-    echo "[OK] restored PassWall2 node list UI"
-fi
-
-rm -f /etc/config/juliang_fastacl
-rm -f /tmp/luci-indexcache
-rm -rf /tmp/luci-modulecache /tmp/luci-templatecache
-rm -rf /tmp/juliang-fastacl
-
-/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
-/etc/init.d/passwall2 restart >/tmp/passwall2-fastacl-rollback.log 2>&1 &
-
-echo "[OK] FastACL disabled; current nodes/AP mappings kept"
-echo "PassWall2 is restoring in background; log: /tmp/passwall2-fastacl-rollback.log"
-
-JFA_PAYLOAD_3
-cat > "$TMP_DIR/juliang-fastacl-router.lua" <<'JFA_PAYLOAD_4'
-local jsonc = require "luci.jsonc"
-local uci = require("luci.model.uci").cursor()
-local cfg = "juliang_fastacl"
-local port = tonumber(uci:get(cfg, "main", "tproxy_port") or "12345")
-local dns_addr = uci:get(cfg, "main", "dns_server") or "1.1.1.1"
-
-local outbounds = { { type = "direct", tag = "direct" } }
-local route_rules = {}
-local dns_servers = {}
-local dns_rules = {}
-
-for i = 1, 20 do
-  local s = "ap" .. i
-  local subnet = uci:get(cfg, s, "subnet") or string.format("172.16.%d.0/24", i)
-  local sport = tonumber(uci:get(cfg, s, "socks_port") or tostring(13100 + i))
-  local tag = "ap" .. i
-  outbounds[#outbounds + 1] = {
-    type = "socks",
-    tag = tag,
-    server = "127.0.0.1",
-    server_port = sport,
-    version = "5"
-  }
-  dns_servers[#dns_servers + 1] = {
-    type = "tcp",
-    tag = "dns-" .. tag,
-    server = dns_addr,
-    server_port = 53,
-    detour = tag
-  }
-  dns_rules[#dns_rules + 1] = {
-    source_ip_cidr = { subnet },
-    action = "route",
-    server = "dns-" .. tag
-  }
-  route_rules[#route_rules + 1] = {
-    source_ip_cidr = { subnet },
-    port = { 53 },
-    action = "hijack-dns"
-  }
-  route_rules[#route_rules + 1] = {
-    source_ip_cidr = { subnet },
-    action = "route",
-    outbound = tag
-  }
-end
-
-local conf = {
-  log = { level = "warn", timestamp = true },
-  dns = {
-    servers = dns_servers,
-    rules = dns_rules,
-    final = "dns-ap1"
-  },
-  inbounds = {
-    {
-      type = "tproxy",
-      tag = "jfa-tproxy",
-      listen = "0.0.0.0",
-      listen_port = port
-    }
-  },
-  outbounds = outbounds,
-  route = {
-    rules = route_rules,
-    final = "direct"
-  }
-}
-
-io.write(jsonc.stringify(conf, true))
-
-JFA_PAYLOAD_4
-cat > "$TMP_DIR/juliang-fastacl-relay.lua" <<'JFA_PAYLOAD_5'
-local jsonc = require "luci.jsonc"
-local uci = require("luci.model.uci").cursor()
-local node = arg[1] or ""
-local port = tonumber(arg[2] or "0")
-local outfile = arg[3] or ""
-if node == "" or port == 0 or outfile == "" then os.exit(2) end
-local n = uci:get_all("passwall2", node)
-if not n then os.exit(3) end
-local t = string.lower(n.type or "")
-local out
-if t == "socks" then
-  out = {
-    type = "socks", tag = "proxy", server = n.address, server_port = tonumber(n.port), version = "5",
-    username = n.username, password = n.password
-  }
-elseif t == "http" then
-  out = {
-    type = "http", tag = "proxy", server = n.address, server_port = tonumber(n.port),
-    username = n.username, password = n.password
-  }
-else
-  os.exit(4)
-end
-local conf = {
-  log = { level = "error" },
-  inbounds = { { type = "socks", tag = "in", listen = "127.0.0.1", listen_port = port } },
-  outbounds = { out },
-  route = { final = "proxy" }
-}
-local f = assert(io.open(outfile, "w"))
-f:write(jsonc.stringify(conf, true))
-f:close()
-
-JFA_PAYLOAD_5
-cat > "$TMP_DIR/juliang_fastacl.lua" <<'JFA_PAYLOAD_6'
-module("luci.controller.juliang_fastacl", package.seeall)
-
-function index()
-    local page = entry({"admin", "services", "juliang_fastacl"}, call("handle"), nil)
-    page.leaf = true
-    page.dependent = false
-end
-
-local function write_json(t)
-    local http = require "luci.http"
-    local jsonc = require "luci.jsonc"
-    http.prepare_content("application/json")
-    http.write(jsonc.stringify(t))
-end
-
-local function ap_number(v)
-    local n = tonumber((v or ""):match("^AP(%d+)$"))
-    if n and n >= 1 and n <= 20 then return n end
-    return nil
-end
-
-local function wireless_labels(uci)
-    local labels = {}
-    for i = 1, 20 do
-        labels["AP" .. i] = "无线AP" .. i
-    end
-
-    uci:foreach("wireless", "wifi-iface", function(s)
-        local network = s.network or ""
-        local ssid = s.ssid or ""
-        if ssid ~= "" then
-            for i = 1, 20 do
-                local tk = "tk" .. i
-                if (" " .. network .. " "):find(" " .. tk .. " ", 1, true) then
-                    labels["AP" .. i] = "无线" .. ssid
-                end
-            end
-        end
-    end)
-
-    return labels
-end
-
-local function read_ip(n)
-    local f = io.open("/tmp/juliang-fastacl/ap" .. n .. ".ip", "r")
-    if not f then return "" end
-    local ip = (f:read("*l") or ""):gsub("%s+", "")
-    f:close()
-    return ip
-end
-
-local function runtime_status()
-    local f = io.open("/tmp/juliang-fastacl/router.pid", "r")
-    if not f then return "stopped" end
-    local pid = tonumber(f:read("*l") or "")
-    f:close()
-    if not pid then return "stopped" end
-    local sys = require "luci.sys"
-    return sys.call("kill -0 " .. pid .. " >/dev/null 2>&1") == 0 and "running" or "stopped"
-end
-
-local function exec_json(cmd)
-    local sys = require "luci.sys"
-    local jsonc = require "luci.jsonc"
-    local raw = sys.exec(cmd .. " 2>/tmp/juliang-fastacl/luci-error.log")
-    local ok, data = pcall(jsonc.parse, raw or "")
-    if ok and type(data) == "table" then
-        return data
-    end
-    return {
-        ok = false,
-        error = "ENGINE_ERROR",
-        detail = raw or ""
-    }
-end
-
-function handle()
-    local http = require "luci.http"
-    local util = require "luci.util"
-    local uci = require("luci.model.uci").cursor()
-
-    local action = http.formvalue("action") or "status"
-
-    if action == "status" then
-        local map = {}
-        local ap_to_node = {}
-        local ips = {}
-        local labels = wireless_labels(uci)
-
-        for i = 1, 20 do
-            local ap = "AP" .. i
-            local node = uci:get("juliang_fastacl", "ap" .. i, "node") or ""
-            ap_to_node[ap] = node
-            ips[ap] = read_ip(i)
-            if node ~= "" then
-                map[node] = map[node] or {}
-                map[node][#map[node] + 1] = ap
-            end
-        end
-
-        write_json({
-            ok = true,
-            engine = runtime_status(),
-            map = map,
-            ap_to_node = ap_to_node,
-            wireless_labels = labels,
-            ips = ips
-        })
-        return
-    end
-
-    local node = http.formvalue("node") or ""
-    local node_cfg = node ~= "" and uci:get_all("passwall2", node) or nil
-
-    if action == "assign" then
-        local ap = http.formvalue("ap") or ""
-        local n = ap_number(ap)
-        if not n then
-            write_json({ ok = false, error = "BAD_AP" })
-            return
-        end
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
-
-        local exclusive = http.formvalue("exclusive") ~= "0"
-        local result = exec_json(
-            "/usr/bin/juliang-fastacl switch " ..
-            ap .. " " .. util.shellquote(node)
-        )
-
-        local cleared = {}
-        if result.ok and exclusive then
-            for i = 1, 20 do
-                if i ~= n and (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
-                    local old_ap = "AP" .. i
-                    local r = exec_json("/usr/bin/juliang-fastacl clear " .. old_ap)
-                    if r.ok then cleared[#cleared + 1] = old_ap end
-                end
-            end
-        end
-
-        result.cleared = cleared
-        write_json(result)
-        return
-    end
-
-    if action == "clear_node" then
-        if not node_cfg or node_cfg[".type"] ~= "nodes" then
-            write_json({ ok = false, error = "BAD_NODE" })
-            return
-        end
-
-        local cleared = {}
-        for i = 1, 20 do
-            if (uci:get("juliang_fastacl", "ap" .. i, "node") or "") == node then
-                local ap = "AP" .. i
-                local r = exec_json("/usr/bin/juliang-fastacl clear " .. ap)
-                if r.ok then cleared[#cleared + 1] = ap end
-            end
-        end
-
-        write_json({ ok = true, action = "clear_node", node = node, cleared = cleared })
-        return
-    end
-
-    if action == "probe" then
-        local ap = http.formvalue("ap") or ""
-        local n = ap_number(ap)
-        if not n then
-            write_json({ ok = false, error = "BAD_AP" })
-            return
-        end
-        local sys = require "luci.sys"
-        local ip = (sys.exec("/usr/bin/juliang-fastacl probe " .. ap .. " 2>/dev/null") or ""):gsub("%s+", "")
-        write_json({ ok = ip ~= "" and ip ~= "-", ap = ap, ip = ip })
-        return
-    end
-
-    write_json({ ok = false, error = "BAD_ACTION" })
-end
-
-JFA_PAYLOAD_6
-cat > "$TMP_DIR/juliang-fastacl.init" <<'JFA_PAYLOAD_7'
-#!/bin/sh /etc/rc.common
-START=96
-STOP=14
-
-start() {
-    [ "$(uci -q get juliang_fastacl.main.enabled 2>/dev/null)" = "1" ] || return 0
-    mkdir -p /tmp/juliang-fastacl
-    /usr/bin/juliang-fastacl start >/tmp/juliang-fastacl/start.log 2>&1 &
-}
-
-stop() {
-    /usr/bin/juliang-fastacl stop >/dev/null 2>&1 || true
-}
-
-restart() {
-    stop
-    sleep 1
-    start
-}
-
-JFA_PAYLOAD_7
-cat > "$TMP_DIR/99-juliang-fastacl" <<'JFA_PAYLOAD_8'
-#!/bin/sh
-[ "$ACTION" = "ifup" ] || exit 0
-[ "$(uci -q get juliang_fastacl.main.enabled 2>/dev/null)" = "1" ] || exit 0
-
-# Re-assert only our dedicated fixed table and policy route.
-# Node processes/router are not restarted.
-case "$INTERFACE" in
-    lan|wan|tk*|loopback)
-        /usr/bin/juliang-fastacl firewall >/dev/null 2>&1 || true
-        ;;
-esac
-
-JFA_PAYLOAD_8
+log "Using base64 bundled runtime payload; no additional GitHub downloads are needed."\nbase64 -d > "$TMP_DIR/juliang-fastacl" <<'JFA64_1'
+IyEvYmluL3NoCnNldCAtdQpDRkc9Imp1bGlhbmdfZmFzdGFjbCIKQVBQPSJwYXNzd2FsbDIiClNU
+QVRFX0RJUj0iL2V0Yy9qdWxpYW5nLWZhc3RhY2wiClJVTl9ESVI9Ii90bXAvanVsaWFuZy1mYXN0
+YWNsIgpST1VURVJfQ0ZHPSIkU1RBVEVfRElSL3JvdXRlci5qc29uIgpNQVJLX0hFWD0iMHg2NiIK
+Uk9VVEVfVEFCTEU9IjEwMCIKbWtkaXIgLXAgIiRTVEFURV9ESVIiICIkUlVOX0RJUiIgL3RtcC9l
+dGMvcGFzc3dhbGwyL2JpbiAvdG1wL2V0Yy9wYXNzd2FsbDIvc2NyaXB0X2Z1bmMgL3RtcC9ldGMv
+cGFzc3dhbGwyL2FjbCAvdG1wL2V0Yy9wYXNzd2FsbDIvcm91dGUgL3RtcC9ldGMvcGFzc3dhbGwy
+L2lmYWNlIC90bXAvbG9nIC90bXAvbG9jayAyPi9kZXYvbnVsbCB8fCB0cnVlCnRvdWNoIC90bXAv
+ZXRjL3Bhc3N3YWxsMi92YXIKCmxvZygpeyBlY2hvICJbSkZBXSAkKiI7IH0KCmFwX251bSgpewog
+IGNhc2UgIiQxIiBpbgogICAgQVBbMS05XSkgZWNobyAiJHsxI0FQfSIgOzsKICAgIEFQMVswLTld
+fEFQMjApIGVjaG8gIiR7MSNBUH0iIDs7CiAgICAqKSByZXR1cm4gMSA7OwogIGVzYWMKfQoKZmlu
+ZF9hY2xfc2VjdGlvbigpewogIG49IiQxIjsgc3VibmV0PSIxNzIuMTYuJG4uMC8yNCIKICB1Y2kg
+LXEgc2hvdyAiJEFQUCIgfCBhd2sgLUYnWy49XScgLXYgQT0iQVAkbiIgLXYgUz0iJHN1Ym5ldCIg
+JwogICAgL1wucmVtYXJrcz0ve2dzdWIoIlwwNDciLCAiIiwgJDApOyBpZiAoJDAgfiAiPSIgQSAi
+JCIpIHByaW50ICQyfQogICAgL1wuc291cmNlcz0ve2dzdWIoIlwwNDciLCAiIiwgJDApOyBpZiAo
+JDAgfiAiPSIgUyAiJCIpIHByaW50ICQyfQogICcgfCBoZWFkIC1uMQp9CgplbnN1cmVfc29ja3Nf
+c2VjdGlvbigpewogIG49IiQxIjsgbm9kZT0iJHsyOi19Ijsgc2VjPSJqZmFfYXAkbiI7IHBvcnQ9
+JCgoMTMxMDArbikpCiAgdHlwZT0iJCh1Y2kgLXEgZ2V0ICRBUFAuJHNlYyAyPi9kZXYvbnVsbCB8
+fCB0cnVlKSIKICBbICIkdHlwZSIgPSAic29ja3MiIF0gfHwgeyB1Y2kgLXEgZGVsZXRlICRBUFAu
+JHNlYzsgdWNpIHNldCAkQVBQLiRzZWM9J3NvY2tzJzsgfQogIHVjaSBzZXQgJEFQUC4kc2VjLmVu
+YWJsZWQ9JzAnCiAgdWNpIHNldCAkQVBQLiRzZWMuYmluZF9sb2NhbD0nMScKICB1Y2kgc2V0ICRB
+UFAuJHNlYy5wb3J0PSIkcG9ydCIKICB1Y2kgc2V0ICRBUFAuJHNlYy5odHRwX3BvcnQ9JzAnCiAg
+dWNpIHNldCAkQVBQLiRzZWMubG9nPScwJwogIHVjaSBzZXQgJEFQUC4kc2VjLmVuYWJsZV9hdXRv
+c3dpdGNoPScwJwogIFsgLW4gIiRub2RlIiBdICYmIHVjaSBzZXQgJEFQUC4kc2VjLm5vZGU9IiRu
+b2RlIiB8fCB0cnVlCn0KCmtpbGxfYXAoKXsKICBuPSIkMSI7IHNlYz0iamZhX2FwJG4iCiAgcGlk
+Zj0iJFJVTl9ESVIvYXAkbi5waWQiCiAgaWYgWyAtcyAiJHBpZGYiIF07IHRoZW4ga2lsbCAiJChj
+YXQgIiRwaWRmIikiID4vZGV2L251bGwgMj4mMSB8fCB0cnVlOyBybSAtZiAiJHBpZGYiOyBmaQog
+IHBncmVwIC1hZiAnL3RtcC9ldGMvcGFzc3dhbGwyL2JpbicgMj4vZGV2L251bGwgfCBhd2sgLXYg
+UD0iJHNlYyIgJyQwIH4gUCB7cHJpbnQgJDF9JyB8IHhhcmdzIC1yIGtpbGwgLTkgPi9kZXYvbnVs
+bCAyPiYxIHx8IHRydWUKICBwZ3JlcCAtYWYgIlNPQ0tTXyR7c2VjfSIgMj4vZGV2L251bGwgfCBh
+d2sgJyEvcGdyZXAve3ByaW50ICQxfScgfCB4YXJncyAtciBraWxsIC05ID4vZGV2L251bGwgMj4m
+MSB8fCB0cnVlCiAgcm0gLWYgIiRSVU5fRElSL2FwJG4tZGlyZWN0Lmpzb24iCn0KCnN0YXJ0X2Fw
+KCl7CiAgbj0iJDEiOyBub2RlPSIkKHVjaSAtcSBnZXQgJENGRy5hcCRuLm5vZGUgMj4vZGV2L251
+bGwgfHwgdHJ1ZSkiCiAgWyAtbiAiJG5vZGUiIF0gfHwgeyBraWxsX2FwICIkbiI7IHJldHVybiAw
+OyB9CiAgWyAiJCh1Y2kgLXEgZ2V0ICRBUFAuJG5vZGUgMj4vZGV2L251bGwgfHwgdHJ1ZSkiID0g
+Im5vZGVzIiBdIHx8IHsgbG9nICJBUCRuIOiKgueCueS4jeWtmOWcqDogJG5vZGUiOyByZXR1cm4g
+MTsgfQogIGVuc3VyZV9zb2Nrc19zZWN0aW9uICIkbiIgIiRub2RlIgogIHVjaSBjb21taXQgIiRB
+UFAiCiAga2lsbF9hcCAiJG4iCiAgdHlwZT0iJCh1Y2kgLXEgZ2V0ICRBUFAuJG5vZGUudHlwZSAy
+Pi9kZXYvbnVsbCB8IHRyICdBLVonICdhLXonKSIKICBwb3J0PSQoKDEzMTAwK24pKQogIGlmIFsg
+IiR0eXBlIiA9ICJzb2NrcyIgXSB8fCBbICIkdHlwZSIgPSAiaHR0cCIgXTsgdGhlbgogICAgY2Zn
+PSIkUlVOX0RJUi9hcCRuLWRpcmVjdC5qc29uIgogICAgbHVhIC91c3IvbGliZXhlYy9qdWxpYW5n
+LWZhc3RhY2wtcmVsYXkubHVhICIkbm9kZSIgIiRwb3J0IiAiJGNmZyIgfHwgcmV0dXJuIDEKICAg
+IHNpbmctYm94IGNoZWNrIC1jICIkY2ZnIiA+L2Rldi9udWxsIDI+JjEgfHwgeyBsb2cgIkFQJG4g
+55u06L+e5Luj55CG6YWN572u5qOA5p+l5aSx6LSlIjsgcmV0dXJuIDE7IH0KICAgIHNpbmctYm94
+IHJ1biAtYyAiJGNmZyIgPiIkUlVOX0RJUi9hcCRuLmxvZyIgMj4mMSAmCiAgICBlY2hvICQhID4g
+IiRSVU5fRElSL2FwJG4ucGlkIgogIGVsc2UKICAgIC91c3Ivc2hhcmUvcGFzc3dhbGwyL2FwcC5z
+aCBzb2Nrc19ub2RlX3N3aXRjaCBmbGFnPSJqZmFfYXAkbiIgbmV3X25vZGU9IiRub2RlIiA+L2Rl
+di9udWxsIDI+JjEgfHwgcmV0dXJuIDEKICBmaQogIGk9MAogIHdoaWxlIFsgIiRpIiAtbHQgMzAg
+XTsgZG8KICAgIChzcyAtbG50IDI+L2Rldi9udWxsIHx8IG5ldHN0YXQgLWxudCAyPi9kZXYvbnVs
+bCkgfCBncmVwIC1xICI6JHBvcnQgIiAmJiByZXR1cm4gMAogICAgc2xlZXAgMC4xOyBpPSQoKGkr
+MSkpCiAgZG9uZQogIGxvZyAiQVAkbiDmnKzlnLAgU09DS1Mg56uv5Y+jICRwb3J0IOacquWwsee7
+qiIKICByZXR1cm4gMQp9Cgpwcm9iZV9hcCgpewogIG49IiQxIjsgcG9ydD0kKCgxMzEwMCtuKSkK
+ICBpcD0iJChjdXJsIC00IC1mc1MgLS1jb25uZWN0LXRpbWVvdXQgMyAtLW1heC10aW1lIDYgLS1z
+b2NrczUtaG9zdG5hbWUgIjEyNy4wLjAuMTokcG9ydCIgaHR0cHM6Ly9hcGkuaXBpZnkub3JnIDI+
+L2Rldi9udWxsIHx8IHRydWUpIgogIFsgLW4gIiRpcCIgXSB8fCBpcD0iLSIKICBlY2hvICIkaXAi
+Cn0KCndyaXRlX3JvdXRlcigpewogIGx1YSAvdXNyL2xpYmV4ZWMvanVsaWFuZy1mYXN0YWNsLXJv
+dXRlci5sdWEgPiAiJFJPVVRFUl9DRkciIHx8IHJldHVybiAxCiAgc2luZy1ib3ggY2hlY2sgLWMg
+IiRST1VURVJfQ0ZHIiA+L3RtcC9qZmEtcm91dGVyLWNoZWNrLmxvZyAyPiYxIHx8IHsgY2F0IC90
+bXAvamZhLXJvdXRlci1jaGVjay5sb2c7IHJldHVybiAxOyB9Cn0KCmZpcmV3YWxsKCl7CiAgVFBS
+T1hZX1BPUlQ9IiQodWNpIC1xIGdldCAkQ0ZHLm1haW4udHByb3h5X3BvcnQgMj4vZGV2L251bGwg
+fHwgZWNobyAxMjM0NSkiCiAgbmZ0IGxpc3QgdGFibGUgaW5ldCBqdWxpYW5nX2Zhc3RhY2wgPi9k
+ZXYvbnVsbCAyPiYxICYmIG5mdCBkZWxldGUgdGFibGUgaW5ldCBqdWxpYW5nX2Zhc3RhY2wgPi9k
+ZXYvbnVsbCAyPiYxIHx8IHRydWUKICBjYXQgPiAiJFJVTl9ESVIvcnVsZXMubmZ0IiA8PEVPRgog
+dGFibGUgaW5ldCBqdWxpYW5nX2Zhc3RhY2wgewogICBzZXQgYXBfc291cmNlcyB7CiAgICAgdHlw
+ZSBpcHY0X2FkZHIKICAgICBmbGFncyBpbnRlcnZhbAogICAgIGVsZW1lbnRzID0geyAxNzIuMTYu
+MS4wLzI0LCAxNzIuMTYuMi4wLzI0LCAxNzIuMTYuMy4wLzI0LCAxNzIuMTYuNC4wLzI0LCAxNzIu
+MTYuNS4wLzI0LCAxNzIuMTYuNi4wLzI0LCAxNzIuMTYuNy4wLzI0LCAxNzIuMTYuOC4wLzI0LCAx
+NzIuMTYuOS4wLzI0LCAxNzIuMTYuMTAuMC8yNCwgMTcyLjE2LjExLjAvMjQsIDE3Mi4xNi4xMi4w
+LzI0LCAxNzIuMTYuMTMuMC8yNCwgMTcyLjE2LjE0LjAvMjQsIDE3Mi4xNi4xNS4wLzI0LCAxNzIu
+MTYuMTYuMC8yNCwgMTcyLjE2LjE3LjAvMjQsIDE3Mi4xNi4xOC4wLzI0LCAxNzIuMTYuMTkuMC8y
+NCwgMTcyLjE2LjIwLjAvMjQgfQogICB9CiAgIHNldCBsb2NhbF9kc3QgewogICAgIHR5cGUgaXB2
+NF9hZGRyCiAgICAgZmxhZ3MgaW50ZXJ2YWwKICAgICBlbGVtZW50cyA9IHsgMC4wLjAuMC84LCAx
+MC4wLjAuMC84LCAxMDAuNjQuMC4wLzEwLCAxMjcuMC4wLjAvOCwgMTY5LjI1NC4wLjAvMTYsIDE3
+Mi4xNi4wLjAvMTIsIDE5Mi4xNjguMC4wLzE2LCAyMjQuMC4wLjAvNCwgMjQwLjAuMC4wLzQgfQog
+ICB9CiAgIGNoYWluIHByZXJvdXRpbmcgewogICAgIHR5cGUgZmlsdGVyIGhvb2sgcHJlcm91dGlu
+ZyBwcmlvcml0eSBtYW5nbGU7IHBvbGljeSBhY2NlcHQ7CiAgICAgaXAgc2FkZHIgQGFwX3NvdXJj
+ZXMgbWV0YSBsNHByb3RvIHsgdGNwLCB1ZHAgfSB0aCBkcG9ydCA1MyB0cHJveHkgdG8gOiRUUFJP
+WFlfUE9SVCBtZXRhIG1hcmsgc2V0ICRNQVJLX0hFWCBhY2NlcHQKICAgICBpcCBzYWRkciBAYXBf
+c291cmNlcyBpcCBkYWRkciBAbG9jYWxfZHN0IHJldHVybgogICAgIGlwIHNhZGRyIEBhcF9zb3Vy
+Y2VzIG1ldGEgbDRwcm90byB7IHRjcCwgdWRwIH0gdHByb3h5IHRvIDokVFBST1hZX1BPUlQgbWV0
+YSBtYXJrIHNldCAkTUFSS19IRVggYWNjZXB0CiAgIH0KIH0KRU9GCiAgbmZ0IC1jIC1mICIkUlVO
+X0RJUi9ydWxlcy5uZnQiIHx8IHJldHVybiAxCiAgbmZ0IC1mICIkUlVOX0RJUi9ydWxlcy5uZnQi
+IHx8IHJldHVybiAxCiAgaXAgcnVsZSBkZWwgZndtYXJrICIkTUFSS19IRVgvMHhmZiIgdGFibGUg
+IiRST1VURV9UQUJMRSIgcHJpb3JpdHkgMTAwMDAgPi9kZXYvbnVsbCAyPiYxIHx8IHRydWUKICBp
+cCBydWxlIGFkZCBmd21hcmsgIiRNQVJLX0hFWC8weGZmIiB0YWJsZSAiJFJPVVRFX1RBQkxFIiBw
+cmlvcml0eSAxMDAwMAogIGlwIHJvdXRlIHJlcGxhY2UgbG9jYWwgMC4wLjAuMC8wIGRldiBsbyB0
+YWJsZSAiJFJPVVRFX1RBQkxFIgp9CgpmaXJld2FsbF9jaGVjaygpewogIFRQUk9YWV9QT1JUPSIk
+KHVjaSAtcSBnZXQgJENGRy5tYWluLnRwcm94eV9wb3J0IDI+L2Rldi9udWxsIHx8IGVjaG8gMTIz
+NDUpIgogIGNhdCA+ICIkUlVOX0RJUi9ydWxlcy1jaGVjay5uZnQiIDw8RU9GCiB0YWJsZSBpbmV0
+IGp1bGlhbmdfZmFzdGFjbF9jaGVjayB7CiAgIHNldCBhcF9zb3VyY2VzIHsKICAgICB0eXBlIGlw
+djRfYWRkcgogICAgIGZsYWdzIGludGVydmFsCiAgICAgZWxlbWVudHMgPSB7IDE3Mi4xNi4xLjAv
+MjQsIDE3Mi4xNi4yLjAvMjQsIDE3Mi4xNi4zLjAvMjQsIDE3Mi4xNi40LjAvMjQsIDE3Mi4xNi41
+LjAvMjQsIDE3Mi4xNi42LjAvMjQsIDE3Mi4xNi43LjAvMjQsIDE3Mi4xNi44LjAvMjQsIDE3Mi4x
+Ni45LjAvMjQsIDE3Mi4xNi4xMC4wLzI0LCAxNzIuMTYuMTEuMC8yNCwgMTcyLjE2LjEyLjAvMjQs
+IDE3Mi4xNi4xMy4wLzI0LCAxNzIuMTYuMTQuMC8yNCwgMTcyLjE2LjE1LjAvMjQsIDE3Mi4xNi4x
+Ni4wLzI0LCAxNzIuMTYuMTcuMC8yNCwgMTcyLjE2LjE4LjAvMjQsIDE3Mi4xNi4xOS4wLzI0LCAx
+NzIuMTYuMjAuMC8yNCB9CiAgIH0KICAgc2V0IGxvY2FsX2RzdCB7CiAgICAgdHlwZSBpcHY0X2Fk
+ZHIKICAgICBmbGFncyBpbnRlcnZhbAogICAgIGVsZW1lbnRzID0geyAwLjAuMC4wLzgsIDEwLjAu
+MC4wLzgsIDEwMC42NC4wLjAvMTAsIDEyNy4wLjAuMC84LCAxNjkuMjU0LjAuMC8xNiwgMTcyLjE2
+LjAuMC8xMiwgMTkyLjE2OC4wLjAvMTYsIDIyNC4wLjAuMC80LCAyNDAuMC4wLjAvNCB9CiAgIH0K
+ICAgY2hhaW4gcHJlcm91dGluZyB7CiAgICAgdHlwZSBmaWx0ZXIgaG9vayBwcmVyb3V0aW5nIHBy
+aW9yaXR5IG1hbmdsZTsgcG9saWN5IGFjY2VwdDsKICAgICBpcCBzYWRkciBAYXBfc291cmNlcyBt
+ZXRhIGw0cHJvdG8geyB0Y3AsIHVkcCB9IHRoIGRwb3J0IDUzIHRwcm94eSB0byA6JFRQUk9YWV9Q
+T1JUIG1ldGEgbWFyayBzZXQgJE1BUktfSEVYIGFjY2VwdAogICAgIGlwIHNhZGRyIEBhcF9zb3Vy
+Y2VzIGlwIGRhZGRyIEBsb2NhbF9kc3QgcmV0dXJuCiAgICAgaXAgc2FkZHIgQGFwX3NvdXJjZXMg
+bWV0YSBsNHByb3RvIHsgdGNwLCB1ZHAgfSB0cHJveHkgdG8gOiRUUFJPWFlfUE9SVCBtZXRhIG1h
+cmsgc2V0ICRNQVJLX0hFWCBhY2NlcHQKICAgfQogfQpFT0YKICBuZnQgLWMgLWYgIiRSVU5fRElS
+L3J1bGVzLWNoZWNrLm5mdCIKfQoKc3RhcnRfcm91dGVyKCl7CiAgd3JpdGVfcm91dGVyIHx8IHJl
+dHVybiAxCiAgWyAtcyAiJFJVTl9ESVIvcm91dGVyLnBpZCIgXSAmJiBraWxsICIkKGNhdCAiJFJV
+Tl9ESVIvcm91dGVyLnBpZCIpIiA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZQogIHNpbmctYm94IHJ1
+biAtYyAiJFJPVVRFUl9DRkciID4iJFJVTl9ESVIvcm91dGVyLmxvZyIgMj4mMSAmCiAgZWNobyAk
+ISA+ICIkUlVOX0RJUi9yb3V0ZXIucGlkIgogIHNsZWVwIDAuMwogIGtpbGwgLTAgIiQoY2F0ICIk
+UlVOX0RJUi9yb3V0ZXIucGlkIikiID4vZGV2L251bGwgMj4mMSB8fCB7IGNhdCAiJFJVTl9ESVIv
+cm91dGVyLmxvZyI7IHJldHVybiAxOyB9Cn0KCnN0b3Bfcm91dGVyKCl7CiAgaWYgWyAtcyAiJFJV
+Tl9ESVIvcm91dGVyLnBpZCIgXTsgdGhlbiBraWxsICIkKGNhdCAiJFJVTl9ESVIvcm91dGVyLnBp
+ZCIpIiA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZTsgcm0gLWYgIiRSVU5fRElSL3JvdXRlci5waWQi
+OyBmaQp9CgpzdGFydF9hbGwoKXsKICBuPTE7IHdoaWxlIFsgIiRuIiAtbGUgMjAgXTsgZG8gc3Rh
+cnRfYXAgIiRuIiB8fCB0cnVlOyBuPSQoKG4rMSkpOyBkb25lCiAgc3RhcnRfcm91dGVyIHx8IHJl
+dHVybiAxCiAgZmlyZXdhbGwgfHwgcmV0dXJuIDEKfQoKc3RvcF9hbGwoKXsKICBuPTE7IHdoaWxl
+IFsgIiRuIiAtbGUgMjAgXTsgZG8ga2lsbF9hcCAiJG4iOyBuPSQoKG4rMSkpOyBkb25lCiAgc3Rv
+cF9yb3V0ZXIKICBuZnQgbGlzdCB0YWJsZSBpbmV0IGp1bGlhbmdfZmFzdGFjbCA+L2Rldi9udWxs
+IDI+JjEgJiYgbmZ0IGRlbGV0ZSB0YWJsZSBpbmV0IGp1bGlhbmdfZmFzdGFjbCA+L2Rldi9udWxs
+IDI+JjEgfHwgdHJ1ZQogIGlwIHJ1bGUgZGVsIGZ3bWFyayAiJE1BUktfSEVYLzB4ZmYiIHRhYmxl
+ICIkUk9VVEVfVEFCTEUiIHByaW9yaXR5IDEwMDAwID4vZGV2L251bGwgMj4mMSB8fCB0cnVlCiAg
+aXAgcm91dGUgZmx1c2ggdGFibGUgIiRST1VURV9UQUJMRSIgPi9kZXYvbnVsbCAyPiYxIHx8IHRy
+dWUKfQoKc3dpdGNoX25vZGUoKXsKICBhcD0iJDEiOyBub2RlPSIkMiI7IG49IiQoYXBfbnVtICIk
+YXAiKSIgfHwgeyBlY2hvICd7Im9rIjpmYWxzZSwiZXJyb3IiOiJCQURfQVAifSc7IHJldHVybiAy
+OyB9CiAgWyAiJCh1Y2kgLXEgZ2V0ICRBUFAuJG5vZGUgMj4vZGV2L251bGwgfHwgdHJ1ZSkiID0g
+Im5vZGVzIiBdIHx8IHsgZWNobyAneyJvayI6ZmFsc2UsImVycm9yIjoiQkFEX05PREUifSc7IHJl
+dHVybiAzOyB9CgogIG9sZD0iJCh1Y2kgLXEgZ2V0ICRDRkcuYXAkbi5ub2RlIDI+L2Rldi9udWxs
+IHx8IHRydWUpIgogIGFjbD0iJChmaW5kX2FjbF9zZWN0aW9uICIkbiIpIgogIG9sZF9hY2xfbm9k
+ZT0iIgogIFsgLW4gIiRhY2wiIF0gJiYgb2xkX2FjbF9ub2RlPSIkKHVjaSAtcSBnZXQgJEFQUC4k
+YWNsLm5vZGUgMj4vZGV2L251bGwgfHwgdHJ1ZSkiCgogIHVjaSBzZXQgJENGRy5hcCRuLm5vZGU9
+IiRub2RlIgogIGVuc3VyZV9zb2Nrc19zZWN0aW9uICIkbiIgIiRub2RlIgogIFsgLW4gIiRhY2wi
+IF0gJiYgeyB1Y2kgc2V0ICRBUFAuJGFjbC5ub2RlPSIkbm9kZSI7IHVjaSBzZXQgJEFQUC4kYWNs
+LmVuYWJsZWQ9JzEnOyB9CiAgdWNpIGNvbW1pdCAiJENGRyI7IHVjaSBjb21taXQgIiRBUFAiCgog
+IHQwPSIkKGRhdGUgKyVzKSIKICBpZiBzdGFydF9hcCAiJG4iOyB0aGVuCiAgICBpcD0iJChwcm9i
+ZV9hcCAiJG4iKSIKICAgIHByaW50ZiAnJXNcbicgIiRpcCIgPiAiJFJVTl9ESVIvYXAkbi5pcCIK
+ICAgIHQxPSIkKGRhdGUgKyVzKSI7IHNlYz0kKCh0MS10MCkpCiAgICByZW1hcms9IiQodWNpIC1x
+IGdldCAkQVBQLiRub2RlLnJlbWFya3MgMj4vZGV2L251bGwgfHwgZWNobyAiJG5vZGUiKSIKICAg
+IHByaW50ZiAneyJvayI6dHJ1ZSwiYXAiOiJBUCVzIiwibm9kZSI6IiVzIiwicmVtYXJrIjoiJXMi
+LCJpcCI6IiVzIiwic2Vjb25kcyI6JXN9XG4nICIkbiIgIiRub2RlIiAiJChlY2hvICIkcmVtYXJr
+IiB8IHNlZCAncy8iL1xcIi9nJykiICIkaXAiICIkc2VjIgogIGVsc2UKICAgIGlmIFsgLW4gIiRv
+bGQiIF07IHRoZW4KICAgICAgdWNpIHNldCAkQ0ZHLmFwJG4ubm9kZT0iJG9sZCIKICAgICAgZW5z
+dXJlX3NvY2tzX3NlY3Rpb24gIiRuIiAiJG9sZCIKICAgIGVsc2UKICAgICAgdWNpIC1xIGRlbGV0
+ZSAkQ0ZHLmFwJG4ubm9kZQogICAgICB1Y2kgLXEgZGVsZXRlICRBUFAuamZhX2FwJG4ubm9kZQog
+ICAgZmkKICAgIGlmIFsgLW4gIiRhY2wiIF07IHRoZW4KICAgICAgaWYgWyAtbiAiJG9sZF9hY2xf
+bm9kZSIgXTsgdGhlbiB1Y2kgc2V0ICRBUFAuJGFjbC5ub2RlPSIkb2xkX2FjbF9ub2RlIjsgZWxz
+ZSB1Y2kgLXEgZGVsZXRlICRBUFAuJGFjbC5ub2RlOyBmaQogICAgZmkKICAgIHVjaSBjb21taXQg
+IiRDRkciOyB1Y2kgY29tbWl0ICIkQVBQIgogICAgWyAtbiAiJG9sZCIgXSAmJiBzdGFydF9hcCAi
+JG4iID4vZGV2L251bGwgMj4mMSB8fCBraWxsX2FwICIkbiIKICAgIHByaW50ZiAneyJvayI6ZmFs
+c2UsImFwIjoiQVAlcyIsIm5vZGUiOiIlcyIsImVycm9yIjoiTk9ERV9TVEFSVF9GQUlMRUQiLCJy
+b2xsZWRfYmFjayI6dHJ1ZX1cbicgIiRuIiAiJG5vZGUiCiAgICByZXR1cm4gNAogIGZpCn0KCmNs
+ZWFyX2FwKCl7CiAgYXA9IiQxIjsgbj0iJChhcF9udW0gIiRhcCIpIiB8fCB7IGVjaG8gJ3sib2si
+OmZhbHNlLCJlcnJvciI6IkJBRF9BUCJ9JzsgcmV0dXJuIDI7IH0KICBvbGQ9IiQodWNpIC1xIGdl
+dCAkQ0ZHLmFwJG4ubm9kZSAyPi9kZXYvbnVsbCB8fCB0cnVlKSIKICB1Y2kgLXEgZGVsZXRlICRD
+RkcuYXAkbi5ub2RlCiAgZW5zdXJlX3NvY2tzX3NlY3Rpb24gIiRuIiAiIgogIHVjaSAtcSBkZWxl
+dGUgJEFQUC5qZmFfYXAkbi5ub2RlCiAgYWNsPSIkKGZpbmRfYWNsX3NlY3Rpb24gIiRuIikiCiAg
+WyAtbiAiJGFjbCIgXSAmJiB1Y2kgLXEgZGVsZXRlICRBUFAuJGFjbC5ub2RlCiAgdWNpIGNvbW1p
+dCAiJENGRyI7IHVjaSBjb21taXQgIiRBUFAiCiAga2lsbF9hcCAiJG4iCiAgcm0gLWYgIiRSVU5f
+RElSL2FwJG4uaXAiCiAgcHJpbnRmICd7Im9rIjp0cnVlLCJhcCI6IkFQJXMiLCJvbGRfbm9kZSI6
+IiVzIn1cbicgIiRuIiAiJG9sZCIKfQoKc3RhdHVzKCl7CiAgZWNobyAiSnVMaWFuZyBGYXN0QUNM
+IgogIGVjaG8gInJvdXRlcjogJChbIC1zICIkUlVOX0RJUi9yb3V0ZXIucGlkIiBdICYmIGtpbGwg
+LTAgIiQoY2F0ICIkUlVOX0RJUi9yb3V0ZXIucGlkIikiIDI+L2Rldi9udWxsICYmIGVjaG8gcnVu
+bmluZyB8fCBlY2hvIHN0b3BwZWQpIgogIG5mdCBsaXN0IHRhYmxlIGluZXQganVsaWFuZ19mYXN0
+YWNsID4vZGV2L251bGwgMj4mMSAmJiBlY2hvICJuZnRhYmxlczogbG9hZGVkIiB8fCBlY2hvICJu
+ZnRhYmxlczogbWlzc2luZyIKICBuPTE7IHdoaWxlIFsgIiRuIiAtbGUgMjAgXTsgZG8KICAgIG5v
+ZGU9IiQodWNpIC1xIGdldCAkQ0ZHLmFwJG4ubm9kZSAyPi9kZXYvbnVsbCB8fCB0cnVlKSI7IHBv
+cnQ9JCgoMTMxMDArbikpCiAgICBpZiBbIC1uICIkbm9kZSIgXTsgdGhlbgogICAgICByZW1hcms9
+IiQodWNpIC1xIGdldCAkQVBQLiRub2RlLnJlbWFya3MgMj4vZGV2L251bGwgfHwgZWNobyAiJG5v
+ZGUiKSIKICAgICAgbGlzdGVuPSJubyI7IChzcyAtbG50IDI+L2Rldi9udWxsIHx8IG5ldHN0YXQg
+LWxudCAyPi9kZXYvbnVsbCkgfCBncmVwIC1xICI6JHBvcnQgIiAmJiBsaXN0ZW49InllcyIKICAg
+ICAgZWNobyAiQVAkbiAtPiAkcmVtYXJrIHwgc29ja3M6JHBvcnQgbGlzdGVuOiRsaXN0ZW4iCiAg
+ICBmaQogICAgbj0kKChuKzEpKQogIGRvbmUKfQoKY2FzZSAiJHsxOi19IiBpbgogIHN0YXJ0KSBz
+dGFydF9hbGwgOzsKICBzdG9wKSBzdG9wX2FsbCA7OwogIHJlc3RhcnQpIHN0b3BfYWxsOyBzdGFy
+dF9hbGwgOzsKICBmaXJld2FsbCkgZmlyZXdhbGwgOzsKICBmaXJld2FsbC1jaGVjaykgZmlyZXdh
+bGxfY2hlY2sgOzsKICBzd2l0Y2gpIFsgJCMgLWVxIDMgXSB8fCBleGl0IDI7IHN3aXRjaF9ub2Rl
+ICIkMiIgIiQzIiA7OwogIGNsZWFyKSBbICQjIC1lcSAyIF0gfHwgZXhpdCAyOyBjbGVhcl9hcCAi
+JDIiIDs7CiAgcHJvYmUpIG49IiQoYXBfbnVtICIkMiIpIiB8fCBleGl0IDI7IHByb2JlX2FwICIk
+biIgOzsKICBzdGF0dXMpIHN0YXR1cyA7OwogICopIGVjaG8gIlVzYWdlOiBqdWxpYW5nLWZhc3Rh
+Y2wge3N0YXJ0fHN0b3B8cmVzdGFydHxmaXJld2FsbHxmaXJld2FsbC1jaGVja3xzd2l0Y2ggQVAx
+IG5vZGVpZHxjbGVhciBBUDF8cHJvYmUgQVAxfHN0YXR1c30iOyBleGl0IDEgOzsKZXNhYw==
+JFA64_1
+base64 -d > "$TMP_DIR/juliang-fastacl-luci-install" <<'JFA64_2'
+IyEvYmluL3NoCnNldCAtZXUKCkZJTEU9Ii91c3IvbGliL2x1YS9sdWNpL3ZpZXcvcGFzc3dhbGwy
+L25vZGVfbGlzdC9ub2RlX2xpc3QuaHRtIgpDVFJMPSIvdXNyL2xpYi9sdWEvbHVjaS9jb250cm9s
+bGVyL2p1bGlhbmdfZmFzdGFjbC5sdWEiCk1BUktFUj0iSlVMSUFOR19GQVNUQUNMX1YyIgoKWyAt
+ZiAiJEZJTEUiIF0gfHwgewogICAgZWNobyAiW0VSUk9SXSBQYXNzV2FsbDIgbm9kZV9saXN0Lmh0
+bSBub3QgZm91bmQ6ICRGSUxFIgogICAgZXhpdCAxCn0KWyAtZiAiJENUUkwiIF0gfHwgewogICAg
+ZWNobyAiW0VSUk9SXSBGYXN0QUNMIEx1Q0kgY29udHJvbGxlciBub3QgZm91bmQ6ICRDVFJMIgog
+ICAgZXhpdCAxCn0KCiMgUmVtb3ZlIHRoZSBvbGQgUXVpY2stQUNMIFVJIGNsZWFubHkuIEl0cyBi
+YWNrdXAgaXMgdGhlIG9yaWdpbmFsIFBhc3NXYWxsMgojIG5vZGUgbGlzdCBmcm9tIGJlZm9yZSB0
+aGUgZXhwZXJpbWVudGFsIHYxIHBhdGNoLgppZiBbIC1mICIkRklMRS5xdWljay1hY2wuYmFrIiBd
+OyB0aGVuCiAgICBjcCAtYWYgIiRGSUxFLnF1aWNrLWFjbC5iYWsiICIkRklMRSIKICAgIGVjaG8g
+IltJTkZPXSByZXN0b3JlZCBvcmlnaW5hbCBQYXNzV2FsbDIgbm9kZSBsaXN0IGZyb20gUXVpY2st
+QUNMIGJhY2t1cCIKZmkKCmlmIGdyZXAgLXEgIiRNQVJLRVIiICIkRklMRSI7IHRoZW4KICAgIGVj
+aG8gIltPS10gRmFzdEFDTCB2MiBMdUNJIGFscmVhZHkgaW5zdGFsbGVkIgogICAgZXhpdCAwCmZp
+CgpbIC1mICIkRklMRS5qZmEtdjIuYmFrIiBdIHx8IGNwIC1hICIkRklMRSIgIiRGSUxFLmpmYS12
+Mi5iYWsiCgpGSUxFPSIkRklMRSIgbHVhIDw8J0xVQV9QQVRDSCcKbG9jYWwgZmlsZSA9IGFzc2Vy
+dChvcy5nZXRlbnYoIkZJTEUiKSkKbG9jYWwgZiA9IGFzc2VydChpby5vcGVuKGZpbGUsICJyIikp
+CmxvY2FsIHRleHQgPSBmOnJlYWQoIiphIikKZjpjbG9zZSgpCgpsb2NhbCBmdW5jdGlvbiByZXBs
+YWNlX29uY2Uoc3JjLCBuZWVkbGUsIHJlcGwsIGxhYmVsKQogICAgbG9jYWwgcywgZSA9IHNyYzpm
+aW5kKG5lZWRsZSwgMSwgdHJ1ZSkKICAgIGFzc2VydChzLCAobGFiZWwgb3IgImFuY2hvciIpIC4u
+ICIgbWlzc2luZyIpCiAgICByZXR1cm4gc3JjOnN1YigxLCBzIC0gMSkgLi4gcmVwbCAuLiBzcmM6
+c3ViKGUgKyAxKQplbmQKCmxvY2FsIHRvcF9vbGQgPSAnbG9jYWwgYXBwbmFtZSA9IGFwaS5hcHBu
+YW1lXG4nCmxvY2FsIHRvcF9uZXcgPSAnbG9jYWwgYXBwbmFtZSA9IGFwaS5hcHBuYW1lXG5sb2Nh
+bCBqZmFfdXJsID0gcmVxdWlyZSgibHVjaS5kaXNwYXRjaGVyIikuYnVpbGRfdXJsKCJhZG1pbiIs
+ICJzZXJ2aWNlcyIsICJqdWxpYW5nX2Zhc3RhY2wiKVxuJwp0ZXh0ID0gcmVwbGFjZV9vbmNlKHRl
+eHQsIHRvcF9vbGQsIHRvcF9uZXcsICJ0b3AgYW5jaG9yIikKCmxvY2FsIGpzX2FuY2hvciA9ICdc
+blx0ZnVuY3Rpb24gdG9fZWRpdF9ub2RlKGNiaV9pZCkgeycKbG9jYWwganMgPSBbPVsKCiAgICAv
+LyBKVUxJQU5HX0ZBU1RBQ0xfVjIKICAgIHZhciBqZmFOb2RlID0gIiI7CiAgICB2YXIgamZhTWFw
+ID0ge307CiAgICB2YXIgamZhTGFiZWxzID0ge307CiAgICB2YXIgamZhSXBzID0ge307CiAgICB2
+YXIgamZhRW5naW5lID0gInVua25vd24iOwoKICAgIGZ1bmN0aW9uIGpmYV9sYWJlbChhcCkgewog
+ICAgICAgIHJldHVybiBqZmFMYWJlbHNbYXBdIHx8ICgi5peg57q/IiArIGFwKTsKICAgIH0KCiAg
+ICBmdW5jdGlvbiBqZmFfYXNzaWdubWVudHMobm9kZSkgewogICAgICAgIHJldHVybiBqZmFNYXBb
+bm9kZV0gfHwgW107CiAgICB9CgogICAgZnVuY3Rpb24gamZhX3VwZGF0ZV9idXR0b25zKCkgewog
+ICAgICAgIHZhciBidXR0b25zID0gZG9jdW1lbnQuZ2V0RWxlbWVudHNCeUNsYXNzTmFtZSgiamZh
+LWJ0biIpOwogICAgICAgIGZvciAodmFyIGkgPSAwOyBpIDwgYnV0dG9ucy5sZW5ndGg7IGkrKykg
+ewogICAgICAgICAgICB2YXIgbm9kZSA9IGJ1dHRvbnNbaV0uZ2V0QXR0cmlidXRlKCJkYXRhLW5v
+ZGUtaWQiKTsKICAgICAgICAgICAgdmFyIGFwcyA9IGpmYV9hc3NpZ25tZW50cyhub2RlKTsKICAg
+ICAgICAgICAgdmFyIGxhYmVscyA9IFtdOwogICAgICAgICAgICB2YXIgaXBzID0gW107CgogICAg
+ICAgICAgICBmb3IgKHZhciBqID0gMDsgaiA8IGFwcy5sZW5ndGg7IGorKykgewogICAgICAgICAg
+ICAgICAgbGFiZWxzLnB1c2goamZhX2xhYmVsKGFwc1tqXSkpOwogICAgICAgICAgICAgICAgaWYg
+KGpmYUlwc1thcHNbal1dKQogICAgICAgICAgICAgICAgICAgIGlwcy5wdXNoKGpmYUlwc1thcHNb
+al1dKTsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgYnV0dG9uc1tpXS52YWx1ZSA9IGxhYmVs
+cy5sZW5ndGggPyBsYWJlbHMuam9pbigiLCIpIDogIuWIhumFjeaXoOe6vyI7CiAgICAgICAgICAg
+IGJ1dHRvbnNbaV0udGl0bGUgPSBsYWJlbHMubGVuZ3RoCiAgICAgICAgICAgICAgICA/ICgiRmFz
+dEFDTCDlt7Lnu5HlrprvvJoiICsgbGFiZWxzLmpvaW4oIiwgIikgKyAoaXBzLmxlbmd0aCA/ICJc
+buWHuuWPoyBJUO+8miIgKyBpcHMuam9pbigiLCAiKSA6ICIiKSkKICAgICAgICAgICAgICAgIDog
+IkZhc3RBQ0zvvJrngrnlh7vljbPml7bliIbphY3liLDml6Dnur8gQVAiOwoKICAgICAgICAgICAg
+dmFyIGlwTm9kZSA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfaXBfIiArIG5vZGUpOwog
+ICAgICAgICAgICBpZiAoaXBOb2RlKSB7CiAgICAgICAgICAgICAgICBpcE5vZGUudGV4dENvbnRl
+bnQgPSBpcHMuam9pbigiIC8gIik7CiAgICAgICAgICAgICAgICBpcE5vZGUuc3R5bGUuZGlzcGxh
+eSA9IGlwcy5sZW5ndGggPyAiaW5saW5lLWJsb2NrIiA6ICJub25lIjsKICAgICAgICAgICAgfQog
+ICAgICAgIH0KICAgIH0KCiAgICBmdW5jdGlvbiBqZmFfcmVmcmVzaF9zZWxlY3QoKSB7CiAgICAg
+ICAgdmFyIHNlbCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfc2VsZWN0Iik7CiAgICAg
+ICAgaWYgKCFzZWwpIHJldHVybjsKCiAgICAgICAgZm9yICh2YXIgaSA9IDA7IGkgPCBzZWwub3B0
+aW9ucy5sZW5ndGg7IGkrKykgewogICAgICAgICAgICB2YXIgYXAgPSBzZWwub3B0aW9uc1tpXS52
+YWx1ZTsKICAgICAgICAgICAgaWYgKC9eQVAoWzEtOV18MVswLTldfDIwKSQvLnRlc3QoYXApKSB7
+CiAgICAgICAgICAgICAgICB2YXIgbiA9IGFwLnJlcGxhY2UoIkFQIiwgIiIpOwogICAgICAgICAg
+ICAgICAgc2VsLm9wdGlvbnNbaV0udGV4dCA9IGpmYV9sYWJlbChhcCkgKyAiIMK3IDE3Mi4xNi4i
+ICsgbiArICIuMC8yNCI7CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9CgogICAgZnVuY3Rp
+b24gamZhX2xvYWRfc3RhdHVzKGRvbmUpIHsKICAgICAgICBYSFIuZ2V0KCc8JT1qZmFfdXJsJT4n
+LCB7IGFjdGlvbjogJ3N0YXR1cycgfSwgZnVuY3Rpb24oeCwgcmVzdWx0KSB7CiAgICAgICAgICAg
+IGlmICh4ICYmIHguc3RhdHVzID09IDIwMCAmJiByZXN1bHQgJiYgcmVzdWx0Lm9rKSB7CiAgICAg
+ICAgICAgICAgICBqZmFNYXAgPSByZXN1bHQubWFwIHx8IHt9OwogICAgICAgICAgICAgICAgamZh
+TGFiZWxzID0gcmVzdWx0LndpcmVsZXNzX2xhYmVscyB8fCB7fTsKICAgICAgICAgICAgICAgIGpm
+YUlwcyA9IHJlc3VsdC5pcHMgfHwge307CiAgICAgICAgICAgICAgICBqZmFFbmdpbmUgPSByZXN1
+bHQuZW5naW5lIHx8ICJ1bmtub3duIjsKICAgICAgICAgICAgICAgIGpmYV9yZWZyZXNoX3NlbGVj
+dCgpOwogICAgICAgICAgICAgICAgamZhX3VwZGF0ZV9idXR0b25zKCk7CiAgICAgICAgICAgIH0K
+ICAgICAgICAgICAgaWYgKGRvbmUpIGRvbmUocmVzdWx0IHx8IHt9KTsKICAgICAgICB9KTsKICAg
+IH0KCiAgICBmdW5jdGlvbiBqZmFfb3BlbihjYmlfaWQpIHsKICAgICAgICBqZmFOb2RlID0gY2Jp
+X2lkOwogICAgICAgIHZhciByZW1hcmtzID0gKGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJjYmlk
+LjwlPWFwcG5hbWUlPi4iICsgY2JpX2lkICsgIi5yZW1hcmtzIikgfHwge30pLnZhbHVlIHx8IGNi
+aV9pZDsKICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiamZhX25vZGVfbmFtZSIpLmlu
+bmVyVGV4dCA9IHJlbWFya3M7CiAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImpmYV9k
+aXYiKS5zdHlsZS5kaXNwbGF5ID0gImJsb2NrIjsKICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50
+QnlJZCgiamZhX3N0YXR1cyIpLmlubmVyVGV4dCA9ICIiOwoKICAgICAgICBqZmFfbG9hZF9zdGF0
+dXMoZnVuY3Rpb24oKSB7CiAgICAgICAgICAgIHZhciBhcHMgPSBqZmFfYXNzaWdubWVudHMoY2Jp
+X2lkKTsKICAgICAgICAgICAgdmFyIGxhYmVscyA9IFtdOwogICAgICAgICAgICBmb3IgKHZhciBp
+ID0gMDsgaSA8IGFwcy5sZW5ndGg7IGkrKykgbGFiZWxzLnB1c2goamZhX2xhYmVsKGFwc1tpXSkp
+OwoKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImpmYV9jdXJyZW50IikuaW5u
+ZXJUZXh0ID0gbGFiZWxzLmxlbmd0aCA/IGxhYmVscy5qb2luKCIsICIpIDogIuacquWIhumFjSI7
+CiAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfZW5naW5lIikuaW5uZXJU
+ZXh0ID0KICAgICAgICAgICAgICAgIGpmYUVuZ2luZSA9PSAicnVubmluZyIgPyAiRmFzdEFDTO+8
+mui/kOihjOS4rSIgOiAiRmFzdEFDTO+8muacqui/kOihjCI7CiAgICAgICAgICAgIGRvY3VtZW50
+LmdldEVsZW1lbnRCeUlkKCJqZmFfZW5naW5lIikuc3R5bGUuY29sb3IgPQogICAgICAgICAgICAg
+ICAgamZhRW5naW5lID09ICJydW5uaW5nIiA/ICIjMTU5OTU3IiA6ICIjZTQzZjNiIjsKCiAgICAg
+ICAgICAgIGlmIChhcHMubGVuZ3RoICYmIC9eQVAoWzEtOV18MVswLTldfDIwKSQvLnRlc3QoYXBz
+WzBdKSkKICAgICAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfc2VsZWN0
+IikudmFsdWUgPSBhcHNbMF07CiAgICAgICAgfSk7CiAgICB9CgogICAgZnVuY3Rpb24gamZhX2Ns
+b3NlKCkgewogICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfZGl2Iikuc3R5bGUu
+ZGlzcGxheSA9ICJub25lIjsKICAgICAgICBqZmFOb2RlID0gIiI7CiAgICB9CgogICAgZnVuY3Rp
+b24gamZhX2Fzc2lnbigpIHsKICAgICAgICBpZiAoIWpmYU5vZGUpIHJldHVybjsKCiAgICAgICAg
+dmFyIGFwID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImpmYV9zZWxlY3QiKS52YWx1ZTsKICAg
+ICAgICBpZiAoIWFwKSB7CiAgICAgICAgICAgIGFsZXJ0KCLor7fpgInmi6nml6Dnur8gQVAiKTsK
+ICAgICAgICAgICAgcmV0dXJuOwogICAgICAgIH0KCiAgICAgICAgdmFyIGV4Y2x1c2l2ZSA9IGRv
+Y3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfZXhjbHVzaXZlIikuY2hlY2tlZCA/ICIxIiA6ICIw
+IjsKICAgICAgICB2YXIgc3RhdHVzID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImpmYV9zdGF0
+dXMiKTsKICAgICAgICBzdGF0dXMuaW5uZXJUZXh0ID0gIuato+WcqOWNs+aXtuWIh+aNoiAiICsg
+amZhX2xhYmVsKGFwKSArICLigKYiOwoKICAgICAgICBYSFIuZ2V0KCc8JT1qZmFfdXJsJT4nLCB7
+CiAgICAgICAgICAgIGFjdGlvbjogJ2Fzc2lnbicsCiAgICAgICAgICAgIG5vZGU6IGpmYU5vZGUs
+CiAgICAgICAgICAgIGFwOiBhcCwKICAgICAgICAgICAgZXhjbHVzaXZlOiBleGNsdXNpdmUKICAg
+ICAgICB9LCBmdW5jdGlvbih4LCByZXN1bHQpIHsKICAgICAgICAgICAgaWYgKHggJiYgeC5zdGF0
+dXMgPT0gMjAwICYmIHJlc3VsdCAmJiByZXN1bHQub2spIHsKICAgICAgICAgICAgICAgIHZhciBt
+c2cgPSAi4pyTICIgKyBqZmFfbGFiZWwoYXApICsgIiDlt7LliIfmjaIiOwogICAgICAgICAgICAg
+ICAgaWYgKHJlc3VsdC5pcCAmJiByZXN1bHQuaXAgIT0gIi0iKQogICAgICAgICAgICAgICAgICAg
+IG1zZyArPSAi77yb5Ye65Y+jIElQICIgKyByZXN1bHQuaXA7CiAgICAgICAgICAgICAgICBpZiAo
+cmVzdWx0LnNlY29uZHMgIT0gbnVsbCkKICAgICAgICAgICAgICAgICAgICBtc2cgKz0gIu+8m+iA
+l+aXtiAiICsgcmVzdWx0LnNlY29uZHMgKyAicyI7CiAgICAgICAgICAgICAgICBzdGF0dXMuaW5u
+ZXJUZXh0ID0gbXNnOwogICAgICAgICAgICAgICAgc3RhdHVzLnN0eWxlLmNvbG9yID0gIiMxNTk5
+NTciOwoKICAgICAgICAgICAgICAgIGpmYV9sb2FkX3N0YXR1cyhmdW5jdGlvbigpIHsKICAgICAg
+ICAgICAgICAgICAgICB2YXIgYXBzID0gamZhX2Fzc2lnbm1lbnRzKGpmYU5vZGUpOwogICAgICAg
+ICAgICAgICAgICAgIHZhciBsYWJlbHMgPSBbXTsKICAgICAgICAgICAgICAgICAgICBmb3IgKHZh
+ciBpID0gMDsgaSA8IGFwcy5sZW5ndGg7IGkrKykgbGFiZWxzLnB1c2goamZhX2xhYmVsKGFwc1tp
+XSkpOwogICAgICAgICAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJqZmFfY3Vy
+cmVudCIpLmlubmVyVGV4dCA9IGxhYmVscy5sZW5ndGggPyBsYWJlbHMuam9pbigiLCAiKSA6ICLm
+nKrliIbphY0iOwogICAgICAgICAgICAgICAgfSk7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAg
+ICAgICAgICAgICBzdGF0dXMuaW5uZXJUZXh0ID0gIuWIh+aNouWksei0pe+8miIgKyAoKHJlc3Vs
+dCAmJiByZXN1bHQuZXJyb3IpIHx8ICJFUlJPUiIpOwogICAgICAgICAgICAgICAgc3RhdHVzLnN0
+eWxlLmNvbG9yID0gIiNlNDNmM2IiOwogICAgICAgICAgICB9CiAgICAgICAgfSk7CiAgICB9Cgog
+ICAgZnVuY3Rpb24gamZhX2NsZWFyKCkgewogICAgICAgIGlmICghamZhTm9kZSkgcmV0dXJuOwog
+ICAgICAgIGlmICghY29uZmlybSgi6Kej6Zmk6L+Z5Liq6IqC54K55b2T5YmN57uR5a6a55qE5peg
+57q/IEFQ77yfIikpIHJldHVybjsKCiAgICAgICAgdmFyIHN0YXR1cyA9IGRvY3VtZW50LmdldEVs
+ZW1lbnRCeUlkKCJqZmFfc3RhdHVzIik7CiAgICAgICAgc3RhdHVzLmlubmVyVGV4dCA9ICLmraPl
+nKjop6PpmaTigKYiOwoKICAgICAgICBYSFIuZ2V0KCc8JT1qZmFfdXJsJT4nLCB7CiAgICAgICAg
+ICAgIGFjdGlvbjogJ2NsZWFyX25vZGUnLAogICAgICAgICAgICBub2RlOiBqZmFOb2RlCiAgICAg
+ICAgfSwgZnVuY3Rpb24oeCwgcmVzdWx0KSB7CiAgICAgICAgICAgIGlmICh4ICYmIHguc3RhdHVz
+ID09IDIwMCAmJiByZXN1bHQgJiYgcmVzdWx0Lm9rKSB7CiAgICAgICAgICAgICAgICBzdGF0dXMu
+aW5uZXJUZXh0ID0gIuKckyDlt7Lop6PpmaTnu5HlrpoiOwogICAgICAgICAgICAgICAgc3RhdHVz
+LnN0eWxlLmNvbG9yID0gIiMxNTk5NTciOwogICAgICAgICAgICAgICAgamZhX2xvYWRfc3RhdHVz
+KGZ1bmN0aW9uKCkgewogICAgICAgICAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlk
+KCJqZmFfY3VycmVudCIpLmlubmVyVGV4dCA9ICLmnKrliIbphY0iOwogICAgICAgICAgICAgICAg
+fSk7CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICBzdGF0dXMuaW5uZXJUZXh0
+ID0gIuino+mZpOWksei0pe+8miIgKyAoKHJlc3VsdCAmJiByZXN1bHQuZXJyb3IpIHx8ICJFUlJP
+UiIpOwogICAgICAgICAgICAgICAgc3RhdHVzLnN0eWxlLmNvbG9yID0gIiNlNDNmM2IiOwogICAg
+ICAgICAgICB9CiAgICAgICAgfSk7CiAgICB9Cl09XQp0ZXh0ID0gcmVwbGFjZV9vbmNlKHRleHQs
+IGpzX2FuY2hvciwganMgLi4ganNfYW5jaG9yLCAiSlMgYW5jaG9yIikKCmxvY2FsIGNvcHlfYW5j
+aG9yID0gJ1xuXHRcdFx0XHQ8aW5wdXQgY2xhc3M9ImJ0biBjYmktYnV0dG9uIGNiaS1idXR0b24t
+YWRkIiB0eXBlPSJidXR0b24iIHZhbHVlPSI8JTpDb3B5JT4iIG9uY2xpY2s9ImNvcHlfbm9kZShc
+J3t7aWR9fVwnKSIvPicKbG9jYWwgYnV0dG9uID0gWz1bCgkJCQk8aW5wdXQgY2xhc3M9ImJ0biBj
+YmktYnV0dG9uIGNiaS1idXR0b24tZWRpdCBqZmEtYnRuIiB0eXBlPSJidXR0b24iIGlkPSJqZmFf
+e3tpZH19IiBkYXRhLW5vZGUtaWQ9Int7aWR9fSIgdmFsdWU9IuWIhumFjeaXoOe6vyIgb25jbGlj
+az0iamZhX29wZW4oJ3t7aWR9fScpIiB0aXRsZT0iRmFzdEFDTCDljbPml7bliIbphY3ml6Dnur8i
+Lz4KCQkJCTxzcGFuIGlkPSJqZmFfaXBfe3tpZH19IiBzdHlsZT0iZGlzcGxheTpub25lO21hcmdp
+bi1sZWZ0OjVweDtjb2xvcjojMTU5OTU3O2ZvbnQtd2VpZ2h0OjYwMDtmb250LXNpemU6MTJweDt3
+aGl0ZS1zcGFjZTpub3dyYXA7Ij48L3NwYW4+Cl09XQp0ZXh0ID0gcmVwbGFjZV9vbmNlKHRleHQs
+IGNvcHlfYW5jaG9yLCAiXG4iIC4uIGJ1dHRvbiAuLiBjb3B5X2FuY2hvciwgImJ1dHRvbiBhbmNo
+b3IiKQoKbG9jYWwgcGluZ19jYWxsID0gJ1xuXHRcdFx0cGluZ0FsbE5vZGVzKCk7Jwp0ZXh0ID0g
+cmVwbGFjZV9vbmNlKHRleHQsIHBpbmdfY2FsbCwgcGluZ19jYWxsIC4uICdcblx0XHRcdGpmYV9s
+b2FkX3N0YXR1cygpOycsICJsb2FkLXN0YXR1cyBhbmNob3IiKQoKbG9jYWwgbW9kYWwgPSBbPVsK
+CjxkaXYgaWQ9ImpmYV9kaXYiIHN0eWxlPSJkaXNwbGF5Om5vbmU7d2lkdGg6MzVyZW07bWF4LXdp
+ZHRoOjk0dnc7cG9zaXRpb246Zml4ZWQ7bGVmdDo1MCU7dG9wOjUwJTt0cmFuc2Zvcm06dHJhbnNs
+YXRlKC01MCUsLTUwJSk7ei1pbmRleDoyMjA7cGFkZGluZzoyMnB4O3RleHQtYWxpZ246Y2VudGVy
+O2JhY2tncm91bmQ6dmFyKC0tbWFpbi1iZy1jb2xvciwjZmZmKTtib3JkZXItcmFkaXVzOjEycHg7
+Ym94LXNoYWRvdzowIDEycHggNDJweCByZ2JhKDAsMCwwLC4zOCk7Ij4KICAgIDxkaXYgc3R5bGU9
+ImZvbnQtc2l6ZToxN3B4O2ZvbnQtd2VpZ2h0OjcwMDttYXJnaW4tYm90dG9tOjdweDsiPkZhc3RB
+Q0wg5Y2z5pe25YiG6YWN5peg57q/PC9kaXY+CiAgICA8ZGl2IHN0eWxlPSJmb250LXNpemU6MTJw
+eDtvcGFjaXR5Oi43MjttYXJnaW4tYm90dG9tOjEzcHg7Ij7kuI3ph43lu7ogbmZ0YWJsZXMgwrcg
+5LiN6YeN5ZCv57O757ufIEROUyDCtyDlj6rliIfmjaLlvZPliY0gQVAg6IqC54K5PC9kaXY+CiAg
+ICA8ZGl2IHN0eWxlPSJtYXJnaW46N3B4IDA7Ij7oioLngrnvvJo8c3Ryb25nIGlkPSJqZmFfbm9k
+ZV9uYW1lIiBzdHlsZT0iY29sb3I6IzE1OTk1NyI+PC9zdHJvbmc+PC9kaXY+CiAgICA8ZGl2IHN0
+eWxlPSJtYXJnaW46N3B4IDA7Ij7lvZPliY3vvJo8c3Ryb25nIGlkPSJqZmFfY3VycmVudCIgc3R5
+bGU9ImNvbG9yOiNlNmEyM2MiPuivu+WPluS4reKApjwvc3Ryb25nPjwvZGl2PgogICAgPGRpdiBp
+ZD0iamZhX2VuZ2luZSIgc3R5bGU9Im1hcmdpbjo3cHggMDtmb250LXdlaWdodDo2MDA7Ij5GYXN0
+QUNM77ya5qOA5rWL5Lit4oCmPC9kaXY+CiAgICA8ZGl2IHN0eWxlPSJtYXJnaW46MTNweCAwOyI+
+CiAgICAgICAgPHNlbGVjdCBpZD0iamZhX3NlbGVjdCIgY2xhc3M9ImNiaS1pbnB1dC1zZWxlY3Qi
+IHN0eWxlPSJtaW4td2lkdGg6MjQwcHg7Ij4KICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iIj7o
+r7fpgInmi6nml6Dnur8gQVA8L29wdGlvbj4KICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iQVAx
+Ij7ml6Dnur9BUDEgwrcgMTcyLjE2LjEuMC8yNDwvb3B0aW9uPgogICAgICAgICAgICA8b3B0aW9u
+IHZhbHVlPSJBUDIiPuaXoOe6v0FQMiDCtyAxNzIuMTYuMi4wLzI0PC9vcHRpb24+CiAgICAgICAg
+ICAgIDxvcHRpb24gdmFsdWU9IkFQMyI+5peg57q/QVAzIMK3IDE3Mi4xNi4zLjAvMjQ8L29wdGlv
+bj4KICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iQVA0Ij7ml6Dnur9BUDQgwrcgMTcyLjE2LjQu
+MC8yNDwvb3B0aW9uPgogICAgICAgICAgICA8b3B0aW9uIHZhbHVlPSJBUDUiPuaXoOe6v0FQNSDC
+tyAxNzIuMTYuNS4wLzI0PC9vcHRpb24+CiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9IkFQNiI+
+5peg57q/QVA2IMK3IDE3Mi4xNi42LjAvMjQ8L29wdGlvbj4KICAgICAgICAgICAgPG9wdGlvbiB2
+YWx1ZT0iQVA3Ij7ml6Dnur9BUDcgwrcgMTcyLjE2LjcuMC8yNDwvb3B0aW9uPgogICAgICAgICAg
+ICA8b3B0aW9uIHZhbHVlPSJBUDgiPuaXoOe6v0FQOCDCtyAxNzIuMTYuOC4wLzI0PC9vcHRpb24+
+CiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9IkFQOSI+5peg57q/QVA5IMK3IDE3Mi4xNi45LjAv
+MjQ8L29wdGlvbj4KICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iQVAxMCI+5peg57q/QVAxMCDC
+tyAxNzIuMTYuMTAuMC8yNDwvb3B0aW9uPgogICAgICAgICAgICA8b3B0aW9uIHZhbHVlPSJBUDEx
+Ij7ml6Dnur9BUDExIMK3IDE3Mi4xNi4xMS4wLzI0PC9vcHRpb24+CiAgICAgICAgICAgIDxvcHRp
+b24gdmFsdWU9IkFQMTIiPuaXoOe6v0FQMTIgwrcgMTcyLjE2LjEyLjAvMjQ8L29wdGlvbj4KICAg
+ICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iQVAxMyI+5peg57q/QVAxMyDCtyAxNzIuMTYuMTMuMC8y
+NDwvb3B0aW9uPgogICAgICAgICAgICA8b3B0aW9uIHZhbHVlPSJBUDE0Ij7ml6Dnur9BUDE0IMK3
+IDE3Mi4xNi4xNC4wLzI0PC9vcHRpb24+CiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9IkFQMTUi
+PuaXoOe6v0FQMTUgwrcgMTcyLjE2LjE1LjAvMjQ8L29wdGlvbj4KICAgICAgICAgICAgPG9wdGlv
+biB2YWx1ZT0iQVAxNiI+5peg57q/QVAxNiDCtyAxNzIuMTYuMTYuMC8yNDwvb3B0aW9uPgogICAg
+ICAgICAgICA8b3B0aW9uIHZhbHVlPSJBUDE3Ij7ml6Dnur9BUDE3IMK3IDE3Mi4xNi4xNy4wLzI0
+PC9vcHRpb24+CiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9IkFQMTgiPuaXoOe6v0FQMTggwrcg
+MTcyLjE2LjE4LjAvMjQ8L29wdGlvbj4KICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT0iQVAxOSI+
+5peg57q/QVAxOSDCtyAxNzIuMTYuMTkuMC8yNDwvb3B0aW9uPgogICAgICAgICAgICA8b3B0aW9u
+IHZhbHVlPSJBUDIwIj7ml6Dnur9BUDIwIMK3IDE3Mi4xNi4yMC4wLzI0PC9vcHRpb24+CiAgICAg
+ICAgPC9zZWxlY3Q+CiAgICA8L2Rpdj4KICAgIDxsYWJlbCBzdHlsZT0iZGlzcGxheTpibG9jaztt
+YXJnaW46MTBweCAwOyI+CiAgICAgICAgPGlucHV0IGlkPSJqZmFfZXhjbHVzaXZlIiB0eXBlPSJj
+aGVja2JveCIgY2hlY2tlZD0iY2hlY2tlZCIvPgogICAgICAgIOWUr+S4gOe7keWumu+8muWQjOS4
+gOS4quiKgueCueWPquWIhumFjee7meS4gOS4quaXoOe6vyBBUAogICAgPC9sYWJlbD4KICAgIDxk
+aXYgaWQ9ImpmYV9zdGF0dXMiIHN0eWxlPSJtaW4taGVpZ2h0OjI0cHg7bWFyZ2luOjlweCAwO2Zv
+bnQtd2VpZ2h0OjYwMDtjb2xvcjojMTU5OTU3OyI+PC9kaXY+CiAgICA8ZGl2IHN0eWxlPSJkaXNw
+bGF5OmZsZXg7anVzdGlmeS1jb250ZW50OmNlbnRlcjtnYXA6OHB4O2ZsZXgtd3JhcDp3cmFwOyI+
+CiAgICAgICAgPGlucHV0IGNsYXNzPSJidG4gY2JpLWJ1dHRvbiBjYmktYnV0dG9uLWFwcGx5IiB0
+eXBlPSJidXR0b24iIHZhbHVlPSLnq4vljbPliIfmjaIiIG9uY2xpY2s9ImpmYV9hc3NpZ24oKSIv
+PgogICAgICAgIDxpbnB1dCBjbGFzcz0iYnRuIGNiaS1idXR0b24gY2JpLWJ1dHRvbi1yZW1vdmUi
+IHR5cGU9ImJ1dHRvbiIgdmFsdWU9Iuino+mZpOe7keWumiIgb25jbGljaz0iamZhX2NsZWFyKCki
+Lz4KICAgICAgICA8aW5wdXQgY2xhc3M9ImJ0biBjYmktYnV0dG9uIGNiaS1idXR0b24tZWRpdCIg
+dHlwZT0iYnV0dG9uIiB2YWx1ZT0i5YWz6ZetIiBvbmNsaWNrPSJqZmFfY2xvc2UoKSIvPgogICAg
+PC9kaXY+CjwvZGl2PgpdPV0KCnRleHQgPSB0ZXh0IC4uIG1vZGFsCgpsb2NhbCBvdXQgPSBhc3Nl
+cnQoaW8ub3BlbihmaWxlIC4uICIubmV3IiwgInciKSkKb3V0OndyaXRlKHRleHQpCm91dDpjbG9z
+ZSgpCm9zLnJlbmFtZShmaWxlIC4uICIubmV3IiwgZmlsZSkKTFVBX1BBVENICgpncmVwIC1xICIk
+TUFSS0VSIiAiJEZJTEUiCmdyZXAgLXEgJ2pmYS1idG4nICIkRklMRSIKZ3JlcCAtcSAnRmFzdEFD
+TCDljbPml7bliIbphY3ml6Dnur8nICIkRklMRSIKCnJtIC1mIC90bXAvbHVjaS1pbmRleGNhY2hl
+CnJtIC1yZiAvdG1wL2x1Y2ktbW9kdWxlY2FjaGUgL3RtcC9sdWNpLXRlbXBsYXRlY2FjaGUKL2V0
+Yy9pbml0LmQvdWh0dHBkIHJlc3RhcnQgPi9kZXYvbnVsbCAyPiYxIHx8IHRydWUKCmVjaG8gIltP
+S10gRmFzdEFDTCB2MiBMdUNJIGluc3RhbGxlZCIKZWNobyAiUGFzc1dhbGwyIC0+IOiKgueCueWI
+l+ihqO+8muavj+S4quiKgueCueWPs+S+p+aYvuekuuKAnOWIhumFjeaXoOe6vy/ml6Dnur9TU0lE
+4oCd77yM5bm25pi+56S65bey5qOA5rWL5Ye65Y+jIElQ44CCIgo=
+JFA64_2
+base64 -d > "$TMP_DIR/uninstall-juliang-fastacl" <<'JFA64_3'
+IyEvYmluL3NoCnNldCAtdQoKQkFDS1VQX0RJUj0iL2V0Yy9qdWxpYW5nLWZhc3RhY2wvYmFja3Vw
+IgpOT0RFX0xJU1Q9Ii91c3IvbGliL2x1YS9sdWNpL3ZpZXcvcGFzc3dhbGwyL25vZGVfbGlzdC9u
+b2RlX2xpc3QuaHRtIgoKZWNobyAiPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT0iCmVjaG8gIiBKdUxpYW5nIEZhc3RBQ0wgdjIgcm9sbGJhY2siCmVjaG8g
+Ij09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09IgoKL2V0
+Yy9pbml0LmQvanVsaWFuZy1mYXN0YWNsIHN0b3AgPi9kZXYvbnVsbCAyPiYxIHx8IHRydWUKL2V0
+Yy9pbml0LmQvanVsaWFuZy1mYXN0YWNsIGRpc2FibGUgPi9kZXYvbnVsbCAyPiYxIHx8IHRydWUK
+CiMgS2VlcCBhbGwgY3VycmVudCBQYXNzV2FsbDIgbm9kZXMgYW5kIHRoZSBBUCBtYXBwaW5ncyBG
+YXN0QUNMIG1pcnJvcmVkIGludG8KIyB0aGUgb3JpZ2luYWwgQUNMIHNlY3Rpb25zLiBPbmx5IHJl
+bW92ZSBvdXIgc2hhZG93IFNPQ0tTIGhvbGRlcnMgYW5kIHJlc3RvcmUKIyB0aGUgdGhyZWUgb3Jp
+Z2luYWwgZW5naW5lIHN3aXRjaGVzLgpuPTEKd2hpbGUgWyAiJG4iIC1sZSAyMCBdOyBkbwogICAg
+dWNpIC1xIGRlbGV0ZSBwYXNzd2FsbDIuamZhX2FwJG4KICAgIG49JCgobiArIDEpKQpkb25lCgpp
+ZiBbIC1mICIkQkFDS1VQX0RJUi9vcmlnaW5hbC1mbGFncyIgXTsgdGhlbgogICAgLiAiJEJBQ0tV
+UF9ESVIvb3JpZ2luYWwtZmxhZ3MiCiAgICB1Y2kgLXEgc2V0IHBhc3N3YWxsMi5AZ2xvYmFsWzBd
+LmVuYWJsZWQ9IiR7UFcyX0VOQUJMRUQ6LTB9IgogICAgdWNpIC1xIHNldCBwYXNzd2FsbDIuQGds
+b2JhbFswXS5hY2xfZW5hYmxlPSIke1BXMl9BQ0xfRU5BQkxFOi0xfSIKICAgIHVjaSAtcSBzZXQg
+cGFzc3dhbGwyLkBnbG9iYWxbMF0uc29ja3NfZW5hYmxlZD0iJHtQVzJfU09DS1NfRU5BQkxFRDot
+MH0iCmZpCnVjaSAtcSBjb21taXQgcGFzc3dhbGwyCgppZiBbIC1mICIkQkFDS1VQX0RJUi9ub2Rl
+X2xpc3QuaHRtIiBdOyB0aGVuCiAgICBjcCAtYWYgIiRCQUNLVVBfRElSL25vZGVfbGlzdC5odG0i
+ICIkTk9ERV9MSVNUIgogICAgZWNobyAiW09LXSByZXN0b3JlZCBQYXNzV2FsbDIgbm9kZSBsaXN0
+IFVJIgpmaQoKcm0gLWYgL2V0Yy9jb25maWcvanVsaWFuZ19mYXN0YWNsCnJtIC1mIC90bXAvbHVj
+aS1pbmRleGNhY2hlCnJtIC1yZiAvdG1wL2x1Y2ktbW9kdWxlY2FjaGUgL3RtcC9sdWNpLXRlbXBs
+YXRlY2FjaGUKcm0gLXJmIC90bXAvanVsaWFuZy1mYXN0YWNsCgovZXRjL2luaXQuZC91aHR0cGQg
+cmVzdGFydCA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZQovZXRjL2luaXQuZC9wYXNzd2FsbDIgcmVz
+dGFydCA+L3RtcC9wYXNzd2FsbDItZmFzdGFjbC1yb2xsYmFjay5sb2cgMj4mMSAmCgplY2hvICJb
+T0tdIEZhc3RBQ0wgZGlzYWJsZWQ7IGN1cnJlbnQgbm9kZXMvQVAgbWFwcGluZ3Mga2VwdCIKZWNo
+byAiUGFzc1dhbGwyIGlzIHJlc3RvcmluZyBpbiBiYWNrZ3JvdW5kOyBsb2c6IC90bXAvcGFzc3dh
+bGwyLWZhc3RhY2wtcm9sbGJhY2subG9nIgo=
+JFA64_3
+base64 -d > "$TMP_DIR/juliang-fastacl-router.lua" <<'JFA64_4'
+bG9jYWwganNvbmMgPSByZXF1aXJlICJsdWNpLmpzb25jIgpsb2NhbCB1Y2kgPSByZXF1aXJlKCJs
+dWNpLm1vZGVsLnVjaSIpLmN1cnNvcigpCmxvY2FsIGNmZyA9ICJqdWxpYW5nX2Zhc3RhY2wiCmxv
+Y2FsIHBvcnQgPSB0b251bWJlcih1Y2k6Z2V0KGNmZywgIm1haW4iLCAidHByb3h5X3BvcnQiKSBv
+ciAiMTIzNDUiKQpsb2NhbCBkbnNfYWRkciA9IHVjaTpnZXQoY2ZnLCAibWFpbiIsICJkbnNfc2Vy
+dmVyIikgb3IgIjEuMS4xLjEiCgpsb2NhbCBvdXRib3VuZHMgPSB7IHsgdHlwZSA9ICJkaXJlY3Qi
+LCB0YWcgPSAiZGlyZWN0IiB9IH0KbG9jYWwgcm91dGVfcnVsZXMgPSB7fQpsb2NhbCBkbnNfc2Vy
+dmVycyA9IHt9CmxvY2FsIGRuc19ydWxlcyA9IHt9Cgpmb3IgaSA9IDEsIDIwIGRvCiAgbG9jYWwg
+cyA9ICJhcCIgLi4gaQogIGxvY2FsIHN1Ym5ldCA9IHVjaTpnZXQoY2ZnLCBzLCAic3VibmV0Iikg
+b3Igc3RyaW5nLmZvcm1hdCgiMTcyLjE2LiVkLjAvMjQiLCBpKQogIGxvY2FsIHNwb3J0ID0gdG9u
+dW1iZXIodWNpOmdldChjZmcsIHMsICJzb2Nrc19wb3J0Iikgb3IgdG9zdHJpbmcoMTMxMDAgKyBp
+KSkKICBsb2NhbCB0YWcgPSAiYXAiIC4uIGkKICBvdXRib3VuZHNbI291dGJvdW5kcyArIDFdID0g
+ewogICAgdHlwZSA9ICJzb2NrcyIsCiAgICB0YWcgPSB0YWcsCiAgICBzZXJ2ZXIgPSAiMTI3LjAu
+MC4xIiwKICAgIHNlcnZlcl9wb3J0ID0gc3BvcnQsCiAgICB2ZXJzaW9uID0gIjUiCiAgfQogIGRu
+c19zZXJ2ZXJzWyNkbnNfc2VydmVycyArIDFdID0gewogICAgdHlwZSA9ICJ0Y3AiLAogICAgdGFn
+ID0gImRucy0iIC4uIHRhZywKICAgIHNlcnZlciA9IGRuc19hZGRyLAogICAgc2VydmVyX3BvcnQg
+PSA1MywKICAgIGRldG91ciA9IHRhZwogIH0KICBkbnNfcnVsZXNbI2Ruc19ydWxlcyArIDFdID0g
+ewogICAgc291cmNlX2lwX2NpZHIgPSB7IHN1Ym5ldCB9LAogICAgYWN0aW9uID0gInJvdXRlIiwK
+ICAgIHNlcnZlciA9ICJkbnMtIiAuLiB0YWcKICB9CiAgcm91dGVfcnVsZXNbI3JvdXRlX3J1bGVz
+ICsgMV0gPSB7CiAgICBzb3VyY2VfaXBfY2lkciA9IHsgc3VibmV0IH0sCiAgICBwb3J0ID0geyA1
+MyB9LAogICAgYWN0aW9uID0gImhpamFjay1kbnMiCiAgfQogIHJvdXRlX3J1bGVzWyNyb3V0ZV9y
+dWxlcyArIDFdID0gewogICAgc291cmNlX2lwX2NpZHIgPSB7IHN1Ym5ldCB9LAogICAgYWN0aW9u
+ID0gInJvdXRlIiwKICAgIG91dGJvdW5kID0gdGFnCiAgfQplbmQKCmxvY2FsIGNvbmYgPSB7CiAg
+bG9nID0geyBsZXZlbCA9ICJ3YXJuIiwgdGltZXN0YW1wID0gdHJ1ZSB9LAogIGRucyA9IHsKICAg
+IHNlcnZlcnMgPSBkbnNfc2VydmVycywKICAgIHJ1bGVzID0gZG5zX3J1bGVzLAogICAgZmluYWwg
+PSAiZG5zLWFwMSIKICB9LAogIGluYm91bmRzID0gewogICAgewogICAgICB0eXBlID0gInRwcm94
+eSIsCiAgICAgIHRhZyA9ICJqZmEtdHByb3h5IiwKICAgICAgbGlzdGVuID0gIjAuMC4wLjAiLAog
+ICAgICBsaXN0ZW5fcG9ydCA9IHBvcnQKICAgIH0KICB9LAogIG91dGJvdW5kcyA9IG91dGJvdW5k
+cywKICByb3V0ZSA9IHsKICAgIHJ1bGVzID0gcm91dGVfcnVsZXMsCiAgICBmaW5hbCA9ICJkaXJl
+Y3QiCiAgfQp9Cgppby53cml0ZShqc29uYy5zdHJpbmdpZnkoY29uZiwgdHJ1ZSkpCg==
+JFA64_4
+base64 -d > "$TMP_DIR/juliang-fastacl-relay.lua" <<'JFA64_5'
+bG9jYWwganNvbmMgPSByZXF1aXJlICJsdWNpLmpzb25jIgpsb2NhbCB1Y2kgPSByZXF1aXJlKCJs
+dWNpLm1vZGVsLnVjaSIpLmN1cnNvcigpCmxvY2FsIG5vZGUgPSBhcmdbMV0gb3IgIiIKbG9jYWwg
+cG9ydCA9IHRvbnVtYmVyKGFyZ1syXSBvciAiMCIpCmxvY2FsIG91dGZpbGUgPSBhcmdbM10gb3Ig
+IiIKaWYgbm9kZSA9PSAiIiBvciBwb3J0ID09IDAgb3Igb3V0ZmlsZSA9PSAiIiB0aGVuIG9zLmV4
+aXQoMikgZW5kCmxvY2FsIG4gPSB1Y2k6Z2V0X2FsbCgicGFzc3dhbGwyIiwgbm9kZSkKaWYgbm90
+IG4gdGhlbiBvcy5leGl0KDMpIGVuZApsb2NhbCB0ID0gc3RyaW5nLmxvd2VyKG4udHlwZSBvciAi
+IikKbG9jYWwgb3V0CmlmIHQgPT0gInNvY2tzIiB0aGVuCiAgb3V0ID0gewogICAgdHlwZSA9ICJz
+b2NrcyIsIHRhZyA9ICJwcm94eSIsIHNlcnZlciA9IG4uYWRkcmVzcywgc2VydmVyX3BvcnQgPSB0
+b251bWJlcihuLnBvcnQpLCB2ZXJzaW9uID0gIjUiLAogICAgdXNlcm5hbWUgPSBuLnVzZXJuYW1l
+LCBwYXNzd29yZCA9IG4ucGFzc3dvcmQKICB9CmVsc2VpZiB0ID09ICJodHRwIiB0aGVuCiAgb3V0
+ID0gewogICAgdHlwZSA9ICJodHRwIiwgdGFnID0gInByb3h5Iiwgc2VydmVyID0gbi5hZGRyZXNz
+LCBzZXJ2ZXJfcG9ydCA9IHRvbnVtYmVyKG4ucG9ydCksCiAgICB1c2VybmFtZSA9IG4udXNlcm5h
+bWUsIHBhc3N3b3JkID0gbi5wYXNzd29yZAogIH0KZWxzZQogIG9zLmV4aXQoNCkKZW5kCmxvY2Fs
+IGNvbmYgPSB7CiAgbG9nID0geyBsZXZlbCA9ICJlcnJvciIgfSwKICBpbmJvdW5kcyA9IHsgeyB0
+eXBlID0gInNvY2tzIiwgdGFnID0gImluIiwgbGlzdGVuID0gIjEyNy4wLjAuMSIsIGxpc3Rlbl9w
+b3J0ID0gcG9ydCB9IH0sCiAgb3V0Ym91bmRzID0geyBvdXQgfSwKICByb3V0ZSA9IHsgZmluYWwg
+PSAicHJveHkiIH0KfQpsb2NhbCBmID0gYXNzZXJ0KGlvLm9wZW4ob3V0ZmlsZSwgInciKSkKZjp3
+cml0ZShqc29uYy5zdHJpbmdpZnkoY29uZiwgdHJ1ZSkpCmY6Y2xvc2UoKQo=
+JFA64_5
+base64 -d > "$TMP_DIR/juliang_fastacl.lua" <<'JFA64_6'
+bW9kdWxlKCJsdWNpLmNvbnRyb2xsZXIuanVsaWFuZ19mYXN0YWNsIiwgcGFja2FnZS5zZWVhbGwp
+CgpmdW5jdGlvbiBpbmRleCgpCiAgICBsb2NhbCBwYWdlID0gZW50cnkoeyJhZG1pbiIsICJzZXJ2
+aWNlcyIsICJqdWxpYW5nX2Zhc3RhY2wifSwgY2FsbCgiaGFuZGxlIiksIG5pbCkKICAgIHBhZ2Uu
+bGVhZiA9IHRydWUKICAgIHBhZ2UuZGVwZW5kZW50ID0gZmFsc2UKZW5kCgpsb2NhbCBmdW5jdGlv
+biB3cml0ZV9qc29uKHQpCiAgICBsb2NhbCBodHRwID0gcmVxdWlyZSAibHVjaS5odHRwIgogICAg
+bG9jYWwganNvbmMgPSByZXF1aXJlICJsdWNpLmpzb25jIgogICAgaHR0cC5wcmVwYXJlX2NvbnRl
+bnQoImFwcGxpY2F0aW9uL2pzb24iKQogICAgaHR0cC53cml0ZShqc29uYy5zdHJpbmdpZnkodCkp
+CmVuZAoKbG9jYWwgZnVuY3Rpb24gYXBfbnVtYmVyKHYpCiAgICBsb2NhbCBuID0gdG9udW1iZXIo
+KHYgb3IgIiIpOm1hdGNoKCJeQVAoJWQrKSQiKSkKICAgIGlmIG4gYW5kIG4gPj0gMSBhbmQgbiA8
+PSAyMCB0aGVuIHJldHVybiBuIGVuZAogICAgcmV0dXJuIG5pbAplbmQKCmxvY2FsIGZ1bmN0aW9u
+IHdpcmVsZXNzX2xhYmVscyh1Y2kpCiAgICBsb2NhbCBsYWJlbHMgPSB7fQogICAgZm9yIGkgPSAx
+LCAyMCBkbwogICAgICAgIGxhYmVsc1siQVAiIC4uIGldID0gIuaXoOe6v0FQIiAuLiBpCiAgICBl
+bmQKCiAgICB1Y2k6Zm9yZWFjaCgid2lyZWxlc3MiLCAid2lmaS1pZmFjZSIsIGZ1bmN0aW9uKHMp
+CiAgICAgICAgbG9jYWwgbmV0d29yayA9IHMubmV0d29yayBvciAiIgogICAgICAgIGxvY2FsIHNz
+aWQgPSBzLnNzaWQgb3IgIiIKICAgICAgICBpZiBzc2lkIH49ICIiIHRoZW4KICAgICAgICAgICAg
+Zm9yIGkgPSAxLCAyMCBkbwogICAgICAgICAgICAgICAgbG9jYWwgdGsgPSAidGsiIC4uIGkKICAg
+ICAgICAgICAgICAgIGlmICgiICIgLi4gbmV0d29yayAuLiAiICIpOmZpbmQoIiAiIC4uIHRrIC4u
+ICIgIiwgMSwgdHJ1ZSkgdGhlbgogICAgICAgICAgICAgICAgICAgIGxhYmVsc1siQVAiIC4uIGld
+ID0gIuaXoOe6vyIgLi4gc3NpZAogICAgICAgICAgICAgICAgZW5kCiAgICAgICAgICAgIGVuZAog
+ICAgICAgIGVuZAogICAgZW5kKQoKICAgIHJldHVybiBsYWJlbHMKZW5kCgpsb2NhbCBmdW5jdGlv
+biByZWFkX2lwKG4pCiAgICBsb2NhbCBmID0gaW8ub3BlbigiL3RtcC9qdWxpYW5nLWZhc3RhY2wv
+YXAiIC4uIG4gLi4gIi5pcCIsICJyIikKICAgIGlmIG5vdCBmIHRoZW4gcmV0dXJuICIiIGVuZAog
+ICAgbG9jYWwgaXAgPSAoZjpyZWFkKCIqbCIpIG9yICIiKTpnc3ViKCIlcysiLCAiIikKICAgIGY6
+Y2xvc2UoKQogICAgcmV0dXJuIGlwCmVuZAoKbG9jYWwgZnVuY3Rpb24gcnVudGltZV9zdGF0dXMo
+KQogICAgbG9jYWwgZiA9IGlvLm9wZW4oIi90bXAvanVsaWFuZy1mYXN0YWNsL3JvdXRlci5waWQi
+LCAiciIpCiAgICBpZiBub3QgZiB0aGVuIHJldHVybiAic3RvcHBlZCIgZW5kCiAgICBsb2NhbCBw
+aWQgPSB0b251bWJlcihmOnJlYWQoIipsIikgb3IgIiIpCiAgICBmOmNsb3NlKCkKICAgIGlmIG5v
+dCBwaWQgdGhlbiByZXR1cm4gInN0b3BwZWQiIGVuZAogICAgbG9jYWwgc3lzID0gcmVxdWlyZSAi
+bHVjaS5zeXMiCiAgICByZXR1cm4gc3lzLmNhbGwoImtpbGwgLTAgIiAuLiBwaWQgLi4gIiA+L2Rl
+di9udWxsIDI+JjEiKSA9PSAwIGFuZCAicnVubmluZyIgb3IgInN0b3BwZWQiCmVuZAoKbG9jYWwg
+ZnVuY3Rpb24gZXhlY19qc29uKGNtZCkKICAgIGxvY2FsIHN5cyA9IHJlcXVpcmUgImx1Y2kuc3lz
+IgogICAgbG9jYWwganNvbmMgPSByZXF1aXJlICJsdWNpLmpzb25jIgogICAgbG9jYWwgcmF3ID0g
+c3lzLmV4ZWMoY21kIC4uICIgMj4vdG1wL2p1bGlhbmctZmFzdGFjbC9sdWNpLWVycm9yLmxvZyIp
+CiAgICBsb2NhbCBvaywgZGF0YSA9IHBjYWxsKGpzb25jLnBhcnNlLCByYXcgb3IgIiIpCiAgICBp
+ZiBvayBhbmQgdHlwZShkYXRhKSA9PSAidGFibGUiIHRoZW4KICAgICAgICByZXR1cm4gZGF0YQog
+ICAgZW5kCiAgICByZXR1cm4gewogICAgICAgIG9rID0gZmFsc2UsCiAgICAgICAgZXJyb3IgPSAi
+RU5HSU5FX0VSUk9SIiwKICAgICAgICBkZXRhaWwgPSByYXcgb3IgIiIKICAgIH0KZW5kCgpmdW5j
+dGlvbiBoYW5kbGUoKQogICAgbG9jYWwgaHR0cCA9IHJlcXVpcmUgImx1Y2kuaHR0cCIKICAgIGxv
+Y2FsIHV0aWwgPSByZXF1aXJlICJsdWNpLnV0aWwiCiAgICBsb2NhbCB1Y2kgPSByZXF1aXJlKCJs
+dWNpLm1vZGVsLnVjaSIpLmN1cnNvcigpCgogICAgbG9jYWwgYWN0aW9uID0gaHR0cC5mb3JtdmFs
+dWUoImFjdGlvbiIpIG9yICJzdGF0dXMiCgogICAgaWYgYWN0aW9uID09ICJzdGF0dXMiIHRoZW4K
+ICAgICAgICBsb2NhbCBtYXAgPSB7fQogICAgICAgIGxvY2FsIGFwX3RvX25vZGUgPSB7fQogICAg
+ICAgIGxvY2FsIGlwcyA9IHt9CiAgICAgICAgbG9jYWwgbGFiZWxzID0gd2lyZWxlc3NfbGFiZWxz
+KHVjaSkKCiAgICAgICAgZm9yIGkgPSAxLCAyMCBkbwogICAgICAgICAgICBsb2NhbCBhcCA9ICJB
+UCIgLi4gaQogICAgICAgICAgICBsb2NhbCBub2RlID0gdWNpOmdldCgianVsaWFuZ19mYXN0YWNs
+IiwgImFwIiAuLiBpLCAibm9kZSIpIG9yICIiCiAgICAgICAgICAgIGFwX3RvX25vZGVbYXBdID0g
+bm9kZQogICAgICAgICAgICBpcHNbYXBdID0gcmVhZF9pcChpKQogICAgICAgICAgICBpZiBub2Rl
+IH49ICIiIHRoZW4KICAgICAgICAgICAgICAgIG1hcFtub2RlXSA9IG1hcFtub2RlXSBvciB7fQog
+ICAgICAgICAgICAgICAgbWFwW25vZGVdWyNtYXBbbm9kZV0gKyAxXSA9IGFwCiAgICAgICAgICAg
+IGVuZAogICAgICAgIGVuZAoKICAgICAgICB3cml0ZV9qc29uKHsKICAgICAgICAgICAgb2sgPSB0
+cnVlLAogICAgICAgICAgICBlbmdpbmUgPSBydW50aW1lX3N0YXR1cygpLAogICAgICAgICAgICBt
+YXAgPSBtYXAsCiAgICAgICAgICAgIGFwX3RvX25vZGUgPSBhcF90b19ub2RlLAogICAgICAgICAg
+ICB3aXJlbGVzc19sYWJlbHMgPSBsYWJlbHMsCiAgICAgICAgICAgIGlwcyA9IGlwcwogICAgICAg
+IH0pCiAgICAgICAgcmV0dXJuCiAgICBlbmQKCiAgICBsb2NhbCBub2RlID0gaHR0cC5mb3JtdmFs
+dWUoIm5vZGUiKSBvciAiIgogICAgbG9jYWwgbm9kZV9jZmcgPSBub2RlIH49ICIiIGFuZCB1Y2k6
+Z2V0X2FsbCgicGFzc3dhbGwyIiwgbm9kZSkgb3IgbmlsCgogICAgaWYgYWN0aW9uID09ICJhc3Np
+Z24iIHRoZW4KICAgICAgICBsb2NhbCBhcCA9IGh0dHAuZm9ybXZhbHVlKCJhcCIpIG9yICIiCiAg
+ICAgICAgbG9jYWwgbiA9IGFwX251bWJlcihhcCkKICAgICAgICBpZiBub3QgbiB0aGVuCiAgICAg
+ICAgICAgIHdyaXRlX2pzb24oeyBvayA9IGZhbHNlLCBlcnJvciA9ICJCQURfQVAiIH0pCiAgICAg
+ICAgICAgIHJldHVybgogICAgICAgIGVuZAogICAgICAgIGlmIG5vdCBub2RlX2NmZyBvciBub2Rl
+X2NmZ1siLnR5cGUiXSB+PSAibm9kZXMiIHRoZW4KICAgICAgICAgICAgd3JpdGVfanNvbih7IG9r
+ID0gZmFsc2UsIGVycm9yID0gIkJBRF9OT0RFIiB9KQogICAgICAgICAgICByZXR1cm4KICAgICAg
+ICBlbmQKCiAgICAgICAgbG9jYWwgZXhjbHVzaXZlID0gaHR0cC5mb3JtdmFsdWUoImV4Y2x1c2l2
+ZSIpIH49ICIwIgogICAgICAgIGxvY2FsIHJlc3VsdCA9IGV4ZWNfanNvbigKICAgICAgICAgICAg
+Ii91c3IvYmluL2p1bGlhbmctZmFzdGFjbCBzd2l0Y2ggIiAuLgogICAgICAgICAgICBhcCAuLiAi
+ICIgLi4gdXRpbC5zaGVsbHF1b3RlKG5vZGUpCiAgICAgICAgKQoKICAgICAgICBsb2NhbCBjbGVh
+cmVkID0ge30KICAgICAgICBpZiByZXN1bHQub2sgYW5kIGV4Y2x1c2l2ZSB0aGVuCiAgICAgICAg
+ICAgIGZvciBpID0gMSwgMjAgZG8KICAgICAgICAgICAgICAgIGlmIGkgfj0gbiBhbmQgKHVjaTpn
+ZXQoImp1bGlhbmdfZmFzdGFjbCIsICJhcCIgLi4gaSwgIm5vZGUiKSBvciAiIikgPT0gbm9kZSB0
+aGVuCiAgICAgICAgICAgICAgICAgICAgbG9jYWwgb2xkX2FwID0gIkFQIiAuLiBpCiAgICAgICAg
+ICAgICAgICAgICAgbG9jYWwgciA9IGV4ZWNfanNvbigiL3Vzci9iaW4vanVsaWFuZy1mYXN0YWNs
+IGNsZWFyICIgLi4gb2xkX2FwKQogICAgICAgICAgICAgICAgICAgIGlmIHIub2sgdGhlbiBjbGVh
+cmVkWyNjbGVhcmVkICsgMV0gPSBvbGRfYXAgZW5kCiAgICAgICAgICAgICAgICBlbmQKICAgICAg
+ICAgICAgZW5kCiAgICAgICAgZW5kCgogICAgICAgIHJlc3VsdC5jbGVhcmVkID0gY2xlYXJlZAog
+ICAgICAgIHdyaXRlX2pzb24ocmVzdWx0KQogICAgICAgIHJldHVybgogICAgZW5kCgogICAgaWYg
+YWN0aW9uID09ICJjbGVhcl9ub2RlIiB0aGVuCiAgICAgICAgaWYgbm90IG5vZGVfY2ZnIG9yIG5v
+ZGVfY2ZnWyIudHlwZSJdIH49ICJub2RlcyIgdGhlbgogICAgICAgICAgICB3cml0ZV9qc29uKHsg
+b2sgPSBmYWxzZSwgZXJyb3IgPSAiQkFEX05PREUiIH0pCiAgICAgICAgICAgIHJldHVybgogICAg
+ICAgIGVuZAoKICAgICAgICBsb2NhbCBjbGVhcmVkID0ge30KICAgICAgICBmb3IgaSA9IDEsIDIw
+IGRvCiAgICAgICAgICAgIGlmICh1Y2k6Z2V0KCJqdWxpYW5nX2Zhc3RhY2wiLCAiYXAiIC4uIGks
+ICJub2RlIikgb3IgIiIpID09IG5vZGUgdGhlbgogICAgICAgICAgICAgICAgbG9jYWwgYXAgPSAi
+QVAiIC4uIGkKICAgICAgICAgICAgICAgIGxvY2FsIHIgPSBleGVjX2pzb24oIi91c3IvYmluL2p1
+bGlhbmctZmFzdGFjbCBjbGVhciAiIC4uIGFwKQogICAgICAgICAgICAgICAgaWYgci5vayB0aGVu
+IGNsZWFyZWRbI2NsZWFyZWQgKyAxXSA9IGFwIGVuZAogICAgICAgICAgICBlbmQKICAgICAgICBl
+bmQKCiAgICAgICAgd3JpdGVfanNvbih7IG9rID0gdHJ1ZSwgYWN0aW9uID0gImNsZWFyX25vZGUi
+LCBub2RlID0gbm9kZSwgY2xlYXJlZCA9IGNsZWFyZWQgfSkKICAgICAgICByZXR1cm4KICAgIGVu
+ZAoKICAgIGlmIGFjdGlvbiA9PSAicHJvYmUiIHRoZW4KICAgICAgICBsb2NhbCBhcCA9IGh0dHAu
+Zm9ybXZhbHVlKCJhcCIpIG9yICIiCiAgICAgICAgbG9jYWwgbiA9IGFwX251bWJlcihhcCkKICAg
+ICAgICBpZiBub3QgbiB0aGVuCiAgICAgICAgICAgIHdyaXRlX2pzb24oeyBvayA9IGZhbHNlLCBl
+cnJvciA9ICJCQURfQVAiIH0pCiAgICAgICAgICAgIHJldHVybgogICAgICAgIGVuZAogICAgICAg
+IGxvY2FsIHN5cyA9IHJlcXVpcmUgImx1Y2kuc3lzIgogICAgICAgIGxvY2FsIGlwID0gKHN5cy5l
+eGVjKCIvdXNyL2Jpbi9qdWxpYW5nLWZhc3RhY2wgcHJvYmUgIiAuLiBhcCAuLiAiIDI+L2Rldi9u
+dWxsIikgb3IgIiIpOmdzdWIoIiVzKyIsICIiKQogICAgICAgIHdyaXRlX2pzb24oeyBvayA9IGlw
+IH49ICIiIGFuZCBpcCB+PSAiLSIsIGFwID0gYXAsIGlwID0gaXAgfSkKICAgICAgICByZXR1cm4K
+ICAgIGVuZAoKICAgIHdyaXRlX2pzb24oeyBvayA9IGZhbHNlLCBlcnJvciA9ICJCQURfQUNUSU9O
+IiB9KQplbmQK
+JFA64_6
+base64 -d > "$TMP_DIR/juliang-fastacl.init" <<'JFA64_7'
+IyEvYmluL3NoIC9ldGMvcmMuY29tbW9uClNUQVJUPTk2ClNUT1A9MTQKCnN0YXJ0KCkgewogICAg
+WyAiJCh1Y2kgLXEgZ2V0IGp1bGlhbmdfZmFzdGFjbC5tYWluLmVuYWJsZWQgMj4vZGV2L251bGwp
+IiA9ICIxIiBdIHx8IHJldHVybiAwCiAgICBta2RpciAtcCAvdG1wL2p1bGlhbmctZmFzdGFjbAog
+ICAgL3Vzci9iaW4vanVsaWFuZy1mYXN0YWNsIHN0YXJ0ID4vdG1wL2p1bGlhbmctZmFzdGFjbC9z
+dGFydC5sb2cgMj4mMSAmCn0KCnN0b3AoKSB7CiAgICAvdXNyL2Jpbi9qdWxpYW5nLWZhc3RhY2wg
+c3RvcCA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZQp9CgpyZXN0YXJ0KCkgewogICAgc3RvcAogICAg
+c2xlZXAgMQogICAgc3RhcnQKfQo=
+JFA64_7
+base64 -d > "$TMP_DIR/99-juliang-fastacl" <<'JFA64_8'
+IyEvYmluL3NoClsgIiRBQ1RJT04iID0gImlmdXAiIF0gfHwgZXhpdCAwClsgIiQodWNpIC1xIGdl
+dCBqdWxpYW5nX2Zhc3RhY2wubWFpbi5lbmFibGVkIDI+L2Rldi9udWxsKSIgPSAiMSIgXSB8fCBl
+eGl0IDAKCiMgUmUtYXNzZXJ0IG9ubHkgb3VyIGRlZGljYXRlZCBmaXhlZCB0YWJsZSBhbmQgcG9s
+aWN5IHJvdXRlLgojIE5vZGUgcHJvY2Vzc2VzL3JvdXRlciBhcmUgbm90IHJlc3RhcnRlZC4KY2Fz
+ZSAiJElOVEVSRkFDRSIgaW4KICAgIGxhbnx3YW58dGsqfGxvb3BiYWNrKQogICAgICAgIC91c3Iv
+YmluL2p1bGlhbmctZmFzdGFjbCBmaXJld2FsbCA+L2Rldi9udWxsIDI+JjEgfHwgdHJ1ZQogICAg
+ICAgIDs7CmVzYWMK
+JFA64_8
+
+[ "$(head -n 1 "$TMP_DIR/juliang-fastacl")" = "#!/bin/sh" ] || fail "runtime extraction corrupted: juliang-fastacl"
+[ "$(head -n 1 "$TMP_DIR/juliang-fastacl-luci-install")" = "#!/bin/sh" ] || fail "runtime extraction corrupted: luci installer"
+[ "$(head -n 1 "$TMP_DIR/uninstall-juliang-fastacl")" = "#!/bin/sh" ] || fail "runtime extraction corrupted: rollback"
+sh -n "$TMP_DIR/juliang-fastacl" || fail "runtime shell syntax invalid: juliang-fastacl"
+sh -n "$TMP_DIR/juliang-fastacl-luci-install" || fail "runtime shell syntax invalid: luci installer"
+sh -n "$TMP_DIR/uninstall-juliang-fastacl" || fail "runtime shell syntax invalid: rollback"
+log "Bundled runtime extraction verified."
 
 mkdir -p /usr/libexec /usr/lib/lua/luci/controller /etc/hotplug.d/iface
 cp -af "$TMP_DIR/juliang-fastacl" /usr/bin/juliang-fastacl
