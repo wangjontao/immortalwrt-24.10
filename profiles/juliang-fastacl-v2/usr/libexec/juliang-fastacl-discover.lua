@@ -137,11 +137,25 @@ end)
 
 local old = {}
 uci:foreach("juliang_fastacl", "ap", function(s)
-  local key = (s.network and ("net:" .. s.network)) or (s.subnet and ("subnet:" .. s.subnet))
-  if key then old[key] = s.node end
+  local data = {
+    node = s.node,
+    dns_mode = s.dns_mode,
+    dns_server = s.dns_server,
+    dns_tls_server_name = s.dns_tls_server_name,
+    dns_path = s.dns_path
+  }
+  if s.network and s.network ~= "" then old["net:" .. s.network] = data end
+  if s.subnet and s.subnet ~= "" then old["subnet:" .. s.subnet] = data end
 end)
 
--- Remove only AP slot sections; keep main and other future settings.
+-- Discovery must be transactional. During early boot WiFi/netifd may not be
+-- ready yet. Never erase a working persistent FastACL topology on a 0-result scan.
+if #items == 0 then
+  io.write(jsonc.stringify({ ok = false, count = 0, aps = {}, preserved = true, error = "NO_AP_READY" }, true))
+  os.exit(2)
+end
+
+-- Remove only AP slot sections after we already have a valid replacement set.
 local dels = {}
 uci:foreach("juliang_fastacl", "ap", function(s) dels[#dels+1]=s[".name"] end)
 for _,name in ipairs(dels) do uci:delete("juliang_fastacl", name) end
@@ -157,8 +171,14 @@ for i,item in ipairs(items) do
     socks_port = tostring(13100+i),
     preproxy_port = tostring(14100+i)
   })
-  local node = old["net:"..item.network] or old["subnet:"..item.subnet]
-  if node and node ~= "" then uci:set("juliang_fastacl", sec, "node", node) end
+  local prev = old["net:"..item.network] or old["subnet:"..item.subnet]
+  if prev then
+    if prev.node and prev.node ~= "" then uci:set("juliang_fastacl", sec, "node", prev.node) end
+    if prev.dns_mode and prev.dns_mode ~= "" then uci:set("juliang_fastacl", sec, "dns_mode", prev.dns_mode) end
+    if prev.dns_server and prev.dns_server ~= "" then uci:set("juliang_fastacl", sec, "dns_server", prev.dns_server) end
+    if prev.dns_tls_server_name and prev.dns_tls_server_name ~= "" then uci:set("juliang_fastacl", sec, "dns_tls_server_name", prev.dns_tls_server_name) end
+    if prev.dns_path and prev.dns_path ~= "" then uci:set("juliang_fastacl", sec, "dns_path", prev.dns_path) end
+  end
 end
 uci:set("juliang_fastacl", "main", "ap_count", tostring(#items))
 uci:commit("juliang_fastacl")
