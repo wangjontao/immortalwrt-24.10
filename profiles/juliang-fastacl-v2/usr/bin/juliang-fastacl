@@ -106,9 +106,9 @@ firewall(){
    }
    chain prerouting {
      type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
      ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
    }
  }
 EOF
@@ -135,9 +135,9 @@ firewall_check(){
    }
    chain prerouting {
      type filter hook prerouting priority mangle; policy accept;
-     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } th dport 53 tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
      ip saddr @ap_sources ip daddr @local_dst return
-     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy to :$TPROXY_PORT meta mark set $MARK_HEX accept
+     ip saddr @ap_sources meta l4proto { tcp, udp } tproxy ip to :$TPROXY_PORT meta mark set $MARK_HEX accept
    }
  }
 EOF
