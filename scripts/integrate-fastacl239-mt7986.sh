@@ -83,56 +83,52 @@ import sys
 
 p = Path(sys.argv[1])
 s = p.read_text()
+lines = s.splitlines(keepends=True)
 
-start = """          test -s /etc/juliang-20wifi/passwall
-          test -s /etc/juliang-20wifi/passwall2
-          cp -f /etc/juliang-20wifi/passwall /etc/config/passwall
-          cp -f /etc/juliang-20wifi/passwall2 /etc/config/passwall2
-          chmod 0600 /etc/config/passwall /etc/config/passwall2
+def stripped(line):
+    return line.strip()
 
-          PW_ACL_COUNT="$(grep -c '^config acl_rule' /etc/config/passwall || true)"
-          PW2_ACL_COUNT="$(grep -c '^config acl_rule' /etc/config/passwall2 || true)"
-          [ "$PW_ACL_COUNT" -eq 20 ] || { logger -t dulwifi "PassWall ACL count wrong: $PW_ACL_COUNT"; exit 1; }
-          [ "$PW2_ACL_COUNT" -eq 20 ] || { logger -t dulwifi "PassWall2 ACL count wrong: $PW2_ACL_COUNT"; exit 1; }
+try:
+    start_idx = next(i for i, line in enumerate(lines)
+                     if stripped(line) == "test -s /etc/juliang-20wifi/passwall")
+except StopIteration:
+    raise SystemExit("ERROR: PassWall fallback block start marker not found in dulwifi-firstboot")
 
-          /etc/init.d/firewall restart || true
-          /etc/init.d/network reload || true
-          sleep 5
-          /etc/init.d/dnsmasq restart || true
-          wifi reload || true
-          /etc/init.d/passwall enable || true
-          /etc/init.d/passwall2 enable || true
-          /etc/init.d/passwall start || true
-          /etc/init.d/passwall2 start || true
-"""
+try:
+    end_idx = next(i for i in range(start_idx, len(lines))
+                   if stripped(lines[i]) == "/etc/init.d/passwall2 start || true")
+except StopIteration:
+    raise SystemExit("ERROR: PassWall fallback block end marker not found in dulwifi-firstboot")
 
-replacement = """          # The uploaded PassWall/PassWall2 ACL files stay in
-          # /etc/juliang-20wifi as an optional fallback only. FastACL owns
-          # AP1-AP20 dataplane in this series, so do not copy/enable/start
-          # the legacy transparent ACL runtimes here.
-          test -s /etc/juliang-20wifi/passwall
-          test -s /etc/juliang-20wifi/passwall2
-          /etc/init.d/passwall stop >/dev/null 2>&1 || true
-          /etc/init.d/passwall disable >/dev/null 2>&1 || true
-          /etc/init.d/passwall2 stop >/dev/null 2>&1 || true
-          /etc/init.d/passwall2 disable >/dev/null 2>&1 || true
+indent = lines[start_idx][:len(lines[start_idx]) - len(lines[start_idx].lstrip())]
+replacement = [
+    indent + "# The uploaded PassWall/PassWall2 ACL files stay in\n",
+    indent + "# /etc/juliang-20wifi as an optional fallback only. FastACL owns\n",
+    indent + "# AP1-AP20 dataplane in this series, so do not copy/enable/start\n",
+    indent + "# the legacy transparent ACL runtimes here.\n",
+    indent + "test -s /etc/juliang-20wifi/passwall\n",
+    indent + "test -s /etc/juliang-20wifi/passwall2\n",
+    indent + "/etc/init.d/passwall stop >/dev/null 2>&1 || true\n",
+    indent + "/etc/init.d/passwall disable >/dev/null 2>&1 || true\n",
+    indent + "/etc/init.d/passwall2 stop >/dev/null 2>&1 || true\n",
+    indent + "/etc/init.d/passwall2 disable >/dev/null 2>&1 || true\n",
+    "\n",
+    indent + "/etc/init.d/firewall restart || true\n",
+    indent + "/etc/init.d/network reload || true\n",
+    indent + "sleep 5\n",
+    indent + "/etc/init.d/dnsmasq restart || true\n",
+    indent + "wifi reload || true\n",
+]
 
-          /etc/init.d/firewall restart || true
-          /etc/init.d/network reload || true
-          sleep 5
-          /etc/init.d/dnsmasq restart || true
-          wifi reload || true
-"""
-
-if start not in s:
-    raise SystemExit("ERROR: expected legacy PassWall startup block not found in dulwifi-firstboot")
-s = s.replace(start, replacement, 1)
+lines[start_idx:end_idx + 1] = replacement
+s = "".join(lines)
 s = s.replace(
     "logger -t dulwifi '20WiFi applied with exact uploaded PassWall/PassWall2 ACL templates'",
     "logger -t dulwifi '20WiFi applied; FastACL owns AP dataplane; uploaded PassWall ACL files preserved as fallback'"
 )
 p.write_text(s)
 PY
+
 
 ! grep -q 'cp -f /etc/juliang-20wifi/passwall /etc/config/passwall' "$FIRSTBOOT"
 ! grep -q '/etc/init.d/passwall2 start' "$FIRSTBOOT"
