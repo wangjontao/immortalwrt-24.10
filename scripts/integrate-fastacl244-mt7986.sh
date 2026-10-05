@@ -132,3 +132,18 @@ sh "$TMP/import-repair.sh"
 grep -q 'visibility_all' "$ROOT/usr/lib/lua/luci/controller/juliang_operator.lua"
 grep -q 'toggleAllVisibility' "$ROOT/usr/lib/lua/luci/view/juliang_operator/wireless.htm"
 test -x "$ROOT/usr/bin/juliang-fastacl-runtime"
+
+# Validate both ACL refresh templates, not just the presence of an end token.
+for app in passwall passwall2; do
+  mkdir -p "$ROOT/usr/lib/lua/luci/view/$app"
+  curl -fL --retry 5 "https://raw.githubusercontent.com/wangjontao/Actions-OpenWrt/3b7617d1512b5992745bf4e6d072ba706324c5bd/profiles/proxy-realtime-ip-suite/root/usr/lib/lua/luci/view/$app/acl_ip_refresh.htm" -o "$ROOT/usr/lib/lua/luci/view/$app/acl_ip_refresh.htm"
+done
+python3 - "$ROOT" <<'VALIDATE'
+import pathlib,re,subprocess,tempfile
+import sys
+for app in ('passwall','passwall2'):
+    s=(pathlib.Path(sys.argv[1])/'usr/lib/lua/luci/view'/app/'acl_ip_refresh.htm').read_text()
+    code='\n'.join('do local _ = '+x[1:]+' end' if x.startswith('=') else x for x in re.findall(r'<%(.*?)%>',s,re.S))
+    with tempfile.NamedTemporaryFile(mode='w',suffix='.lua') as f:
+        f.write(code);f.flush();subprocess.run(['luac5.1','-p',f.name],check=True)
+VALIDATE
