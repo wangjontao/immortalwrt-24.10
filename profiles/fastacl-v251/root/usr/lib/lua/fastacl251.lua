@@ -38,6 +38,7 @@ function M.validate(c,guards_only)
   assert(M.dev(c.interface),'LAN interface unavailable')
   assert(M.ipnum(c.router_ip) and M.prefix(c.netmask),'Static IPv4 LAN required')
   assert(tonumber(c.port) and c.port>=1024 and c.port<=65535 and c.port%1==0,'Invalid port')
+  assert(c.port~=12553 and (c.port<12600 or c.port>=14000),'Port reserved for encrypted DNS')
   assert(c.default_mode=='direct','Default mode must be direct')
   assert(c.dns_policy=='direct' or c.dns_policy=='private','Invalid DNS policy')
   for _,key in ipairs({'dns_server','private_dns_server'}) do assert(M.ipnum(c[key]),'DNS endpoint must be IPv4: '..key) end

@@ -15,7 +15,14 @@ dns_alive(){
   case "$pid" in ''|*[!0-9]*) return 1;; esac
   kill -0 "$pid" 2>/dev/null && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq 'fastacl251-dns'
 }
-dns_stop(){ if dns_alive; then kill "$(cat "$R/dns.pid")"; fi; rm -f "$R/dns.pid"; }
+dns_stop(){
+  if dns_alive; then
+    kill "$(cat "$R/dns.pid")"
+    local i=0
+    while dns_alive; do i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+  fi
+  rm -f "$R/dns.pid"
+}
 listener(){ (ss -lnt 2>/dev/null; netstat -lnt 2>/dev/null) | grep -q ":$1 "; }
 firewall(){
   if ! cmp -s "$R/nft.next.rules" "$R/nft.loaded.rules" || ! nft list table inet fastacl251 >/dev/null 2>&1; then

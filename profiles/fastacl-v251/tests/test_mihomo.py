@@ -25,8 +25,6 @@ def config():
         dict(mac='02:00:00:00:00:03',ip='192.168.7.103',mode='direct')])
 def compile(c):
     a,b=policy.compile(to_lua(c));a,b=from_lua(a),from_lua(b)
-    for k in ['proxies','listeners']:
-        if a[k]=={}:a[k]=[]
     return a,b
 class Tests(unittest.TestCase):
     def test_device_rules(self):
@@ -48,7 +46,7 @@ class Tests(unittest.TestCase):
     def test_unknown_native_option_rejected(self):
         c=config();c['nodes']['us']['outbound']=dict(type='socks',server='1.2.3.4',server_port=1080,unexpected=True);self.assertRaises(Exception,compile,c)
     def test_empty_direct(self):
-        c=config();c['devices']=[];a,b=compile(c);self.assertEqual(a['proxies'],[]);self.assertEqual(a['rules'],['MATCH,DIRECT'])
+        c=config();c['devices']=[];a,b=compile(c);self.assertNotIn('proxies',a);self.assertNotIn('listeners',a);self.assertEqual(a['rules'],['MATCH,DIRECT'])
     def test_lua_syntax(self):
         for p in (ROOT/'root').rglob('*.lua'):lua.execute('assert(loadstring(...))',p.read_text(encoding='utf-8'))
 def fixtures(core):

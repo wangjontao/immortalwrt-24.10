@@ -55,6 +55,8 @@ function M.compile(c)
   -- Bootstrap queries use pinned IP HTTPS, never UDP system DNS.
   conf.dns['default-nameserver']={'127.0.0.1:12553'}
   conf.dns.nameserver=copy(conf.dns['default-nameserver']); conf.dns['proxy-server-nameserver']=copy(conf.dns['default-nameserver'])
+  if #conf.proxies==0 then conf.proxies=nil end
+  if #conf.listeners==0 then conf.listeners=nil end
   return conf,relay
 end
 return M
