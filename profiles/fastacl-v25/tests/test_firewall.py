@@ -57,6 +57,7 @@ def main(core):
         for name,dev in [(r,'rc'),(r,'rw'),(r,'br-lan'),(w,'eth0')]:ns(name,'ip','link','set',dev,'up')
         for dev,address in [('br-lan','192.168.7.1/24'),('rw','203.0.113.2/24')]:ns(r,'ip','addr','add',address,'dev',dev)
         ns(w,'ip','addr','add','203.0.113.1/24','dev','eth0'); ns(w,'ip','route','add','192.168.7.0/24','via','203.0.113.2')
+        ns(r,'ip','route','add','default','via','203.0.113.1','dev','rw')
         for name,dev,address in [(r,'br-lan','fd00:7::1/64'),(r,'rw','fd00:1::2/64'),(w,'eth0','fd00:1::1/64')]:ns(name,'ip','-6','addr','add',address,'dev',dev,'nodad')
         ns(w,'ip','-6','route','add','fd00:7::/64','via','fd00:1::2')
         ns(r,'sysctl','-qw','net.ipv4.ip_forward=1','net.ipv6.conf.all.forwarding=1')
@@ -67,7 +68,10 @@ def main(core):
             out,_=compile(conf); file=temp/'router.json'; file.write_text(json.dumps(out))
             ns(r,core,'check','-c',str(file))
             log=open(temp/'core.log','w'); process=subprocess.Popen(['ip','netns','exec',r,core,'run','-c',str(file)],stdout=log,stderr=log); procs.append(process)
-            time.sleep(1); assert process.poll() is None
+            time.sleep(1)
+            if process.poll() is not None:
+                log.flush()
+                raise RuntimeError('Core startup failed: '+(temp/'core.log').read_text())
             for backend in ('nft',):
                 rules=from_lua(policy.firewall(to_lua(conf),backend))
                 if backend=='iptables':
@@ -103,3 +107,4 @@ def main(core):
 if __name__=='__main__':
     if sys.argv[1:]==['--proxy']:proxy_server()
     else:main(str(pathlib.Path(sys.argv[1]).resolve()))
+
