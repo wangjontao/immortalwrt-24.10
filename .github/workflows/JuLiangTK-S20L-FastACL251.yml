@@ -3,7 +3,7 @@ permissions:
   contents: write
 concurrency:
   group: juliangtk-s20l-fastacl251-mihomo
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   validate:
     name: Device routing, subscriptions and UI regressions
@@ -196,7 +196,7 @@ jobs:
         tag_name: JuLiangTK-S20L-FastACL2.5.1-dev.1-${{ env.BUILD_DATE }}
         name: JuLiangTK S20L FastACL 2.5.1 Mihomo development ${{ env.BUILD_DATE }}
         files: upload/*
-        body: "JuLiangTK S20L / MT7986A \xB7 ImmortalWrt 24.10 \xB7 FastACL 2.5.1 Mihomo.1-dev.1 development firmware\nSource commit: ${{ github.sha }}\nManagement:\
+        body: "JuLiangTK S20L / MT7986A \xB7 ImmortalWrt 24.10 \xB7 FastACL 2.5.1-dev.1 Mihomo development firmware\nSource commit: ${{ github.sha }}\nManagement:\
           \ 192.168.7.1; hostname JuLiangTK-S20L; SSH 20022.\nMain WiFi only: JuLiangTK on 2.4 GHz / 5 GHz, same LAN; key a1111111; channels 9 / 48.\nDevice-only\
           \ MAC/DHCP/IP assignment; shared Mihomo 1.19.32 with encrypted per-device DNS relay; SOCKS5/HTTP chain front selection.\nAirport subscriptions: HTTPS, links/Base64/Clash\
           \ YAML/sing-box JSON; manual and scheduled updates, bound-node retention.\nEncrypted DNS default direct; advanced privacy follows device proxy; proxy IPv6\
