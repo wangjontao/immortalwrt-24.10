@@ -10,7 +10,7 @@ for key in BPF BPF_SYSCALL BPF_JIT CGROUPS KPROBES NET_INGRESS NET_EGRESS NET_CL
   printf 'CONFIG_%s=y\n' "$key" >> target/linux/mediatek/filogic/config-6.6
 done
 make defconfig
-for pkg in juliangtk-dae kmod-sched-core kmod-sched-bpf kmod-veth ip-full tc-full ca-bundle curl bpftool; do
+for pkg in juliangtk-dae kmod-sched-core kmod-sched-bpf kmod-veth ip-full tc-full ca-bundle curl bpftool-minimal; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y$" .config || { echo "Missing dae dependency: $pkg"; exit 1; }
 done
 for key in CGROUPS CGROUP_BPF KPROBES KPROBE_EVENTS BPF_EVENTS BPF_STREAM_PARSER DEBUG_INFO DEBUG_INFO_BTF; do
