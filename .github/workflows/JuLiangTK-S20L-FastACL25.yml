@@ -11,6 +11,15 @@ jobs:
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
+    - name: Check Linux line endings
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        files = list(Path('profiles/fastacl-v25').rglob('*')) + [Path('scripts/integrate-fastacl25-s20l.sh')]
+        bad = [str(p) for p in files if p.is_file() and b'\r' in p.read_bytes()]
+        if bad:
+            raise SystemExit('Unexpected CR characters: ' + ', '.join(bad))
+        PY
     - name: Install validation tools
       run: |
         sudo apt-get update

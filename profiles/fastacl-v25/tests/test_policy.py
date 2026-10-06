@@ -125,4 +125,3 @@ if __name__=='__main__':
         folder=args.fixtures or pathlib.Path(tmp); fixtures(folder)
         if args.sing_box:
             for f in folder.glob('*.json'): subprocess.run([args.sing_box,'check','-c',str(f)],check=True)
-

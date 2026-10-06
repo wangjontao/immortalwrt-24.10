@@ -135,4 +135,3 @@ function M.firewall(c,backend)
   return {nft='table inet fastacl25 {\nchain prerouting { type filter hook prerouting priority -151; policy accept;\n'..table.concat(pre,'\n')..'\n}\nchain forward { type filter hook forward priority -10; policy accept;\n'..dns6..'\n'..table.concat(guard,'\n')..'\n}\nchain input { type filter hook input priority -10; policy accept;\n'..dns6..'\n}\n}\n'}
 end
 return M
-

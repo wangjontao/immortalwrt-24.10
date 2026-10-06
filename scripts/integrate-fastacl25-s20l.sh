@@ -32,4 +32,3 @@ if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n
 grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
 grep -q 'compatible = "clx,s20l", "mediatek,mt7986a"' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
 ./scripts/diffconfig.sh > JuLiangTK-S20L-final.config
-

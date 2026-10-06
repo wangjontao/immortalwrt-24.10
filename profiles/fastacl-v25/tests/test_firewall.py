@@ -107,4 +107,3 @@ def main(core):
 if __name__=='__main__':
     if sys.argv[1:]==['--proxy']:proxy_server()
     else:main(str(pathlib.Path(sys.argv[1]).resolve()))
-

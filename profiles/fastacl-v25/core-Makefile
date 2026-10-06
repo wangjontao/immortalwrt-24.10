@@ -25,4 +25,3 @@ define Package/juliangtk-sing-box/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/sing-box $(1)/usr/bin/sing-box
 endef
 $(eval $(call BuildPackage,juliangtk-sing-box))
-
