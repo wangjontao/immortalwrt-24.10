@@ -1,0 +1,217 @@
+name: JuLiangTK S20L FastACL 2.5.1 Mihomo Development
+permissions:
+  contents: write
+concurrency:
+  group: juliangtk-s20l-fastacl251-mihomo
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: Device routing, subscriptions and UI regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.x
+        cache: false
+    - name: Check Linux line endings
+      run: "python3 - <<'PY'\nfrom pathlib import Path\nfiles = list(Path('profiles/fastacl-v251').rglob('*')) + [Path('scripts/integrate-fastacl251-s20l.sh')]\n\
+        bad = [str(p) for p in files if p.is_file() and b'\\r' in p.read_bytes()]\nif bad:\n    raise SystemExit('Unexpected CR characters: ' + ', '.join(bad))\n\
+        PY\n"
+    - name: Install validation tools
+      run: 'sudo apt-get update
+
+        sudo apt-get install -y lua5.1 nftables iproute2 curl shfmt
+
+        python3 -m venv .venv
+
+        .venv/bin/pip install lupa PyYAML playwright
+
+        .venv/bin/playwright install --with-deps chromium
+
+        curl -fL --retry 3 -o /tmp/mihomo.gz https://github.com/MetaCubeX/mihomo/releases/download/v1.19.32/mihomo-linux-amd64-compatible-v1.19.32.gz
+
+        echo "ba3ce607747a07f948fc35780e108a4a7c7f552a38b9bd4d115f313ebcb89c20  /tmp/mihomo.gz" | sha256sum -c -
+
+        mkdir -p /tmp/fastacl251-core
+
+        gzip -dc /tmp/mihomo.gz > /tmp/fastacl251-core/mihomo
+
+        chmod +x /tmp/fastacl251-core/mihomo
+
+        '
+    - name: Source and subscription tests
+      run: 'find profiles/fastacl-v251/root -name ''*.lua'' -print0 | xargs -0 -n1 luac5.1 -p
+
+        find profiles/fastacl-v251/root -type f | while read -r file; do if head -n1 "$file" | grep -q ''^#!/bin/sh''; then shfmt -ln posix "$file" >/dev/null; fi;
+        done
+
+
+
+        shfmt -ln posix scripts/integrate-fastacl251-s20l.sh >/dev/null
+
+        .venv/bin/python profiles/fastacl-v251/tests/test_import.py
+
+        .venv/bin/python profiles/fastacl-v251/tests/test_subscription.py
+
+        .venv/bin/python profiles/fastacl-v251/tests/test_mihomo.py --core /tmp/fastacl251-core/mihomo
+
+
+        (cd profiles/fastacl-v251/dns && go test -race ./...)
+
+        '
+    - name: Two devices on one LAN and fail-closed packet tests
+      run: sudo .venv/bin/python profiles/fastacl-v251/tests/test_firewall.py /tmp/fastacl251-core/mihomo
+    - name: Browser interaction tests
+      run: .venv/bin/python profiles/fastacl-v251/tests/test_browser.py
+    - name: Upload validation evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: JuLiangTK-FastACL251-test-evidence
+        path: profiles/fastacl-v251/test-results/*
+        if-no-files-found: warn
+        retention-days: 14
+  build:
+    name: JuLiangTK S20L 24.10 FastACL 2.5.1 Mihomo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+    - name: Checkout forked ImmortalWrt source
+      uses: actions/checkout@v4
+    - name: Initialize build environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: "sudo apt-get update\nsudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \\\n  bzip2 ccache clang cmake\
+        \ cpio curl device-tree-compiler flex gawk gettext gcc-multilib \\\n  g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev\
+        \ \\\n  libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \\\n  libreadline-dev libssl-dev libtool libyaml-dev libz-dev\
+        \ lld llvm nano ninja-build p7zip-full \\\n  patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \\\n  re2c rsync\
+        \ scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd\nsudo timedatectl set-timezone Asia/Shanghai\necho \"BUILD_DATE=$(date\
+        \ +'%Y.%m.%d-%H.%M.%S')\" >> \"$GITHUB_ENV\"\necho \"WRT_HASH=$(git rev-parse --short HEAD)\" >> \"$GITHUB_ENV\"\n"
+    - name: Install Go 1.24
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.x
+        cache: false
+    - name: Restore downloads and compiler cache
+      uses: actions/cache@v4
+      with:
+        path: 'dl
+
+          .ccache
+
+          '
+        key: juliangtk-s20l-fastacl251-${{ hashFiles('build-configs/JuLiangTK-S20L-FastACL251.txt', '.github/workflows/JuLiangTK-S20L-FastACL251.yml', 'profiles/fastacl-v251/core-Makefile')
+          }}
+        restore-keys: 'juliangtk-s20l-fastacl251-
+
+          s20l-24.10-
+
+          '
+    - name: Update feeds and add iStore
+      run: 'grep -q ''^src-git istore '' feeds.conf.default || echo ''src-git istore https://github.com/linkease/istore.git;main'' >> feeds.conf.default
+
+        grep -q ''^src-git nas_packages '' feeds.conf.default || echo ''src-git nas_packages https://github.com/linkease/nas-packages.git;master'' >> feeds.conf.default
+
+        grep -q ''^src-git nas_luci '' feeds.conf.default || echo ''src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main'' >> feeds.conf.default
+
+        ./scripts/feeds update -a
+
+        ./scripts/feeds install -a
+
+        ./scripts/feeds install -d y -p istore luci-app-store
+
+        ./scripts/feeds install -d y -p nas_packages quickstart
+
+        ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
+
+        ./scripts/feeds install -d y -p luci luci-app-autoreboot
+
+        '
+    - name: Add source-feed NPS and Argon (no proxy plugins)
+      run: "# Install the mutually compatible NPS packages supplied by this source.\n./scripts/feeds install -f -p packages nps npc\n./scripts/feeds install -f -p\
+        \ luci luci-app-nps luci-i18n-nps-zh-cn\nNPS_CONFIG_FILE=\"$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head\
+        \ -n1)\"\ntest -n \"$NPS_CONFIG_FILE\"\ncat > \"$NPS_CONFIG_FILE\" <<'NPS_CONFIG'\nconfig nps\n        option enabled '1'\n        option server_addr '47.83.9.208'\n\
+        \        option server_port '8024'\n        option protocol 'tcp'\n        option compress '1'\n        option crypt '1'\n        option vkey 'WANMAC'\n \
+        \       option log_level '4'\nNPS_CONFIG\n\nrm -rf package/luci-theme-argon package/luci-app-argon-config\ngit clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git\
+        \ package/luci-theme-argon\ngit clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config\n"
+    - name: Integrate independent FastACL 2.5.1 Mihomo and JuLiangTK S20L
+      run: "mkdir -p package/base-files/files/usr/libexec\nmkdir -p package/base-files/files/etc/init.d\nmkdir -p package/base-files/files/etc/hotplug.d/iface\ncat\
+        \ > package/base-files/files/usr/libexec/nps-wan-mac <<'NPS_MAC'\n#!/bin/sh\nDONE=/etc/nps-wan-mac.done\n[ -e \"$DONE\" ] && exit 0\n[ -f /etc/config/nps\
+        \ ] && [ -x /etc/init.d/nps ] || exit 1\n\nsleep 5\nvalid_mac() {\n        case \"$1\" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) return 1;; ??:??:??:??:??:??)\
+        \ return 0;; *) return 1;; esac\n}\nget_wan_mac() {\n        WAN_DEV=\"$(uci -q get network.wan.device)\"\n        WAN_DEV=\"${WAN_DEV#@}\"\n        [ -n\
+        \ \"$WAN_DEV\" ] || WAN_DEV=\"$(ip route 2>/dev/null | awk '/default/ {print $5; exit}')\"\n        case \"$WAN_DEV\" in pppoe-*) WAN_DEV=\"${WAN_DEV#pppoe-}\"\
+        ;; esac\n        WAN_MAC=\"\"\n        [ -n \"$WAN_DEV\" ] && [ -r \"/sys/class/net/$WAN_DEV/address\" ] && WAN_MAC=\"$(cat \"/sys/class/net/$WAN_DEV/address\"\
+        )\"\n        valid_mac \"$WAN_MAC\" && return 0\n        for LOWER in /sys/class/net/\"$WAN_DEV\"/lower_*; do\n                [ -r \"$LOWER/address\" ] ||\
+        \ continue\n                WAN_MAC=\"$(cat \"$LOWER/address\")\"\n                valid_mac \"$WAN_MAC\" && return 0\n        done\n        return 1\n}\n\
+        tries=0\nwhile [ \"$tries\" -lt 60 ]; do get_wan_mac && break; tries=$((tries + 1)); sleep 2; done\nvalid_mac \"$WAN_MAC\" || { logger -t nps-wan-mac 'ERROR:\
+        \ physical WAN MAC not found'; exit 1; }\nNPS_KEY=\"$(printf '%s' \"$WAN_MAC\" | tr -d ':' | tr '[:lower:]' '[:upper:]')\"\nuci -q set nps.@nps[0].enabled='1'\n\
+        uci -q set nps.@nps[0].server_addr='47.83.9.208'\nuci -q set nps.@nps[0].server_port='8024'\nuci -q set nps.@nps[0].protocol='tcp'\nuci -q set nps.@nps[0].compress='1'\n\
+        uci -q set nps.@nps[0].crypt='1'\nuci -q set nps.@nps[0].vkey=\"$NPS_KEY\"\nuci -q commit nps\n/etc/init.d/nps enable\n/etc/init.d/nps restart\ntouch \"$DONE\"\
+        \nlogger -t nps-wan-mac \"NPS configured from physical WAN MAC $WAN_DEV\"\nNPS_MAC\n\ncat > package/base-files/files/etc/init.d/nps-wan-mac <<'NPS_INIT'\n\
+        #!/bin/sh /etc/rc.common\nSTART=98\nSTOP=10\nstart() { [ -e /etc/nps-wan-mac.done ] || /usr/libexec/nps-wan-mac >/dev/null 2>&1 & }\nNPS_INIT\n\ncat > package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac\
+        \ <<'NPS_HOTPLUG'\n#!/bin/sh\n[ -e /etc/nps-wan-mac.done ] && exit 0\n[ \"$INTERFACE\" = 'wan' ] && [ \"$ACTION\" = 'ifup' ] && /usr/libexec/nps-wan-mac >/dev/null\
+        \ 2>&1 &\nNPS_HOTPLUG\n\ncat > package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac <<'NPS_DEFAULT'\n#!/bin/sh\n/etc/init.d/nps-wan-mac enable\n\
+        /etc/init.d/nps-wan-mac start\nexit 0\nNPS_DEFAULT\n\nchmod 0755 package/base-files/files/usr/libexec/nps-wan-mac\nchmod 0755 package/base-files/files/etc/init.d/nps-wan-mac\n\
+        chmod 0755 package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac\nchmod 0755 package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac\n\n\nsh\
+        \ scripts/integrate-fastacl251-s20l.sh\n"
+    - name: Download sources
+      run: 'make download -j"$(nproc)"
+
+        find dl -type f -size -1024c -print -delete
+
+        '
+    - name: Compile S20L firmware
+      run: '# Rebuild the Go module cache after interrupted Go downloads.
+
+        rm -rf dl/go-mod-cache
+
+        mkdir -p dl/go-mod-cache
+
+        make -j"$(nproc)" || make -j1 V=s
+
+        '
+    - name: Verify and collect S20L firmware
+      run: "mkdir -p upload\nmapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*clx_s20l*sysupgrade*' -size +5M)\nif [ \"${#images[@]}\"\
+        \ -eq 0 ]; then\n  echo 'ERROR: no CLX S20L sysupgrade image was produced.'\n  find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\\\
+        n' | sort\n  exit 1\nfi\ncp -a \"${images[@]}\" upload/\nmapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest')\n\
+        [ \"${#manifests[@]}\" -gt 0 ] || { echo 'ERROR: S20L manifest missing'; exit 1; }\nfor pkg in fastacl251 juliangtk-mihomo lyaml luci-app-store luci-app-quickstart\
+        \ luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps luci-i18n-nps-zh-cn npc; do\n  grep -q \"^$pkg \" \"${manifests[0]}\"\
+        \ || { echo \"ERROR: $pkg missing from firmware\"; exit 1; }\ndone\nif grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)'\
+        \ \"${manifests[0]}\"; then\n  echo 'Forbidden proxy plugin present in firmware'; exit 1\nfi\ncp .config upload/build.config\nfor feed in feeds/*/.git; do\
+        \ test -e \"$feed\" || continue; git -C \"${feed%/.git}\" rev-parse HEAD; done > upload/feeds-commits.txt\ncp -a \"${manifests[@]}\" upload/\nfind bin/targets/mediatek/filogic\
+        \ -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \\;\ncp JuLiangTK-S20L-final.config profiles/fastacl-v251/README.md upload/\nsha256sum upload/*\
+        \ | tee upload/SHA256SUMS\nls -lh upload\n"
+    - name: Upload S20L firmware artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JuLiangTK-S20L-FastACL2.5.1-dev.1-${{ env.BUILD_DATE }}
+        path: upload/*
+        if-no-files-found: error
+        retention-days: 30
+    - name: Publish S20L firmware release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: JuLiangTK-S20L-FastACL2.5.1-dev.1-${{ env.BUILD_DATE }}
+        name: JuLiangTK S20L FastACL 2.5.1 Mihomo development ${{ env.BUILD_DATE }}
+        files: upload/*
+        body: "JuLiangTK S20L / MT7986A \xB7 ImmortalWrt 24.10 \xB7 FastACL 2.5.1 Mihomo.1-dev.1 development firmware\nSource commit: ${{ github.sha }}\nManagement:\
+          \ 192.168.7.1; hostname JuLiangTK-S20L; SSH 20022.\nMain WiFi only: JuLiangTK on 2.4 GHz / 5 GHz, same LAN; key a1111111; channels 9 / 48.\nDevice-only\
+          \ MAC/DHCP/IP assignment; shared Mihomo 1.19.32 with encrypted per-device DNS relay; SOCKS5/HTTP chain front selection.\nAirport subscriptions: HTTPS, links/Base64/Clash\
+          \ YAML/sing-box JSON; manual and scheduled updates, bound-node retention.\nEncrypted DNS default direct; advanced privacy follows device proxy; proxy IPv6\
+          \ protected.\nIncluded: iStore, QuickStart, Argon, TTYD, common LuCI tools, scheduled reboot, Statistics, NPS/npc with physical WAN MAC key.\nExcluded:\
+          \ PassWall, PassWall2, HomeProxy, OpenClash; no multi-WiFi generator or wireless-to-node allocation.\nHardware compatible/partitions remain clx,s20l. Cloud\
+          \ tests do not replace a real S20L cold boot and mobile-device test. Flash as a new configuration when testing this major version.\n"
+        prerelease: true
+    needs: validate
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+    - codex/fastacl251-mihomo-s20l
+    paths:
+    - .github/workflows/JuLiangTK-S20L-FastACL251.yml
+    - profiles/fastacl-v251/**
+    - scripts/integrate-fastacl251-s20l.sh
+    - build-configs/JuLiangTK-S20L-FastACL251.txt
