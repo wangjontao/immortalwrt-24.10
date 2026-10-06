@@ -14,7 +14,6 @@ define Package/juliangtk-sing-box
   CATEGORY:=Network
   TITLE:=Official sing-box 1.12.25 for JuLiangTK ARM64
   DEPENDS:=@TARGET_mediatek_filogic
-  PROVIDES:=sing-box
   CONFLICTS:=sing-box
 endef
 define Build/Configure
@@ -26,3 +25,4 @@ define Package/juliangtk-sing-box/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/sing-box $(1)/usr/bin/sing-box
 endef
 $(eval $(call BuildPackage,juliangtk-sing-box))
+

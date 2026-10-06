@@ -28,7 +28,8 @@ make defconfig
 for pkg in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-statistics nps npc luci-app-nps lyaml fastacl25 juliangtk-sing-box firewall4; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
-if grep -E '^CONFIG_PACKAGE_.*(passwall|homeproxy|openclash).*=(y|m)' .config; then echo 'Forbidden proxy plugin selected'; exit 1; fi
+if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-[^=]+)=(y|m)$' .config; then echo 'Forbidden proxy plugin selected'; exit 1; fi
 grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
 grep -q 'compatible = "clx,s20l", "mediatek,mt7986a"' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
 ./scripts/diffconfig.sh > JuLiangTK-S20L-final.config
+
