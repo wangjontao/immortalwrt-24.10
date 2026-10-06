@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+uci set 'system.@system[0].hostname=JuLiangTK-S20L'
+uci set 'network.lan.ipaddr=192.168.7.1'
+uci set 'network.lan.netmask=255.255.255.0'
+uci commit system; uci commit network
+for radio in $(uci show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-device$/\1/p'); do
+  band=$(uci -q get "wireless.$radio.band" || true)
+  uci set "wireless.$radio.disabled=0"
+  case "$band" in 5g|5ghz) uci set "wireless.$radio.channel=48";; 2g|2.4g|2ghz) uci set "wireless.$radio.channel=9";; esac
+done
+for iface in $(uci show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-iface$/\1/p'); do
+  uci set "wireless.$iface.ssid=JuLiangTK"
+  uci set "wireless.$iface.network=lan"
+  uci set "wireless.$iface.encryption=psk2+ccmp"
+  uci set "wireless.$iface.key=a1111111"
+  uci set "wireless.$iface.disabled=0"
+done
+uci commit wireless
+uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
+uci set 'fastacl25.main.version=2.5.0-dev.1'; uci commit fastacl25
+/usr/libexec/fastacl25-enable.sh
+/etc/init.d/fastacl25 enable
+exit 0

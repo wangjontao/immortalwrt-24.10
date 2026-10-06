@@ -1,0 +1,28 @@
+include $(TOPDIR)/rules.mk
+PKG_NAME:=juliangtk-sing-box
+PKG_VERSION:=1.12.25
+PKG_RELEASE:=1
+PKG_SOURCE:=sing-box-$(PKG_VERSION)-linux-arm64.tar.gz
+PKG_SOURCE_URL:=https://github.com/SagerNet/sing-box/releases/download/v$(PKG_VERSION)
+PKG_HASH:=719b76196c8b31efa636b2d8f669e314547e0da0a5ab38a75e1882d307bbd154
+PKG_BUILD_DIR:=$(BUILD_DIR)/sing-box-$(PKG_VERSION)-linux-arm64
+PKG_LICENSE:=GPL-3.0-only
+PKG_LICENSE_FILES:=LICENSE
+include $(INCLUDE_DIR)/package.mk
+define Package/juliangtk-sing-box
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=Official sing-box 1.12.25 for JuLiangTK ARM64
+  DEPENDS:=@TARGET_mediatek_filogic
+  PROVIDES:=sing-box
+  CONFLICTS:=sing-box
+endef
+define Build/Configure
+endef
+define Build/Compile
+endef
+define Package/juliangtk-sing-box/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/sing-box $(1)/usr/bin/sing-box
+endef
+$(eval $(call BuildPackage,juliangtk-sing-box))

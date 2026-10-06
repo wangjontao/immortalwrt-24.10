@@ -1,0 +1,20 @@
+include $(TOPDIR)/rules.mk
+PKG_NAME:=fastacl25
+PKG_VERSION:=2.5.0-dev.1
+PKG_RELEASE:=1
+PKG_LICENSE:=MIT
+include $(INCLUDE_DIR)/package.mk
+define Package/fastacl25
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=JuLiangTK FastACL device proxy console
+  DEPENDS:=+juliangtk-sing-box +luci-compat +luci-lib-nixio +luci-lib-jsonc +lyaml +curl +ca-bundle +ip-full +kmod-nft-tproxy +kmod-nft-socket +firewall4
+endef
+define Build/Compile
+endef
+define Package/fastacl25/install
+	$(CP) ./files/* $(1)/
+	chmod 755 $(1)/usr/bin/fastacl25 $(1)/usr/libexec/fastacl25-enable.sh $(1)/etc/init.d/fastacl25 $(1)/etc/hotplug.d/iface/99-fastacl25
+	chmod 600 $(1)/etc/config/fastacl25
+endef
+$(eval $(call BuildPackage,fastacl25))
