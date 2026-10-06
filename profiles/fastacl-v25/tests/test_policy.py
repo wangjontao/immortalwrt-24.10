@@ -49,7 +49,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(len(out['route']['rules']),3)
     def test_direct_encrypted_dns(self):
         out,_=compile(config()); servers=out['dns']['servers']
-        self.assertEqual(len(servers),1); self.assertEqual(servers[0]['type'],'https'); self.assertEqual(servers[0]['detour'],'direct')
+        self.assertEqual(len(servers),1); self.assertEqual(servers[0]['type'],'https'); self.assertNotIn('detour',servers[0])
         self.assertTrue(servers[0]['tls']['enabled']); self.assertEqual(out['dns']['final'],'dns-direct')
     def test_private_dns_uses_device_exit(self):
         c=config(); c['dns_policy']='private'; out,_=compile(c)
@@ -125,3 +125,4 @@ if __name__=='__main__':
         folder=args.fixtures or pathlib.Path(tmp); fixtures(folder)
         if args.sing_box:
             for f in folder.glob('*.json'): subprocess.run([args.sing_box,'check','-c',str(f)],check=True)
+

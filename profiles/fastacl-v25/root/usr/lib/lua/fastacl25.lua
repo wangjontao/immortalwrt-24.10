@@ -61,7 +61,9 @@ function M.validate(c,guards_only)
   return c
 end
 local function https(tag,ip,name,detour)
-  return {type='https',tag=tag,server=ip,server_port=443,path='/dns-query',tls={enabled=true,server_name=name},detour=detour}
+  local s={type='https',tag=tag,server=ip,server_port=443,path='/dns-query',tls={enabled=true,server_name=name}}
+  if detour~='direct' then s.detour=detour end
+  return s
 end
 function M.compile(c)
   M.validate(c)
@@ -133,3 +135,4 @@ function M.firewall(c,backend)
   return {nft='table inet fastacl25 {\nchain prerouting { type filter hook prerouting priority -151; policy accept;\n'..table.concat(pre,'\n')..'\n}\nchain forward { type filter hook forward priority -10; policy accept;\n'..dns6..'\n'..table.concat(guard,'\n')..'\n}\nchain input { type filter hook input priority -10; policy accept;\n'..dns6..'\n}\n}\n'}
 end
 return M
+
