@@ -1,0 +1,46 @@
+name: FastACL 2.5.2 dae dependency audit
+on:
+  push:
+    branches: [codex/fastacl252-dae-s20l]
+    paths: [profiles/fastacl-v252/**, scripts/integrate-fastacl252-dependencies.sh, .github/workflows/FastACL252-dae-dependencies.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    - name: Syntax and Linux line endings
+      run: |
+        sh -n scripts/integrate-fastacl252-dependencies.sh
+        sh -n profiles/fastacl-v252/check-kernel.sh
+        python3 - <<'PY'
+        from pathlib import Path
+        files=list(Path('profiles/fastacl-v252').rglob('*'))+[Path('scripts/integrate-fastacl252-dependencies.sh')]
+        assert not [str(p) for p in files if p.is_file() and b'\r' in p.read_bytes()]
+        PY
+    - name: Verify pinned upstream ARM64 archive
+      run: |
+        curl -fL --retry 3 -o /tmp/dae.tar.xz https://github.com/daeuniverse/dae/releases/download/v2.1.1/dae-linux-arm64.tar.xz
+        echo 'bd84b6770cb335b8a45d8b1e16a95f68cf940b3edaaeeb449c187ce4b1058d0b  /tmp/dae.tar.xz' | sha256sum -c -
+        mkdir /tmp/dae-archive
+        tar -xJf /tmp/dae.tar.xz -C /tmp/dae-archive
+        mapfile -t binaries < <(find /tmp/dae-archive -type f -name dae)
+        test "${#binaries[@]}" -eq 1
+        readelf -h "${binaries[0]}" | grep -q 'Machine:.*AArch64'
+        if readelf -l "${binaries[0]}" | grep -q INTERP; then echo 'Dynamic executable needs additional libc review'; exit 1; fi
+    - name: Verify OpenWrt dependency selection
+      run: |
+        ./scripts/feeds update packages
+        ./scripts/feeds install -a -p packages
+        cp build-configs/JuLiangTK-S20L-FastACL251.txt .config
+        sed -i '/CONFIG_PACKAGE_fastacl251=/d; /CONFIG_PACKAGE_juliangtk-mihomo=/d' .config
+        sh scripts/integrate-fastacl252-dependencies.sh
+        ./scripts/diffconfig.sh > /tmp/dae-dependency.config
+    - uses: actions/upload-artifact@v4
+      with:
+        name: FastACL252-dae-dependency-selection
+        path: /tmp/dae-dependency.config
+        if-no-files-found: error
