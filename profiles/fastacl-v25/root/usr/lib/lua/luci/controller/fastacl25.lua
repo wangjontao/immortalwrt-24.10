@@ -169,17 +169,32 @@ function subscription()
   fs.rmdir('/tmp/fastacl25-edit.lock'); reply({ok=ok,error=not ok and tostring(err) or nil})
 end
 function delete_node()
-  local fs=require 'nixio.fs'; local id=require('luci.http').formvalue('id'); local policy=require 'fastacl25'
-  if not policy.id(id) then reply({ok=false,error='Invalid node ID'}); return end
-  if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='配置正在保存'}); return end
-  local u=require('luci.model.uci').cursor(); local ok,err=pcall(function()
-    local pending=u:changes('fastacl25'); assert(not pending or not next(pending),'请先保存配置')
-    assert(u:get('fastacl25',id)=='node','Node not found')
-    u:foreach('fastacl25','device',function(d) assert(d.node~=id and d.preproxy~=id,'节点仍被设备使用，请先解除绑定') end)
-    u:delete('fastacl25',id); u:commit('fastacl25')
+  local fs=require 'nixio.fs'; local h=require 'luci.http';local policy=require 'fastacl25'
+  local raw=h.formvalue('ids');local ids
+  if raw then
+    if #raw>524288 then reply({ok=false,error='Request too large'});return end
+    ids=require('luci.jsonc').parse(raw)
+  else ids={h.formvalue('id')} end
+  if type(ids)~='table' or #ids<1 or #ids>4096 then reply({ok=false,error='请选择节点，单次最多 4096 个'});return end
+  local seen={}
+  for _,id in ipairs(ids) do
+    if not policy.id(id) or seen[id] then reply({ok=false,error='Invalid or duplicate node ID'});return end
+    seen[id]=true
+  end
+  if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='配置正在保存'});return end
+  local u=require('luci.model.uci').cursor();local deleted,skipped=0,{}
+  local ok,err=pcall(function()
+    local pending=u:changes('fastacl25');assert(not pending or not next(pending),'请先保存配置')
+    for _,id in ipairs(ids) do assert(u:get('fastacl25',id)=='node','Node not found') end
+    local bound={}
+    u:foreach('fastacl25','device',function(d) if d.node then bound[d.node]=true end;if d.preproxy then bound[d.preproxy]=true end end)
+    for _,id in ipairs(ids) do
+      if bound[id] then skipped[#skipped+1]=id else u:delete('fastacl25',id);deleted=deleted+1 end
+    end
+    assert(u:commit('fastacl25'),'删除节点保存失败');fs.chmod('/etc/config/fastacl25','600')
   end)
   if not ok then u:revert('fastacl25') end
-  fs.rmdir('/tmp/fastacl25-edit.lock'); reply({ok=ok,error=not ok and tostring(err) or nil})
+  fs.rmdir('/tmp/fastacl25-edit.lock');reply({ok=ok,deleted=ok and deleted or 0,skipped=skipped,error=not ok and tostring(err) or nil})
 end
 
 function service()
