@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+umask 077
+SYS_NET="${NPS_SYS_NET:-/sys/class/net}"
+valid_mac() {
+ case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff|FF:FF:FF:FF:FF:FF) return 1;; esac
+ printf '%s\n' "$1" | grep -Eq '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
+}
+read_device_mac() {
+ local dev="$1" level="$2" lower mac
+ [ "$level" -lt 5 ] || return 1
+ case "$dev" in ''|*[!A-Za-z0-9_.:-]*) return 1;; esac
+ [ -d "$SYS_NET/$dev" ] || return 1
+ # Follow bridge/VLAN lower devices to the actual port before reading its MAC.
+ for lower in "$SYS_NET/$dev"/lower_*; do
+  [ -e "$lower" ] || continue
+  read_device_mac "${lower##*/lower_}" "$((level+1))" && return 0
+ done
+ mac="$(cat "$SYS_NET/$dev/address" 2>/dev/null || true)"
+ valid_mac "$mac" || return 1
+ WAN_MAC="$mac";WAN_PORT="$dev"
+}
+get_wan_mac() {
+ local dev ref i=0
+ dev="$(uci -q get network.wan.device 2>/dev/null || uci -q get network.wan.ifname 2>/dev/null || true)"
+ while [ "${dev#@}" != "$dev" ] && [ "$i" -lt 4 ]; do
+  ref="${dev#@}";case "$ref" in *[!A-Za-z0-9_]*) return 1;; esac
+  dev="$(uci -q get "network.$ref.device" 2>/dev/null || true)";i=$((i+1))
+ done
+ case "$dev" in pppoe-*) dev="${dev#pppoe-}";; esac
+ read_device_mac "$dev" 0
+}
+if [ "${1:-}" = '--print-key' ]; then
+ get_wan_mac || exit 1
+ printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]'
+ printf '\n';exit 0
+fi
+[ -f /etc/config/nps ] && [ -x /etc/init.d/nps ] || exit 1
+mkdir /var/run/nps-wan-mac.lock 2>/dev/null || exit 0
+trap 'rmdir /var/run/nps-wan-mac.lock 2>/dev/null || true' EXIT
+tries=0
+until get_wan_mac; do
+ tries=$((tries+1));[ "$tries" -lt 60 ] || { logger -t nps-wan-mac 'WAN port MAC unavailable; refusing LAN/random fallback';exit 1; }
+ sleep 2
+done
+NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
+changed=0
+set_opt() {
+ local key="$1" value="$2" old
+ old="$(uci -q get "nps.@nps[0].$key" 2>/dev/null || true)"
+ [ "$old" = "$value" ] || { uci set "nps.@nps[0].$key=$value";changed=1; }
+}
+set_opt server_addr nps.jontao.top
+set_opt server_port 8024
+set_opt protocol tcp
+set_opt enabled 1
+set_opt compress 1
+set_opt crypt 1
+set_opt vkey "$NPS_KEY"
+[ "$changed" = 0 ] || uci commit nps
+chmod 600 /etc/config/nps
+mkdir -p /tmp/etc
+/etc/init.d/nps enable
+if [ "$changed" = 1 ] || ! pgrep -x npc >/dev/null; then /etc/init.d/nps restart;fi
+[ ! -f /tmp/etc/nps.conf ] || chmod 600 /tmp/etc/nps.conf
+# Diagnostic marker only; never used to skip the next boot/recovery check.
+touch /etc/nps-wan-mac.done
+logger -t nps-wan-mac "WAN MAC identity configured for $WAN_PORT; server nps.jontao.top:8024"

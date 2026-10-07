@@ -16,6 +16,6 @@ define Package/fastacl25/install
 	$(CP) ./files/* $(1)/
 	chmod 755 $(1)/usr/bin/fastacl25 $(1)/usr/libexec/fastacl25-enable.sh $(1)/etc/init.d/fastacl25 $(1)/etc/hotplug.d/iface/99-fastacl25
 	chmod 600 $(1)/etc/config/fastacl25
-	chmod 755 $(1)/etc/uci-defaults/96-juliangtk-admin
+	chmod 755 $(1)/etc/uci-defaults/96-juliangtk-admin $(1)/etc/uci-defaults/99-enable-nps-wan-mac $(1)/usr/libexec/nps-wan-mac $(1)/etc/init.d/nps-wan-mac $(1)/etc/hotplug.d/iface/99-nps-wan-mac
 endef
 $(eval $(call BuildPackage,fastacl25))

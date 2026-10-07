@@ -7,6 +7,7 @@ mkdir -p package/fastacl25 package/juliangtk-sing-box
 cp profiles/fastacl-v25/package-Makefile package/fastacl25/Makefile
 cp profiles/fastacl-v25/core-Makefile package/juliangtk-sing-box/Makefile
 cp -a profiles/fastacl-v25/root package/fastacl25/files
+rm -f package/base-files/files/usr/libexec/nps-wan-mac package/base-files/files/etc/init.d/nps-wan-mac package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac
 # Remove legacy multi-SSID overlays and proxy config files from the build only.
 rm -f files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
 rm -f files/root/ap20-wifi-config/passwall files/root/ap20-wifi-config/passwall2
