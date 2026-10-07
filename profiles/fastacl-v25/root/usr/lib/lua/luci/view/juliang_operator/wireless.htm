@@ -1,0 +1,290 @@
+<%+juliangtk/header%>
+<%
+local dsp = require "luci.dispatcher"
+local api = dsp.build_url("admin","network","wireless_operator_api")
+%>
+<style>
+.jow-wrap{max-width:none!important;width:100%;box-sizing:border-box}
+.jow-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.jow-grid{display:grid;grid-template-columns:repeat(2,minmax(360px,1fr));gap:14px}
+.jow-card{border:1px solid rgba(128,128,128,.16);border-radius:14px;padding:16px;background:var(--main-bg-color,#fff)}
+.jow-titleline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.jow-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.jow-count{font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(21,153,87,.10);color:#159957;white-space:nowrap}
+.jow-sub{font-size:12px;opacity:.65;margin-bottom:14px}
+.jow-row{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;margin:10px 0}
+.jow-row label{font-size:13px;opacity:.75}
+.jow-row input,.jow-row select{width:100%;box-sizing:border-box}
+.jow-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap}
+.jow-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.jow-state{font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.jow-state-on{background:rgba(21,153,87,.10);color:#159957}
+.jow-state-off{background:rgba(230,162,60,.12);color:#e6a23c}
+.jow-msg{min-height:22px;font-weight:700;margin:8px 0}
+.jow-ok{color:#159957}.jow-bad{color:#e43f3b}.jow-warn{color:#e6a23c}
+.jow-note{font-size:12px;opacity:.65;line-height:1.5}
+.jow-clients{margin-top:14px;border-top:1px solid rgba(128,128,128,.14);padding-top:12px}
+.jow-client-title{font-size:13px;font-weight:700;margin-bottom:8px}
+.jow-client-table{width:100%;border-collapse:collapse;font-size:12px}
+.jow-client-table th,.jow-client-table td{padding:7px 5px;border-bottom:1px solid rgba(128,128,128,.10);text-align:left;vertical-align:middle}
+.jow-client-table th{opacity:.65;font-weight:600;white-space:nowrap}
+.jow-client-name{font-weight:700}
+.jow-client-ip{opacity:.72;margin-top:2px}
+.jow-signal{font-weight:700}
+.jow-rate-down{color:#1677ff;font-weight:700;white-space:nowrap}
+.jow-rate-up{color:#16a085;font-weight:700;white-space:nowrap}
+.jow-empty{font-size:12px;opacity:.58;padding:8px 0}
+@media(max-width:900px){.jow-grid{grid-template-columns:1fr}.jow-row{grid-template-columns:90px 1fr}}
+</style>
+
+<div class="cbi-map jow-wrap">
+  <div class="jow-head">
+    <div>
+      <h2>无线设置</h2>
+    </div>
+    <div class="jow-head-actions">
+      <input id="jow_all_visibility" class="btn cbi-button cbi-button-action" type="button" value="一键隐藏全部" onclick="toggleAllVisibility()"/>
+      <input class="btn cbi-button cbi-button-reload" type="button" value="刷新" onclick="loadWireless()"/>
+    </div>
+  </div>
+
+  <div id="jow_msg" class="jow-msg"></div>
+  <div id="jow_grid" class="jow-grid"><div class="jow-card">读取中…</div></div>
+</div>
+
+<script type="text/javascript">
+const tkCanEdit=<%=((luci.dispatcher.context or {}).authuser=='root') and 'true' or 'false'%>;
+(function(){
+  var API='<%=api%>', devices={}, ifaces=[], prevClient={}, lastClientPoll=0, clientTimer=null;
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+  function domKey(s){return String(s||'').replace(/[^A-Za-z0-9_-]/g,'_')}
+  function fmtSpeed(v){
+    v=Math.max(0,Number(v)||0);
+    if(v<1024) return v.toFixed(0)+' B/s';
+    if(v<1024*1024) return (v/1024).toFixed(v<10240?1:0)+' KB/s';
+    return (v/1024/1024).toFixed(2)+' MB/s';
+  }
+  function fmtPhy(v){
+    v=Number(v)||0;
+    if(!v) return '-';
+    if(v>10000) v=v/1000;
+    return v.toFixed(v<100?1:0)+' Mbps';
+  }
+  function signalClass(v){
+    v=Number(v)||0;
+    if(v>=-60) return 'jow-ok';
+    if(v>=-72) return 'jow-warn';
+    return 'jow-bad';
+  }
+
+  function msg(t,ok){
+    var e=document.getElementById('jow_msg');
+    e.textContent=t||'';
+    e.className='jow-msg '+(ok===true?'jow-ok':(ok===false?'jow-bad':'jow-warn'));
+  }
+  function xhr(params,cb){XHR.get(API,params,function(x,r){cb((x&&x.status===200)?r:null)})}
+
+  function bandName(d){
+    var b=(d.band||'').toLowerCase(), h=(d.hwmode||'').toLowerCase(), ch=parseInt(d.channel||'0',10);
+    if(b.indexOf('2g')>=0 || h.indexOf('11g')>=0 || (ch>0&&ch<=14)) return '2.4 GHz';
+    if(b.indexOf('5g')>=0 || h.indexOf('11a')>=0 || ch>14) return '5 GHz';
+    return d.section||'Radio';
+  }
+
+  function channelOptions(current){
+    var out='<option value="auto"'+(current==='auto'?' selected':'')+'>自动</option>';
+    for(var i=1;i<=196;i++){
+      if(i>14 && i<36) continue;
+      if(i>64 && i<100) continue;
+      if(i>144 && i<149) continue;
+      out+='<option value="'+i+'"'+(String(current)===String(i)?' selected':'')+'>'+i+'</option>';
+    }
+    return out;
+  }
+
+  function render(){
+    var g=document.getElementById('jow_grid'), html='';
+    for(var i=0;i<ifaces.length;i++){
+      var f=ifaces[i], d=devices[f.device]||{section:f.device,channel:'auto'};
+      var dk=domKey(f.section);
+      var hidden=(f.hidden===true);
+      var sec=f.section.replace(/'/g,"\\'");
+      html+='<div class="jow-card" id="card_'+dk+'">'+
+        '<div class="jow-titleline"><div class="jow-title">'+esc(f.ssid||f.section)+'</div><div style="display:flex;gap:8px;align-items:center"><div class="jow-state '+(hidden?'jow-state-off':'jow-state-on')+'">'+(hidden?'已隐藏':'广播中')+'</div><div class="jow-count" id="count_'+dk+'">在线 0</div></div></div>'+
+        '<div class="jow-sub">'+esc(bandName(d))+' · '+esc(f.device)+' · '+esc(f.network||'-')+'</div>'+
+        '<div class="jow-row"><label>无线名称</label><input class="cbi-input-text" id="ssid_'+esc(f.section)+'" maxlength="32" value="'+esc(f.ssid)+'"></div>'+
+        '<div class="jow-row"><label>无线密码</label><input class="cbi-input-password" type="password" id="key_'+esc(f.section)+'" placeholder="留空保持原密码"></div>'+
+        '<div class="jow-row"><label>无线信道</label><select class="cbi-input-select" id="ch_'+esc(f.section)+'">'+channelOptions(d.channel||'auto')+'</select></div>'+
+        '<div class="jow-note">加密方式：'+esc(f.encryption||'none')+'。隐藏只控制 SSID 广播，不会关闭无线、网段、DHCP 或 FastACL。</div>'+
+        '<div class="jow-actions">'+
+          '<input class="btn cbi-button '+(hidden?'cbi-button-action':'')+'" type="button" value="'+(hidden?'显示无线':'隐藏无线')+'" onclick="toggleVisibility(\''+sec+'\','+(hidden?'false':'true')+')">'+
+          '<input class="btn cbi-button cbi-button-apply" type="button" value="保存并应用" onclick="saveWireless(\''+sec+'\',\''+f.device.replace(/'/g,"\\'")+'\')">'+
+        '</div>'+
+        '<div class="jow-clients"><div class="jow-client-title">已连接设备</div><div id="clients_'+dk+'" class="jow-empty">正在读取…</div></div>'+
+      '</div>';
+    }
+    g.innerHTML=html||'<div class="jow-card">没有找到可用无线接口</div>';
+    if(!tkCanEdit){g.querySelectorAll('.jow-actions,.jow-row').forEach(e=>e.style.display='none');const all=document.getElementById('jow_all_visibility');if(all)all.style.display='none';}
+    var allHidden=ifaces.length>0;
+    for(var j=0;j<ifaces.length;j++) if(ifaces[j].hidden!==true){allHidden=false;break}
+    var b=document.getElementById('jow_all_visibility');
+    if(b) b.value=allHidden?'一键显示全部':'一键隐藏全部';
+  }
+
+  window.loadWireless=function(){
+    msg('正在读取无线配置…');
+    xhr({action:'status'},function(r){
+      if(!r||!r.ok){msg('读取无线配置失败',false);return}
+      devices={}; ifaces=r.ifaces||[];
+      var ds=r.devices||[];
+      for(var i=0;i<ds.length;i++) devices[ds[i].section]=ds[i];
+      render(); msg('');
+      loadClients();
+      if(clientTimer) clearInterval(clientTimer);
+      clientTimer=setInterval(loadClients,2000);
+    });
+  }
+
+
+  window.loadClients=function(){
+    xhr({action:'clients'},function(r){
+      if(!r||!r.ok)return;
+      var now=Date.now(), dt=lastClientPoll?Math.max(0.5,(now-lastClientPoll)/1000):0;
+      var next={};
+      var groups=r.groups||[];
+
+      for(var gi=0;gi<groups.length;gi++){
+        var g=groups[gi], dk=domKey(g.section), rows=g.clients||[];
+        var count=document.getElementById('count_'+dk);
+        if(count) count.textContent='在线 '+rows.length;
+
+        var target=document.getElementById('clients_'+dk);
+        if(!target) continue;
+
+        if(!rows.length){
+          target.className='jow-empty';
+          target.innerHTML='暂无设备连接'+(g.ifname?' · '+esc(g.ifname):'');
+          continue;
+        }
+
+        var html='<table class="jow-client-table"><thead><tr>'+
+          '<th>设备 / IP</th><th>MAC</th><th>信号</th><th>下载</th><th>上传</th><th>无线链路</th>'+
+          '</tr></thead><tbody>';
+
+        for(var i=0;i<rows.length;i++){
+          var x=rows[i], key=g.section+'|'+String(x.mac||'').toLowerCase();
+          var old=prevClient[key], down=0, up=0;
+          var curDown=(x.router_down_bytes!==null && x.router_down_bytes!==undefined)
+            ? Number(x.router_down_bytes)||0
+            : Number(x.tx_bytes)||0;
+          var curUp=(x.router_up_bytes!==null && x.router_up_bytes!==undefined)
+            ? Number(x.router_up_bytes)||0
+            : Number(x.rx_bytes)||0;
+
+          if(old&&dt>0){
+            var dtx=curDown-(Number(old.down_bytes)||0);
+            var drx=curUp-(Number(old.up_bytes)||0);
+            if(dtx>=0) down=dtx/dt;
+            if(drx>=0) up=drx/dt;
+          }
+          next[key]={down_bytes:curDown,up_bytes:curUp};
+
+          var label=x.name||'手机 / 设备';
+          html+='<tr>'+
+            '<td><div class="jow-client-name">'+esc(label)+'</div><div class="jow-client-ip">'+esc(x.ip||'IP 未获取')+'</div></td>'+
+            '<td>'+esc(x.mac||'-')+'</td>'+
+            '<td class="jow-signal '+signalClass(x.signal)+'">'+esc(x.signal||0)+' dBm</td>'+
+            '<td class="jow-rate-down">↓ '+(old?fmtSpeed(down):'采样中')+'</td>'+
+            '<td class="jow-rate-up">↑ '+(old?fmtSpeed(up):'采样中')+'</td>'+
+            '<td>↓ '+esc(fmtPhy(x.tx_rate))+' / ↑ '+esc(fmtPhy(x.rx_rate))+'</td>'+
+          '</tr>';
+        }
+        html+='</tbody></table>';
+        target.className='';
+        target.innerHTML=html;
+      }
+
+      prevClient=next;
+      lastClientPoll=now;
+    });
+  }
+
+  function postAction(data,cb){
+    var fd=new FormData();fd.append('token','<%=token%>');
+    for(var k in data) if(Object.prototype.hasOwnProperty.call(data,k)) fd.append(k,data[k]);
+    var x=new XMLHttpRequest();
+    x.open('POST',API,true);
+    x.onload=function(){
+      var r=null;try{r=JSON.parse(x.responseText||'{}')}catch(e){}
+      cb(x.status===200?r:null);
+    };
+    x.onerror=function(){cb(null)};
+    x.send(fd);
+  }
+
+  window.toggleVisibility=function(section,hidden){
+    msg((hidden?'正在隐藏无线…':'正在显示无线…')+' 无线会短暂重载');
+    postAction({action:'visibility',section:section,hidden:hidden?'1':'0'},function(r){
+      if(r&&r.ok){
+        msg(hidden?'✓ 已隐藏该无线 SSID':'✓ 已恢复该无线 SSID 广播',true);
+        setTimeout(loadWireless,1800);
+      }else{
+        msg('操作失败：'+((r&&r.error)||'网络请求错误'),false);
+      }
+    });
+  }
+
+  window.toggleAllVisibility=function(){
+    var allHidden=ifaces.length>0;
+    for(var i=0;i<ifaces.length;i++) if(ifaces[i].hidden!==true){allHidden=false;break}
+    var hide=!allHidden;
+    msg(hide?'正在一键隐藏全部无线…':'正在一键显示全部无线…');
+    postAction({action:'visibility_all',hidden:hide?'1':'0'},function(r){
+      if(r&&r.ok){
+        msg((hide?'✓ 已隐藏全部无线 SSID':'✓ 已恢复全部无线 SSID 广播')+' · 共 '+(r.count||0)+' 个',true);
+        setTimeout(loadWireless,1800);
+      }else{
+        msg('批量操作失败：'+((r&&r.error)||'网络请求错误'),false);
+      }
+    });
+  }
+
+  window.saveWireless=function(section,device){
+    var ssid=document.getElementById('ssid_'+section).value||'';
+    var key=document.getElementById('key_'+section).value||'';
+    var channel=document.getElementById('ch_'+section).value||'auto';
+    if(!ssid){msg('无线名称不能为空',false);return}
+    if(key && (key.length<8 || key.length>63)){msg('无线密码需 8-63 位；留空表示不修改',false);return}
+
+    msg('正在保存 '+ssid+'，无线会短暂重载…');
+    var fd=new FormData();fd.append('token','<%=token%>');
+    fd.append('action','save');
+    fd.append('section',section);
+    fd.append('device',device);
+    fd.append('ssid',ssid);
+    fd.append('key',key);
+    fd.append('channel',channel);
+
+    var x=new XMLHttpRequest();
+    x.open('POST',API,true);
+    x.onload=function(){
+      var r=null;try{r=JSON.parse(x.responseText||'{}')}catch(e){}
+      if(x.status===200&&r&&r.ok){
+        document.getElementById('key_'+section).value='';
+        msg('✓ 已保存并应用：'+ssid+' · 信道 '+channel,true);
+        setTimeout(loadWireless,1800);
+      }else{
+        msg('保存失败：'+((r&&r.error)||('HTTP '+x.status)),false);
+      }
+    };
+    x.onerror=function(){msg('保存失败：网络请求错误',false)};
+    x.send(fd);
+  }
+
+  loadWireless();
+})();
+</script>
+
+<%+juliangtk/footer%>

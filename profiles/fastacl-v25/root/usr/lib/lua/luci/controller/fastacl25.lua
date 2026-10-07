@@ -1,13 +1,13 @@
 module('luci.controller.fastacl25',package.seeall)
 function index()
   if not nixio.fs.access('/etc/config/fastacl25') then return end
-  local p=entry({'admin','services','fastacl25'},template('fastacl25/console'),_('FastACL 2.5 控制台'),27); p.dependent=false
-  local s=entry({'admin','services','fastacl25_status'},call('status'),nil); s.leaf=true
-  local a=entry({'admin','services','fastacl25_save'},post('save'),nil); a.leaf=true
-  local i=entry({'admin','services','fastacl25_import'},post('import_nodes'),nil); i.leaf=true
-  local sub=entry({'admin','services','fastacl25_subscription'},post('subscription'),nil); sub.leaf=true
-  local svc=entry({'admin','services','fastacl25_service'},post('service'),nil); svc.leaf=true
-  local del=entry({'admin','services','fastacl25_delete_node'},post('delete_node'),nil); del.leaf=true
+  local p=entry({'admin','services','fastacl25'},template('fastacl25/console'),_('FastACL 2.5 控制台'),27); p.dependent=false;p.acl_depends={"juliang-fastacl-operator"}
+  local s=entry({'admin','services','fastacl25_status'},call('status'),nil); s.leaf=true;s.acl_depends={"juliang-fastacl-operator"}
+  local a=entry({'admin','services','fastacl25_save'},post('save'),nil); a.leaf=true;a.acl_depends={"juliang-fastacl-operator"}
+  local i=entry({'admin','services','fastacl25_import'},post('import_nodes'),nil); i.leaf=true;i.acl_depends={"juliang-fastacl-operator"}
+  local sub=entry({'admin','services','fastacl25_subscription'},post('subscription'),nil); sub.leaf=true;sub.acl_depends={"juliang-fastacl-operator"}
+  local svc=entry({'admin','services','fastacl25_service'},post('service'),nil); svc.leaf=true;svc.acl_depends={"juliang-fastacl-operator"}
+  local del=entry({'admin','services','fastacl25_delete_node'},post('delete_node'),nil); del.leaf=true;del.acl_depends={"juliang-fastacl-operator"}
 end
 local function reply(data) local h=require 'luci.http'; h.prepare_content('application/json'); h.write(require('luci.jsonc').stringify(data)) end
 local dns_providers={

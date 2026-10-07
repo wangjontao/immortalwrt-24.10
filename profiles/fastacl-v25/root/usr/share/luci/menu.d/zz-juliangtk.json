@@ -1,0 +1,9 @@
+{
+  "admin": {
+    "action": {
+      "type": "firstchild",
+      "preferred": "juliangtk",
+      "recurse": true
+    }
+  }
+}

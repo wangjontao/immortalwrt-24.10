@@ -25,7 +25,10 @@ chmod 755 package/fastacl25/files/usr/bin/fastacl25 package/fastacl25/files/usr/
 chmod 600 package/fastacl25/files/etc/config/fastacl25
 cp build-configs/JuLiangTK-S20L-FastACL25.txt .config
 make defconfig
-for pkg in luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-statistics nps npc luci-app-nps lyaml fastacl25 juliangtk-sing-box firewall4; do
+for pkg in luci-app-store luci-app-quickstart quickstart luci-theme-argon luci-app-argon-config luci-app-statistics collectd; do
+  if grep -q "^CONFIG_PACKAGE_${pkg}=[ym]" .config; then echo "Excluded package selected: $pkg"; exit 1; fi
+done
+for pkg in luci-app-autoreboot nps npc luci-app-nps lyaml fastacl25 juliangtk-sing-box firewall4; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
 if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-[^=]+)=(y|m)$' .config; then echo 'Forbidden proxy plugin selected'; exit 1; fi

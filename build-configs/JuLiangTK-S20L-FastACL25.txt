@@ -10,47 +10,47 @@ CONFIG_LUCI_LANG_zh_Hans=y
 CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_luci-lib-ipkg=y
 
-# iStore and QuickStart home page
-CONFIG_PACKAGE_luci-app-store=y
-CONFIG_PACKAGE_luci-app-quickstart=y
-CONFIG_PACKAGE_quickstart=y
-CONFIG_PACKAGE_luci-lib-taskd=y
-CONFIG_PACKAGE_luci-lib-xterm=y
+# JuLiangTK standalone management UI; no iStore/QuickStart
+# CONFIG_PACKAGE_luci-app-store is not set
+# CONFIG_PACKAGE_luci-app-quickstart is not set
+# CONFIG_PACKAGE_quickstart is not set
+# CONFIG_PACKAGE_luci-lib-taskd is not set
+# CONFIG_PACKAGE_luci-lib-xterm is not set
 CONFIG_PACKAGE_taskd=y
 
 # Argon theme
-CONFIG_PACKAGE_luci-theme-argon=y
-CONFIG_PACKAGE_luci-app-argon-config=y
+# CONFIG_PACKAGE_luci-theme-argon is not set
+# CONFIG_PACKAGE_luci-app-argon-config is not set
 
 # Terminal and common LuCI tools
-CONFIG_PACKAGE_luci-app-ttyd=y
-CONFIG_PACKAGE_ttyd=y
-CONFIG_PACKAGE_luci-app-commands=y
-CONFIG_PACKAGE_luci-app-filemanager=y
+# CONFIG_PACKAGE_luci-app-ttyd is not set
+# CONFIG_PACKAGE_ttyd is not set
+# CONFIG_PACKAGE_luci-app-commands is not set
+# CONFIG_PACKAGE_luci-app-filemanager is not set
 CONFIG_PACKAGE_luci-app-ddns=y
 CONFIG_PACKAGE_ddns-scripts=y
 CONFIG_PACKAGE_luci-app-upnp=y
 CONFIG_PACKAGE_luci-app-wol=y
-CONFIG_PACKAGE_luci-app-samba4=y
+# CONFIG_PACKAGE_luci-app-samba4 is not set
 CONFIG_PACKAGE_luci-app-sqm=y
 
 # Scheduled reboot
 CONFIG_PACKAGE_luci-app-autoreboot=y
 
 # LuCI monitoring
-CONFIG_PACKAGE_luci-app-statistics=y
-CONFIG_PACKAGE_collectd=y
-CONFIG_PACKAGE_collectd-mod-cpu=y
-CONFIG_PACKAGE_collectd-mod-df=y
-CONFIG_PACKAGE_collectd-mod-disk=y
-CONFIG_PACKAGE_collectd-mod-interface=y
-CONFIG_PACKAGE_collectd-mod-iwinfo=y
-CONFIG_PACKAGE_collectd-mod-load=y
-CONFIG_PACKAGE_collectd-mod-memory=y
-CONFIG_PACKAGE_collectd-mod-network=y
-CONFIG_PACKAGE_collectd-mod-rrdtool=y
-CONFIG_PACKAGE_collectd-mod-thermal=y
-CONFIG_PACKAGE_collectd-mod-uptime=y
+# CONFIG_PACKAGE_luci-app-statistics is not set
+# CONFIG_PACKAGE_collectd is not set
+# CONFIG_PACKAGE_collectd-mod-cpu is not set
+# CONFIG_PACKAGE_collectd-mod-df is not set
+# CONFIG_PACKAGE_collectd-mod-disk is not set
+# CONFIG_PACKAGE_collectd-mod-interface is not set
+# CONFIG_PACKAGE_collectd-mod-iwinfo is not set
+# CONFIG_PACKAGE_collectd-mod-load is not set
+# CONFIG_PACKAGE_collectd-mod-memory is not set
+# CONFIG_PACKAGE_collectd-mod-network is not set
+# CONFIG_PACKAGE_collectd-mod-rrdtool is not set
+# CONFIG_PACKAGE_collectd-mod-thermal is not set
+# CONFIG_PACKAGE_collectd-mod-uptime is not set
 
 # Independent FastACL 2.5 / fw4 (no other proxy plugins)
 CONFIG_PACKAGE_fastacl25=y

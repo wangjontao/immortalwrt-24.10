@@ -13,6 +13,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.endswith('/fastacl25_status'): self.reply(state); return
         if self.path not in ('/','/index.html'): self.send_error(404); return
         text=(ROOT/'root/usr/lib/lua/luci/view/fastacl25/console.htm').read_text(encoding='utf-8')
+        if '<%+juliangtk/header%>' in text:
+            header=(ROOT/'root/usr/lib/lua/luci/view/juliangtk/header.htm').read_text(encoding='utf-8')
+            header=re.sub(r'<%=luci.dispatcher.build_url\((.*?)\)%>',lambda m:'/cgi-bin/luci/'+m[1].replace("'",'').replace(',','/'),header)
+            css=(ROOT/'root/www/luci-static/juliangtk/console.css').read_text(encoding='utf-8')
+            header=header.replace('<link rel="stylesheet" href="/luci-static/juliangtk/console.css">','<style>'+css+'</style>')
+            text=text.replace('<%+juliangtk/header%>',header).replace('<%+juliangtk/footer%>','</main></body></html>')
         text=text.replace('<%+header%>','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FastACL 2.5 本地演示</title><style>body{font:15px system-ui;background:#f4f6fa;color:#242b40;padding:24px}button{padding:8px 14px;border:1px solid #bbc4db;border-radius:6px;background:#fff}.cbi-button-apply{background:#5263d9;color:white}input,select,textarea{padding:8px;border:1px solid #cbd1df;border-radius:6px}h3{margin-top:0}</style>')
         text=text.replace('<%+footer%>','</html>')
         text=re.sub(r'<%=luci.dispatcher.build_url\("admin","services"\)%>','/cgi-bin/luci/admin/services',text).replace('<%=token%>','demo-token')

@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+if ! uci -q get rpcd.juliang_operator.username >/dev/null; then
+uci set rpcd.juliang_operator=login
+uci set rpcd.juliang_operator.username=admin
+uci set rpcd.juliang_operator.password='$1$JFA239$ygsM7RgdJnZKjhDZe/DRv0'
+for acl in luci-base luci-base-network-status juliang-operator-home juliang-fastacl-operator juliang-wireless-operator; do uci add_list rpcd.juliang_operator.read="$acl"; done
+uci commit rpcd
+chmod 600 /etc/config/rpcd
+fi
+uci set luci.main.mediaurlbase='/luci-static/bootstrap'
+uci set luci.themes.JuLiangTK='/luci-static/juliangtk'
+uci commit luci
+cp /usr/lib/lua/luci/view/juliangtk/login.ut /usr/share/ucode/luci/template/themes/bootstrap/sysauth.ut
+chmod 644 /usr/share/ucode/luci/template/themes/bootstrap/sysauth.ut
+exit 0

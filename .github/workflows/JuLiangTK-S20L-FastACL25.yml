@@ -90,18 +90,12 @@ jobs:
         restore-keys: |
           juliangtk-s20l-fastacl25-
           s20l-24.10-
-    - name: Update feeds and add iStore
+    - name: Update essential feeds
       run: |
-        grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://github.com/linkease/istore.git;main' >> feeds.conf.default
-        grep -q '^src-git nas_packages ' feeds.conf.default || echo 'src-git nas_packages https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
-        grep -q '^src-git nas_luci ' feeds.conf.default || echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        ./scripts/feeds install -d y -p istore luci-app-store
-        ./scripts/feeds install -d y -p nas_packages quickstart
-        ./scripts/feeds install -d y -p nas_luci luci-app-quickstart
         ./scripts/feeds install -d y -p luci luci-app-autoreboot
-    - name: Add source-feed NPS and Argon (no proxy plugins)
+    - name: Add source-feed NPS (no proxy plugins)
       run: |
         # Install the mutually compatible NPS packages supplied by this source.
         ./scripts/feeds install -f -p packages nps npc
@@ -120,9 +114,6 @@ jobs:
                 option log_level '4'
         NPS_CONFIG
 
-        rm -rf package/luci-theme-argon package/luci-app-argon-config
-        git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
-        git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
     - name: Integrate independent FastACL 2.5 and JuLiangTK S20L
       run: |
         mkdir -p package/base-files/files/usr/libexec
@@ -220,10 +211,10 @@ jobs:
         cp -a "${images[@]}" upload/
         mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest')
         [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: S20L manifest missing'; exit 1; }
-        for pkg in fastacl25 juliangtk-sing-box lyaml luci-app-store luci-app-quickstart luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps luci-i18n-nps-zh-cn npc; do
+        for pkg in fastacl25 juliangtk-sing-box lyaml luci-app-autoreboot nps luci-app-nps luci-i18n-nps-zh-cn npc; do
           grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
         done
-        if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "${manifests[0]}"; then
+        if grep -Ei '^(quickstart |collectd |luci-theme-argon |luci-app-(store|quickstart|argon-config|statistics|passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "${manifests[0]}"; then
           echo 'Forbidden proxy plugin present in firmware'; exit 1
         fi
         cp .config upload/build.config
@@ -247,15 +238,15 @@ jobs:
         name: JuLiangTK S20L FastACL 2.5 development ${{ env.BUILD_DATE }}
         files: upload/*
         body: |
-          JuLiangTK S20L / MT7986A · ImmortalWrt 24.10 · FastACL 2.5.0-dev.1 development firmware
+          JuLiangTK S20L / MT7986A 路 ImmortalWrt 24.10 路 FastACL 2.5.0-dev.1 development firmware
           Source commit: ${{ github.sha }}
           Management: 192.168.7.1; hostname JuLiangTK-S20L; SSH 20022.
           Main WiFi only: JuLiangTK on 2.4 GHz / 5 GHz, same LAN; key a1111111; channels 9 / 48.
           Device-only MAC/DHCP/IP assignment; shared native sing-box 1.12.25; SOCKS5/HTTP chain front selection.
           Airport subscriptions: HTTPS, links/Base64/Clash YAML/sing-box JSON; manual and scheduled updates, bound-node retention.
           Encrypted DNS default direct; advanced privacy follows device proxy; proxy IPv6 protected.
-          Included: iStore, QuickStart, Argon, TTYD, common LuCI tools, scheduled reboot, Statistics, NPS/npc with physical WAN MAC key.
-          Excluded: PassWall, PassWall2, HomeProxy, OpenClash; no multi-WiFi generator or wireless-to-node allocation.
+          Included: JuLiangTK standalone dashboard, device routing, wireless stations and live rates, encrypted DNS, scheduled reboot, NPS/npc with physical WAN MAC key.
+          Excluded: iStore, QuickStart, Argon, Statistics/collectd, PassWall, PassWall2, HomeProxy, OpenClash; no multi-WiFi generator or wireless-to-node allocation.
           Hardware compatible/partitions remain clx,s20l. Cloud tests do not replace a real S20L cold boot and mobile-device test. Flash as a new configuration when testing this major version.
         prerelease: true
     needs: validate
