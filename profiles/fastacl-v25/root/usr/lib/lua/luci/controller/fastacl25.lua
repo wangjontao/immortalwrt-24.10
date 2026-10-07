@@ -10,6 +10,23 @@ function index()
   local del=entry({'admin','services','fastacl25_delete_node'},post('delete_node'),nil); del.leaf=true
 end
 local function reply(data) local h=require 'luci.http'; h.prepare_content('application/json'); h.write(require('luci.jsonc').stringify(data)) end
+local dns_providers={
+  {id='alidns',name='阿里 DNS',server='223.5.5.5',tls_name='dns.alidns.com'},
+  {id='cloudflare',name='Cloudflare (1.1.1.1)',server='1.1.1.1',tls_name='cloudflare-dns.com'},
+  {id='google',name='Google Public DNS',server='8.8.8.8',tls_name='dns.google'},
+  {id='quad9',name='Quad9',server='9.9.9.9',tls_name='dns.quad9.net'}
+}
+local function dns_provider(server,name)
+  for _,p in ipairs(dns_providers) do if p.server==server and p.tls_name==name then return p.id end end
+  return 'custom'
+end
+local function set_dns_provider(c,id,prefix)
+  if id==nil or id=='custom' then return end
+  for _,p in ipairs(dns_providers) do
+    if p.id==id then c[prefix..'dns_server']=p.server;c[prefix..'dns_name']=p.tls_name;return end
+  end
+  error('Invalid DNS provider')
+end
 function status()
   local env=require 'fastacl25_env'; local u=require('luci.model.uci').cursor()
   local ok,c=pcall(env.read,u,true); if not ok then reply({ok=false,error=tostring(c)}); return end
@@ -22,7 +39,7 @@ function status()
   u:foreach('fastacl25','subscription',function(s)
     subscriptions[#subscriptions+1]={id=s['.name'],name=s.name or s['.name'],enabled=s.enabled~='0',interval_hours=tonumber(s.interval_hours or '24'),status=json.parse(nixio.fs.readfile('/tmp/fastacl25/sub-'..s['.name']..'.json') or '') or {}}
   end)
-  reply({ok=true,version='2.5.0-dev.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_policy=c.dns_policy,network=c.network,router_ip=c.router_ip,runtime=runtime,job=job,subscription_running=nixio.fs.access('/tmp/fastacl25-subscribe.lock') or false})
+  reply({ok=true,version='2.5.0-dev.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_policy=c.dns_policy,dns_providers=dns_providers,direct_dns_provider=dns_provider(c.dns_server,c.dns_name),proxy_dns_provider=dns_provider(c.private_dns_server,c.private_dns_name),network=c.network,router_ip=c.router_ip,runtime=runtime,job=job,subscription_running=nixio.fs.access('/tmp/fastacl25-subscribe.lock') or false})
 end
 function save()
   local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'
@@ -36,6 +53,8 @@ function save()
     for _,cfg in ipairs({'fastacl25','dhcp'}) do local changes=u:changes(cfg); assert(not changes or not next(changes),'请先保存或撤销未提交配置') end
     local c=env.read(u)
     if request.dns_policy then assert(request.dns_policy=='direct' or request.dns_policy=='private','Invalid DNS policy'); c.dns_policy=request.dns_policy end
+    set_dns_provider(c,request.direct_dns_provider,'')
+    set_dns_provider(c,request.proxy_dns_provider,'private_')
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'Too many devices')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
     local changed={}
@@ -61,6 +80,7 @@ function save()
       for _,r in ipairs(inventory) do assert(r.mac==d.mac or r.ip~=d.ip,'IP 已由其他设备使用') end
     end
     u:set('fastacl25','main','dns_policy',c.dns_policy)
+    for _,key in ipairs({'dns_server','dns_name','private_dns_server','private_dns_name'}) do u:set('fastacl25','main',key,c[key]) end
     for mac in pairs(changed) do
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id
       u:delete('fastacl25',id); u:delete('dhcp',host)
