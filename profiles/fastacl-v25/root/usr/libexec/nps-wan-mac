@@ -62,7 +62,7 @@ set_opt vkey "$NPS_KEY"
 chmod 600 /etc/config/nps
 mkdir -p /tmp/etc
 /etc/init.d/nps enable
-if [ "$changed" = 1 ] || ! pgrep -x npc >/dev/null; then /etc/init.d/nps restart;fi
+if [ "$changed" = 1 ] || ! pidof npc >/dev/null; then /etc/init.d/nps restart;fi
 [ ! -f /tmp/etc/nps.conf ] || chmod 600 /tmp/etc/nps.conf
 # Diagnostic marker only; never used to skip the next boot/recovery check.
 touch /etc/nps-wan-mac.done

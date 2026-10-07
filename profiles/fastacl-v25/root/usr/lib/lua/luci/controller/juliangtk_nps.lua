@@ -18,7 +18,7 @@ function status()
  local u=require('luci.model.uci').cursor();local id=section(u);local c=id and u:get_all('nps',id) or {}
  local data={};for _,key in ipairs({'enabled','server_addr','server_port','protocol','compress','crypt','log_level'}) do data[key]=c[key] end
  data.key_configured=c.vkey~=nil and c.vkey~=''
- reply({ok=true,config=data,running=require('luci.sys').call('pgrep -x npc >/dev/null 2>&1')==0})
+ reply({ok=true,config=data,running=require('luci.sys').call('pidof npc >/dev/null 2>&1')==0})
 end
 function save()
  if not root_only() then return end

@@ -19,6 +19,6 @@ done
 uci commit wireless
 uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
 uci set 'fastacl25.main.version=2.5.0-dev.1'; uci commit fastacl25
-/usr/libexec/fastacl25-enable.sh
+/usr/libexec/fastacl25-enable.sh --config-only
 /etc/init.d/fastacl25 enable
 exit 0
