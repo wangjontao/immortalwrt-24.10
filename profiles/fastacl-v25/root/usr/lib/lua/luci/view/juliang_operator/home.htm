@@ -11,7 +11,7 @@ local function sh(cmd)
   return out
 end
 
-local hostname = sys.hostname() or "JuLiangTK"
+local hostname = sys.hostname() or "JuliangTK"
 
 local uptime_s = tonumber(sh([[cut -d. -f1 /proc/uptime]])) or 0
 local d = math.floor(uptime_s / 86400)

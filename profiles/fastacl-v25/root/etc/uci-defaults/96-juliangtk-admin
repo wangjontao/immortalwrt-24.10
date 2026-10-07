@@ -9,7 +9,7 @@ uci commit rpcd
 chmod 600 /etc/config/rpcd
 fi
 uci set luci.main.mediaurlbase='/luci-static/bootstrap'
-uci set luci.themes.JuLiangTK='/luci-static/juliangtk'
+uci set luci.themes.JuliangTK='/luci-static/juliangtk'
 uci commit luci
 cp /usr/lib/lua/luci/view/juliangtk/login.ut /usr/share/ucode/luci/template/themes/bootstrap/sysauth.ut
 chmod 644 /usr/share/ucode/luci/template/themes/bootstrap/sysauth.ut

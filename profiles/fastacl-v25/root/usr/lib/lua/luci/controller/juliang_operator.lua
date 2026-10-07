@@ -1,7 +1,7 @@
 module("luci.controller.juliang_operator", package.seeall)
 
 function index()
-    local home=entry({'admin','juliangtk'},template('juliang_operator/home'),_('JuLiangTK'),0);home.leaf=true;home.dependent=false;home.acl_depends={'juliang-operator-home'}
+    local home=entry({'admin','juliangtk'},template('juliang_operator/home'),_('JuliangTK'),0);home.leaf=true;home.dependent=false;home.acl_depends={'juliang-operator-home'}
     local page = entry({"admin", "network", "wireless_operator"}, template("juliang_operator/wireless"), _("无线"), 15)
     page.leaf = true
     page.dependent = false

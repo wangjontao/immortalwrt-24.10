@@ -3,7 +3,7 @@ permissions:
   contents: write
 concurrency:
   group: juliangtk-s20l-fastacl25
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   validate:
     name: Device routing, subscriptions and UI regressions
@@ -240,7 +240,7 @@ jobs:
         body: |
           JuLiangTK S20L / MT7986A 路 ImmortalWrt 24.10 路 FastACL 2.5.0-dev.1 development firmware
           Source commit: ${{ github.sha }}
-          Management: 192.168.7.1; hostname JuLiangTK-S20L; SSH 20022.
+          Management: 192.168.7.1; hostname JuliangTK; SSH 20022.
           Main WiFi only: JuLiangTK on 2.4 GHz / 5 GHz, same LAN; key a1111111; channels 9 / 48.
           Device-only MAC/DHCP/IP assignment; shared native sing-box 1.12.25; SOCKS5/HTTP chain front selection.
           Airport subscriptions: HTTPS, links/Base64/Clash YAML/sing-box JSON; manual and scheduled updates, bound-node retention.

@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-uci set 'system.@system[0].hostname=JuLiangTK-S20L'
+uci set 'system.@system[0].hostname=JuliangTK'
 uci set 'network.lan.ipaddr=192.168.7.1'
 uci set 'network.lan.netmask=255.255.255.0'
 uci commit system; uci commit network

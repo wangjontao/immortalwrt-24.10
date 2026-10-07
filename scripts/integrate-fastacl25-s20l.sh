@@ -2,7 +2,7 @@
 set -eu
 test -f target/linux/mediatek/dts/mt7986a-clx-s20l.dts
 # Preserve the actual hardware compatibility, partitions and flash definitions.
-sed -i 's/model = "CLX S20L"/model = "JuLiangTK S20L"/' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
+sed -i 's/model = "CLX S20L"/model = "JuliangTK"/' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
 mkdir -p package/fastacl25 package/juliangtk-sing-box
 cp profiles/fastacl-v25/package-Makefile package/fastacl25/Makefile
 cp profiles/fastacl-v25/core-Makefile package/juliangtk-sing-box/Makefile
@@ -17,7 +17,7 @@ for root in files package/base-files/files; do
   find "$root" -type f \( -iname '*passwall*' -o -iname '*homeproxy*' -o -iname '*openclash*' -o -iname '*20wifi*' -o -iname '*juliang-fastacl*' \) -delete
 done
 sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bin/config_generate
-sed -i "s/hostname='.*'/hostname='JuLiangTK-S20L'/g" package/base-files/files/bin/config_generate
+sed -i "s/hostname='.*'/hostname='JuliangTK'/g" package/base-files/files/bin/config_generate
 ROOT_HASH=$(openssl passwd -1 '@password@')
 sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 find package/fastacl25/files/etc/init.d package/fastacl25/files/etc/hotplug.d package/fastacl25/files/etc/uci-defaults -type f -exec chmod 755 {} \;
