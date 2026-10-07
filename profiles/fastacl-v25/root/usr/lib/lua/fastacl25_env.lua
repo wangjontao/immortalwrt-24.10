@@ -4,7 +4,7 @@ local sys=require 'luci.sys'
 local util=require 'luci.util'
 local policy=require 'fastacl25'
 function M.read(u,guards_only)
-  u=u or require('uci').cursor()
+  u=u or require('luci.model.uci').cursor()
   local main=u:get_all('fastacl25','main') or {}
   local net=main.network or 'lan'; assert(policy.id(net),'Invalid network')
   local st=json.parse(sys.exec('ubus call network.interface.'..net..' status 2>/dev/null')) or {}
@@ -19,7 +19,7 @@ function M.read(u,guards_only)
   return policy.validate(c,guards_only)
 end
 function M.inventory(c,u)
-  u=u or require('uci').cursor(); local rows={}; local function row(mac)
+  u=u or require('luci.model.uci').cursor(); local rows={}; local function row(mac)
     mac=policy.mac(mac); if not mac then return nil end
     rows[mac]=rows[mac] or {mac=mac,name='',ip='',online=false,bound=false,mode='direct'}; return rows[mac]
   end

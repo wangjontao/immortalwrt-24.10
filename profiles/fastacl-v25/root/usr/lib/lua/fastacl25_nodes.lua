@@ -12,9 +12,9 @@ function M.check(nodes)
   end
   local conf=policy.compile(c)
   fs.mkdir('/tmp/fastacl25')
-  fs.chmod('/tmp/fastacl25',448)
+  fs.chmod('/tmp/fastacl25','700')
   assert(fs.writefile('/tmp/fastacl25/nodes-check.json',json.stringify(conf,true)),'Cannot stage node check')
-  fs.chmod('/tmp/fastacl25/nodes-check.json',384)
+  fs.chmod('/tmp/fastacl25/nodes-check.json','600')
   local rc=sys.call('sing-box check -c /tmp/fastacl25/nodes-check.json >/tmp/fastacl25/nodes-check.log 2>&1')
   fs.remove('/tmp/fastacl25/nodes-check.json'); assert(rc==0,'节点包含核心不支持的参数，请检查节点格式')
 end

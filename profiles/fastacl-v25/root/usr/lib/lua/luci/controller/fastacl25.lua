@@ -6,11 +6,12 @@ function index()
   local a=entry({'admin','services','fastacl25_save'},post('save'),nil); a.leaf=true
   local i=entry({'admin','services','fastacl25_import'},post('import_nodes'),nil); i.leaf=true
   local sub=entry({'admin','services','fastacl25_subscription'},post('subscription'),nil); sub.leaf=true
+  local svc=entry({'admin','services','fastacl25_service'},post('service'),nil); svc.leaf=true
   local del=entry({'admin','services','fastacl25_delete_node'},post('delete_node'),nil); del.leaf=true
 end
 local function reply(data) local h=require 'luci.http'; h.prepare_content('application/json'); h.write(require('luci.jsonc').stringify(data)) end
 function status()
-  local env=require 'fastacl25_env'; local u=require('uci').cursor()
+  local env=require 'fastacl25_env'; local u=require('luci.model.uci').cursor()
   local ok,c=pcall(env.read,u,true); if not ok then reply({ok=false,error=tostring(c)}); return end
   local nodes={}; for id,n in pairs(c.nodes) do nodes[#nodes+1]={id=id,name=n.name or id,protocol=n.protocol or '',owner=n.owner or '',retired=n.retired=='1'} end
   table.sort(nodes,function(a,b) return a.name<b.name end)
@@ -29,7 +30,7 @@ function save()
   local raw=h.formvalue('data') or ''; if #raw>65536 then reply({ok=false,error='Request too large'}); return end
   local request=json.parse(raw); if type(request)~='table' then reply({ok=false,error='Invalid request'}); return end
   if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='操作正在进行，请稍后重试'}); return end
-  local u=require('uci').cursor(); local oldcfg=fs.readfile('/etc/config/fastacl25'); local olddhcp=fs.readfile('/etc/config/dhcp')
+  local u=require('luci.model.uci').cursor(); local oldcfg=fs.readfile('/etc/config/fastacl25'); local olddhcp=fs.readfile('/etc/config/dhcp')
   local committed=false
   local ok,err=pcall(function()
     for _,cfg in ipairs({'fastacl25','dhcp'}) do local changes=u:changes(cfg); assert(not changes or not next(changes),'请先保存或撤销未提交配置') end
@@ -76,7 +77,7 @@ function save()
       end
     end
     assert(u:commit('fastacl25'),'保存设备配置失败'); committed=true; assert(u:commit('dhcp'),'保存 DHCP 配置失败')
-    fs.chmod('/etc/config/fastacl25',384)
+    fs.chmod('/etc/config/fastacl25','600')
     sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1')
     if c.enabled then
       fs.mkdir('/tmp/fastacl25'); fs.writefile('/tmp/fastacl25/apply.result','pending')
@@ -95,7 +96,7 @@ function import_nodes()
   local links=h.formvalue('links') or ''
   if #links<1 or #links>524288 then reply({ok=false,error='导入内容为空或超过 512KB'}); return end
   if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='配置正在保存，请稍后重试'}); return end
-  local u=require('uci').cursor(); local original=fs.readfile('/etc/config/fastacl25')
+  local u=require('luci.model.uci').cursor(); local original=fs.readfile('/etc/config/fastacl25')
   local count=0
   local ok,err=pcall(function()
     local pending=u:changes('fastacl25'); assert(not pending or not next(pending),'请先保存未提交配置')
@@ -103,14 +104,14 @@ function import_nodes()
     local manager=require 'fastacl25_nodes'; manager.check(nodes); manager.add(u,nodes); assert(u:commit('fastacl25'),'保存节点失败'); count=#nodes
   end)
   if not ok then u:revert('fastacl25'); if original then fs.writefile('/etc/config/fastacl25',original) end end
-  fs.chmod('/etc/config/fastacl25',384)
+  fs.chmod('/etc/config/fastacl25','600')
   fs.rmdir('/tmp/fastacl25-edit.lock'); reply({ok=ok,count=count,error=not ok and tostring(err) or nil})
 end
 function subscription()
   local h=require 'luci.http'; local fs=require 'nixio.fs'; local policy=require 'fastacl25'; local sys=require 'luci.sys'
   local data=require('luci.jsonc').parse(h.formvalue('data') or '')
   if type(data)~='table' then reply({ok=false,error='Invalid subscription request'}); return end
-  local u=require('uci').cursor()
+  local u=require('luci.model.uci').cursor()
   if data.action=='update' then
     local id=data.id or 'all'
     if id~='all' and (not policy.id(id) or u:get('fastacl25',id)~='subscription') then reply({ok=false,error='Invalid subscription ID'}); return end
@@ -142,7 +143,7 @@ function subscription()
       end
       u:set('fastacl25',id,'name',name); u:set('fastacl25',id,'url',url); u:set('fastacl25',id,'interval_hours',tostring(hours)); u:set('fastacl25',id,'enabled',data.enabled==false and '0' or '1')
     end
-    assert(u:commit('fastacl25'),'保存订阅失败'); fs.chmod('/etc/config/fastacl25',384)
+    assert(u:commit('fastacl25'),'保存订阅失败'); fs.chmod('/etc/config/fastacl25','600')
   end)
   if not ok then u:revert('fastacl25'); if original then fs.writefile('/etc/config/fastacl25',original) end end
   fs.rmdir('/tmp/fastacl25-edit.lock'); reply({ok=ok,error=not ok and tostring(err) or nil})
@@ -151,7 +152,7 @@ function delete_node()
   local fs=require 'nixio.fs'; local id=require('luci.http').formvalue('id'); local policy=require 'fastacl25'
   if not policy.id(id) then reply({ok=false,error='Invalid node ID'}); return end
   if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='配置正在保存'}); return end
-  local u=require('uci').cursor(); local ok,err=pcall(function()
+  local u=require('luci.model.uci').cursor(); local ok,err=pcall(function()
     local pending=u:changes('fastacl25'); assert(not pending or not next(pending),'请先保存配置')
     assert(u:get('fastacl25',id)=='node','Node not found')
     u:foreach('fastacl25','device',function(d) assert(d.node~=id and d.preproxy~=id,'节点仍被设备使用，请先解除绑定') end)
@@ -159,4 +160,23 @@ function delete_node()
   end)
   if not ok then u:revert('fastacl25') end
   fs.rmdir('/tmp/fastacl25-edit.lock'); reply({ok=ok,error=not ok and tostring(err) or nil})
+end
+
+function service()
+  local h=require 'luci.http'; local fs=require 'nixio.fs';local sys=require 'luci.sys'
+  local action=h.formvalue('action')
+  if action~='enable' and action~='disable' then reply({ok=false,error='Invalid service action'});return end
+  if not fs.mkdir('/tmp/fastacl25-edit.lock') then reply({ok=false,error='配置正在保存，请稍后重试'});return end
+  local ok,err=pcall(function()
+    if action=='enable' then
+      assert(sys.call('sh /usr/libexec/fastacl25-enable.sh >/tmp/fastacl25-enable.log 2>&1')==0,'启用失败，请检查日志')
+      fs.mkdir('/tmp/fastacl25');fs.writefile('/tmp/fastacl25/apply.result','pending')
+      sys.call("( /usr/bin/fastacl25 apply > /tmp/fastacl25/apply.log 2>&1; rc=$?; echo $rc > /tmp/fastacl25/apply.result; [ $rc -ne 0 ] || /etc/init.d/fastacl25 restart ) </dev/null >/dev/null 2>&1 &")
+    else
+      local u=require('luci.model.uci').cursor();u:set('fastacl25','main','enabled','0');assert(u:commit('fastacl25'),'Cannot save service state')
+      sys.call('/etc/init.d/fastacl25 stop >/dev/null 2>&1');sys.call('/usr/bin/fastacl25 cleanup >/dev/null 2>&1')
+    end
+  end)
+  fs.rmdir('/tmp/fastacl25-edit.lock')
+  reply({ok=ok,error=not ok and tostring(err) or nil,message=ok and (action=='enable' and '正在启用 FastACL' or 'FastACL 已停用') or nil})
 end

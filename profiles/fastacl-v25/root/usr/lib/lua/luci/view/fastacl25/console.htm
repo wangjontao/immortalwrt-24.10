@@ -4,7 +4,7 @@
 </style>
 <div class="f25">
 <h2>JuLiangTK · FastACL 2.5</h2><p>一个 WiFi，按设备分配代理出口。</p>
-<div class="bar"><span id="f25-health">读取状态…</span><button class="cbi-button" id="f25-refresh">刷新设备</button><input id="f25-search" placeholder="搜索设备 / MAC / IP"></div>
+<div class="bar"><button class="cbi-button cbi-button-apply" id="f25-service">启用 FastACL</button><span id="f25-health">读取状态…</span><button class="cbi-button" id="f25-refresh">刷新设备</button><input id="f25-search" placeholder="搜索设备 / MAC / IP"></div>
 <div class="msg" id="f25-msg" role="status"></div>
 <div class="card"><h3>设备分配</h3><p class="note">绑定 MAC 并固定内网 IP。未绑定设备默认国内直连；代理设备故障时不会回落直连。手机请使用稳定的私有 WiFi 地址。</p>
 <div class="bar"><select id="f25-batch-node"></select><select id="f25-batch-pre"></select><button class="cbi-button cbi-button-apply" id="f25-batch">应用到选中设备</button><button class="cbi-button" id="f25-unbind">解除选中绑定</button></div>
@@ -26,12 +26,14 @@ state.devices.filter(d=>[d.name,d.mac,d.ip].join(' ').toLowerCase().includes(q))
 const bn=select(state.nodes,'',false),bp=select(state.nodes,'',true);$('batch-node').replaceChildren(...bn.childNodes);$('batch-pre').replaceChildren(...bp.childNodes);$('dns').value=state.dns_policy;
 $('node-count').textContent=state.nodes.length+' 个节点';$('node-list').replaceChildren();state.nodes.forEach(n=>{const p=document.createElement('p');p.textContent=n.name+' · '+n.protocol+(n.retired?' · 订阅已下架':'');const del=document.createElement('button');del.className='cbi-button';del.textContent='删除';del.onclick=async()=>{if(!confirm('删除节点 '+n.name+'？'))return;try{await api('delete_node',{id:n.id});await load();}catch(e){message(e.message,true);}};p.appendChild(del);$('node-list').appendChild(p);});
 $('sub-list').replaceChildren();(state.subscriptions||[]).forEach(s=>{const row=document.createElement('div');row.className='bar';const text=document.createElement('span');const status=s.status||{};text.textContent=s.name+' · 每 '+s.interval_hours+' 小时'+(status.attempt?' · '+(status.ok?'已更新 '+status.count+' 个节点':status.error):' · 尚未更新');row.appendChild(text);const update=document.createElement('button');update.textContent='更新';update.className='cbi-button';update.onclick=()=>subscription({action:'update',id:s.id});row.appendChild(update);const del=document.createElement('button');del.textContent='删除订阅';del.className='cbi-button';del.onclick=()=>{if(confirm('删除订阅及其节点？已绑定节点需要先解除绑定。'))subscription({action:'remove',id:s.id});};row.appendChild(del);$('sub-list').appendChild(row);});
+$('service').textContent=state.enabled?'停用 FastACL':'启用 FastACL';
 const r=state.runtime||{};$('health').textContent=(state.enabled?'已启用':'开发版未启用')+' · 核心 '+r.engine+' · 防火墙 '+(r.firewall?'正常':'未加载')+' · '+state.version;
 }
 function value(row){const node=row.node.value;return {mac:row.d.mac,name:row.name.value,ip:row.ip.value,mode:node?'proxy':'direct',node:node,preproxy:node?row.pre.value:''};}
 async function load(){try{state=await api('status');render();}catch(e){message(e.message,true);}}
 async function store(data){if(busy)return;busy=true;try{const j=await api('save',{data:JSON.stringify(data)});message(j.message);await load();if(state.enabled)pollJob();}catch(e){message(e.message,true);}finally{busy=false;}}
 async function pollJob(){for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,1000));try{const j=await api('status');if(j.job&&j.job.trim()!=='pending'){message(j.job.trim()==='0'?'配置已应用。固定 IP 改变的设备请重新连接 WiFi。':'配置已保存，但应用失败；代理设备受断网保护，请检查节点与核心日志。',j.job.trim()!=='0');state=j;render();return;}}catch(e){message(e.message,true);return;}}message('应用仍在进行，请刷新查看状态。',true);}
+$('service').onclick=async()=>{if(busy)return;busy=true;try{const j=await api('service',{action:state.enabled?'disable':'enable'});message(j.message);await load();if(state.enabled)pollJob();}catch(e){message(e.message,true);}finally{busy=false;}};
 $('refresh').onclick=load;$('search').oninput=()=>state&&render();$('all').onchange=()=>rows.forEach(r=>r.check.checked=$('all').checked);
 $('batch').onclick=()=>{const selected=rows.filter(r=>r.check.checked);if(!selected.length){message('请先选择设备',true);return;}selected.forEach(r=>{r.node.value=$('batch-node').value;r.pre.value=$('batch-pre').value;});store({devices:selected.map(value)});};
 $('unbind').onclick=()=>{const selected=rows.filter(r=>r.check.checked);if(!selected.length)return;if(confirm('解除绑定后，这些设备将恢复默认国内直连。'))store({devices:selected.map(r=>({mac:r.d.mac,remove:true}))});};

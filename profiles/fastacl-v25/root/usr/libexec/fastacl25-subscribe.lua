@@ -14,17 +14,17 @@ local function update(s)
   assert(url:match('^https://') and #url<=4096 and not url:find('[%c"\\]'),'订阅必须为有效 HTTPS 地址')
   local f='/tmp/fastacl25/subscription-curl.conf'
   assert(fs.writefile(f,'url = "'..url..'"\nuser-agent = "sing-box"\ndoh-url = "https://dns.alidns.com/dns-query"\nresolve = "dns.alidns.com:443:223.5.5.5"\nconnect-timeout = 10\nmax-time = 45\nmax-filesize = 2097152\nlocation\nmax-redirs = 3\nfail\nproto = "=https"\nproto-redir = "=https"\n'))
-  fs.chmod(f,384)
+  fs.chmod(f,'600')
   local rc=sys.call('curl --silent --show-error --config '..util.shellquote(f)..' -o /tmp/fastacl25/subscription-body >/tmp/fastacl25/subscription-curl.log 2>&1')
   fs.remove(f); assert(rc==0,'订阅下载失败，旧节点已保留')
   local text=assert(fs.readfile('/tmp/fastacl25/subscription-body')); fs.remove('/tmp/fastacl25/subscription-body')
   local nodes=importer.subscription(text)
   assert(fs.mkdir('/tmp/fastacl25-edit.lock'),'设备配置正在保存，请稍后更新订阅')
-  local u=require('uci').cursor(); local original=fs.readfile('/etc/config/fastacl25')
+  local u=require('luci.model.uci').cursor(); local original=fs.readfile('/etc/config/fastacl25')
   local ok,err=pcall(function()
     local pending=u:changes('fastacl25'); assert(not pending or not next(pending),'配置存在未提交修改')
     assert(u:get('fastacl25',id)=='subscription' and u:get('fastacl25',id,'url')==url,'订阅已变更，请重新更新')
-    manager.check(nodes); manager.replace(u,nodes,id); assert(u:commit('fastacl25'),'保存订阅节点失败'); fs.chmod('/etc/config/fastacl25',384)
+    manager.check(nodes); manager.replace(u,nodes,id); assert(u:commit('fastacl25'),'保存订阅节点失败'); fs.chmod('/etc/config/fastacl25','600')
   end)
   if not ok then u:revert('fastacl25'); if original then fs.writefile('/etc/config/fastacl25',original) end end
   fs.rmdir('/tmp/fastacl25-edit.lock'); assert(ok,err)
@@ -32,7 +32,7 @@ local function update(s)
   return #nodes
 end
 local topok,toperr=pcall(function()
-  local u=require('uci').cursor(); local subs={}
+  local u=require('luci.model.uci').cursor(); local subs={}
   u:foreach('fastacl25','subscription',function(s) subs[#subs+1]=s end)
   for _,s in ipairs(subs) do
     local id=s['.name']; assert(policy.id(id),'Invalid subscription ID')

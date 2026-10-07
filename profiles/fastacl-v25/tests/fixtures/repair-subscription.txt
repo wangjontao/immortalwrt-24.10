@@ -1,0 +1,2 @@
+socks5://192.0.2.1:1080#FastACL-repair-subscription-test
+http://192.0.2.2:8080#FastACL-repair-subscription-test-http
