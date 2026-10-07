@@ -42,6 +42,7 @@ jobs:
         binary=$(find /tmp/dae-archive -type f -name dae)
         chmod +x "$binary"
         for config in /tmp/dae-fixtures/*.dae; do
+          test "$(stat -c %a "$config")" = 600
           qemu-aarch64 "$binary" validate -c "$config"
         done
     - name: Verify OpenWrt dependency selection

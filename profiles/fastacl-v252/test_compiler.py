@@ -43,5 +43,7 @@ if __name__=='__main__':
    c=test.conf()
    if name=='chain': c.devices[1].preproxy='front'
    if name=='direct': c.devices[1].mode='direct'
-   (output/(name+'.dae')).write_text(test.module.compile(c),encoding='utf8',newline='\n')
+   fixture=output/(name+'.dae')
+   fixture.write_text(test.module.compile(c),encoding='utf8',newline='\n')
+   fixture.chmod(0o600)
  else: unittest.main()
