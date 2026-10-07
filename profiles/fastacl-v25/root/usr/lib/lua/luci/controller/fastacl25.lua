@@ -11,19 +11,33 @@ function index()
 end
 local function reply(data) local h=require 'luci.http'; h.prepare_content('application/json'); h.write(require('luci.jsonc').stringify(data)) end
 local dns_providers={
-  {id='alidns',name='阿里 DNS',server='223.5.5.5',tls_name='dns.alidns.com'},
-  {id='cloudflare',name='Cloudflare (1.1.1.1)',server='1.1.1.1',tls_name='cloudflare-dns.com'},
-  {id='google',name='Google Public DNS',server='8.8.8.8',tls_name='dns.google'},
-  {id='quad9',name='Quad9',server='9.9.9.9',tls_name='dns.quad9.net'}
+  {id='alidns',region='domestic',name='阿里 DNS',server='223.5.5.5',tls_name='dns.alidns.com'},
+  {id='dnspod',region='domestic',name='腾讯 DNSPod',server='1.12.12.12',tls_name='doh.pub'},
+  {id='opendns',region='global',name='OpenDNS (Cisco)',server='146.112.41.2',tls_name='doh.opendns.com'},
+  {id='cloudflare',region='global',name='Cloudflare (1.1.1.1)',server='1.1.1.1',tls_name='cloudflare-dns.com'},
+  {id='google',region='global',name='Google Public DNS',server='8.8.8.8',tls_name='dns.google'},
+  {id='quad9',region='global',name='Quad9',server='9.9.9.9',tls_name='dns.quad9.net'}
 }
-local function dns_provider(server,name)
+local function dns_provider(server,name,path,port)
+  if (path or '/dns-query')~='/dns-query' or (tonumber(port) or 443)~=443 then return 'custom' end
   for _,p in ipairs(dns_providers) do if p.server==server and p.tls_name==name then return p.id end end
   return 'custom'
 end
-local function set_dns_provider(c,id,prefix)
-  if id==nil or id=='custom' then return end
+local function set_dns_provider(c,id,prefix,custom)
+  if id==nil then return end
+  if id=='custom' then
+    assert(type(custom)=='table' and type(custom.url)=='string' and #custom.url<=1024,'请填写自定义 DoH 地址')
+    local host,tail=custom.url:match('^https://([%w.-]+)(.*)$');assert(host and #host<=253,'DoH 地址须使用 HTTPS 域名')
+    local port,path=tail:match('^:(%d+)(/.*)$')
+    if not port then path=tail;port=443 end
+    port=tonumber(port);assert(port and port>=1 and port<=65535 and port%1==0,'Invalid DoH port')
+    if path=='' then path='/dns-query' end
+    assert(path:sub(1,1)=='/' and not path:find('[%c%s#]'),'Invalid DoH path')
+    assert(require('fastacl25').ipnum(custom.server),'自定义 DNS 服务器须填写 IPv4 地址')
+    c[prefix..'dns_server']=custom.server;c[prefix..'dns_name']=host;c[prefix..'dns_path']=path;c[prefix..'dns_port']=port;return
+  end
   for _,p in ipairs(dns_providers) do
-    if p.id==id then c[prefix..'dns_server']=p.server;c[prefix..'dns_name']=p.tls_name;return end
+    if p.id==id then c[prefix..'dns_server']=p.server;c[prefix..'dns_name']=p.tls_name;c[prefix..'dns_path']='/dns-query';c[prefix..'dns_port']=443;return end
   end
   error('Invalid DNS provider')
 end
@@ -39,7 +53,7 @@ function status()
   u:foreach('fastacl25','subscription',function(s)
     subscriptions[#subscriptions+1]={id=s['.name'],name=s.name or s['.name'],enabled=s.enabled~='0',interval_hours=tonumber(s.interval_hours or '24'),status=json.parse(nixio.fs.readfile('/tmp/fastacl25/sub-'..s['.name']..'.json') or '') or {}}
   end)
-  reply({ok=true,version='2.5.0-dev.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_policy=c.dns_policy,dns_providers=dns_providers,direct_dns_provider=dns_provider(c.dns_server,c.dns_name),proxy_dns_provider=dns_provider(c.private_dns_server,c.private_dns_name),network=c.network,router_ip=c.router_ip,runtime=runtime,job=job,subscription_running=nixio.fs.access('/tmp/fastacl25-subscribe.lock') or false})
+  reply({ok=true,version='2.5.0-dev.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_policy=c.dns_policy,dns_providers=dns_providers,direct_dns_custom={server=c.dns_server,url='https://'..c.dns_name..(c.dns_port~=443 and ':'..c.dns_port or '')..c.dns_path},proxy_dns_custom={server=c.private_dns_server,url='https://'..c.private_dns_name..(c.private_dns_port~=443 and ':'..c.private_dns_port or '')..c.private_dns_path},direct_dns_provider=dns_provider(c.dns_server,c.dns_name,c.dns_path,c.dns_port),proxy_dns_provider=dns_provider(c.private_dns_server,c.private_dns_name,c.private_dns_path,c.private_dns_port),network=c.network,router_ip=c.router_ip,runtime=runtime,job=job,subscription_running=nixio.fs.access('/tmp/fastacl25-subscribe.lock') or false})
 end
 function save()
   local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'
@@ -53,8 +67,8 @@ function save()
     for _,cfg in ipairs({'fastacl25','dhcp'}) do local changes=u:changes(cfg); assert(not changes or not next(changes),'请先保存或撤销未提交配置') end
     local c=env.read(u)
     if request.dns_policy then assert(request.dns_policy=='direct' or request.dns_policy=='private','Invalid DNS policy'); c.dns_policy=request.dns_policy end
-    set_dns_provider(c,request.direct_dns_provider,'')
-    set_dns_provider(c,request.proxy_dns_provider,'private_')
+    set_dns_provider(c,request.direct_dns_provider,'',request.direct_dns_custom)
+    set_dns_provider(c,request.proxy_dns_provider,'private_',request.proxy_dns_custom)
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'Too many devices')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
     local changed={}
@@ -80,7 +94,7 @@ function save()
       for _,r in ipairs(inventory) do assert(r.mac==d.mac or r.ip~=d.ip,'IP 已由其他设备使用') end
     end
     u:set('fastacl25','main','dns_policy',c.dns_policy)
-    for _,key in ipairs({'dns_server','dns_name','private_dns_server','private_dns_name'}) do u:set('fastacl25','main',key,c[key]) end
+    for _,key in ipairs({'dns_server','dns_name','dns_path','dns_port','private_dns_server','private_dns_name','private_dns_path','private_dns_port'}) do u:set('fastacl25','main',key,tostring(c[key])) end
     for mac in pairs(changed) do
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id
       u:delete('fastacl25',id); u:delete('dhcp',host)

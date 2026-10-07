@@ -42,6 +42,11 @@ function M.validate(c,guards_only)
   assert(c.dns_policy=='direct' or c.dns_policy=='private','Invalid DNS policy')
   for _,key in ipairs({'dns_server','private_dns_server'}) do assert(M.ipnum(c[key]),'DNS endpoint must be IPv4: '..key) end
   for _,key in ipairs({'dns_name','private_dns_name'}) do assert(type(c[key])=='string' and c[key]:match('^[%w.-]+$'),'Invalid TLS name') end
+  for _,prefix in ipairs({'','private_'}) do
+    local port=c[prefix..'dns_port'] or 443;local path=c[prefix..'dns_path'] or '/dns-query'
+    assert(type(port)=='number' and port>=1 and port<=65535 and port%1==0,'Invalid DNS port')
+    assert(type(path)=='string' and #path<=1024 and path:sub(1,1)=='/' and not path:find('[%c%s#]'),'Invalid DNS path')
+  end
   local seenip,seenmac={},{}
   for _,d in ipairs(c.devices) do
     assert(M.mac(d.mac)==d.mac,'Invalid MAC')
@@ -60,14 +65,14 @@ function M.validate(c,guards_only)
   end
   return c
 end
-local function https(tag,ip,name,detour)
-  local s={type='https',tag=tag,server=ip,server_port=443,path='/dns-query',tls={enabled=true,server_name=name}}
+local function https(tag,ip,name,detour,path,port)
+  local s={type='https',tag=tag,server=ip,server_port=port or 443,path=path or '/dns-query',tls={enabled=true,server_name=name}}
   if detour~='direct' then s.detour=detour end
   return s
 end
 function M.compile(c)
   M.validate(c)
-  local conf={log={level='warn',timestamp=true},inbounds={{type='tproxy',tag='devices',listen='0.0.0.0',listen_port=c.port}},outbounds={{type='direct',tag='direct'}},dns={servers={https('dns-direct',c.dns_server,c.dns_name,'direct')},rules={},final='dns-direct',strategy='ipv4_only'},route={rules={{port={53},action='hijack-dns'}},final='direct',default_domain_resolver='dns-direct'}}
+  local conf={log={level='warn',timestamp=true},inbounds={{type='tproxy',tag='devices',listen='0.0.0.0',listen_port=c.port}},outbounds={{type='direct',tag='direct'}},dns={servers={https('dns-direct',c.dns_server,c.dns_name,'direct',c.dns_path,c.dns_port)},rules={},final='dns-direct',strategy='ipv4_only'},route={rules={{port={53},action='hijack-dns'}},final='direct',default_domain_resolver='dns-direct'}}
   local cached,bridges={},{}
   local function copy(v)
     if type(v)~='table' then return v end
@@ -103,7 +108,7 @@ function M.compile(c)
     conf.route.rules[#conf.route.rules+1]={source_ip_cidr={d.ip..'/32'},action='route',outbound=tag}
     if c.dns_policy=='private' then
       local dns='dns-'..tag
-      if not cached[dns] then conf.dns.servers[#conf.dns.servers+1]=https(dns,c.private_dns_server,c.private_dns_name,tag); cached[dns]=true end
+      if not cached[dns] then conf.dns.servers[#conf.dns.servers+1]=https(dns,c.private_dns_server,c.private_dns_name,tag,c.private_dns_path,c.private_dns_port); cached[dns]=true end
       conf.dns.rules[#conf.dns.rules+1]={source_ip_cidr={d.ip..'/32'},action='route',server=dns}
     end
   end end

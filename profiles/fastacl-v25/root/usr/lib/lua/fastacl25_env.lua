@@ -9,7 +9,7 @@ function M.read(u,guards_only)
   local net=main.network or 'lan'; assert(policy.id(net),'Invalid network')
   local st=json.parse(sys.exec('ubus call network.interface.'..net..' status 2>/dev/null')) or {}
   local addr=u:get('network',net,'ipaddr'); if type(addr)=='table' then addr=addr[1] end
-  local c={network=net,interface=st.l3_device or u:get('network',net,'device'),router_ip=addr,netmask=u:get('network',net,'netmask') or '255.255.255.0',port=tonumber(main.port or 12525),enabled=main.enabled=='1',default_mode=main.default_mode or 'direct',dns_policy=main.dns_policy or 'direct',dns_server=main.dns_server or '223.5.5.5',dns_name=main.dns_name or 'dns.alidns.com',private_dns_server=main.private_dns_server or '9.9.9.9',private_dns_name=main.private_dns_name or 'dns.quad9.net',devices={},nodes={}}
+  local c={network=net,interface=st.l3_device or u:get('network',net,'device'),router_ip=addr,netmask=u:get('network',net,'netmask') or '255.255.255.0',port=tonumber(main.port or 12525),enabled=main.enabled=='1',default_mode=main.default_mode or 'direct',dns_policy=main.dns_policy or 'direct',dns_server=main.dns_server or '223.5.5.5',dns_name=main.dns_name or 'dns.alidns.com',private_dns_server=main.private_dns_server or '9.9.9.9',private_dns_name=main.private_dns_name or 'dns.quad9.net',dns_path=main.dns_path or '/dns-query',dns_port=tonumber(main.dns_port or 443),private_dns_path=main.private_dns_path or '/dns-query',private_dns_port=tonumber(main.private_dns_port or 443),devices={},nodes={}}
   u:foreach('fastacl25','node',function(n)
     n.outbound=json.parse(n.outbound or '')
     c.nodes[n['.name']]=n
