@@ -57,7 +57,7 @@ done
 [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ]
 uci -q get nps.@nps[0] >/dev/null || uci add nps nps >/dev/null
 uci set nps.@nps[0].enabled='1'
-uci set nps.@nps[0].server_addr='47.83.9.208'
+uci set nps.@nps[0].server_addr='8.134.201.189'
 uci set nps.@nps[0].server_port='8024'
 uci set nps.@nps[0].protocol='tcp'
 uci set nps.@nps[0].compress='1'
