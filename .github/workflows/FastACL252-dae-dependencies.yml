@@ -31,6 +31,19 @@ jobs:
         test "${#binaries[@]}" -eq 1
         readelf -h "${binaries[0]}" | grep -q 'Machine:.*AArch64'
         if readelf -l "${binaries[0]}" | grep -q INTERP; then echo 'Dynamic executable needs additional libc review'; exit 1; fi
+    - name: Native device compiler and pinned dae validation
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y qemu-user python3-venv
+        python3 -m venv /tmp/dae-tests
+        /tmp/dae-tests/bin/pip install lupa
+        /tmp/dae-tests/bin/python profiles/fastacl-v252/test_compiler.py
+        /tmp/dae-tests/bin/python profiles/fastacl-v252/test_compiler.py --fixtures /tmp/dae-fixtures
+        binary=$(find /tmp/dae-archive -type f -name dae)
+        chmod +x "$binary"
+        for config in /tmp/dae-fixtures/*.dae; do
+          qemu-aarch64 "$binary" validate -c "$config"
+        done
     - name: Verify OpenWrt dependency selection
       run: |
         ./scripts/feeds update packages
