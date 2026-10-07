@@ -20,6 +20,7 @@ class WANIdentityTests(unittest.TestCase):
  def test_missing_wan_never_falls_back_to_lan(self):
   self.assertNotEqual(self.run_key(device='missing-wan').returncode,0)
  def test_invalid_mac_rejected(self):
-  for mac in ['00:00:00:00:00:00','ff:ff:ff:ff:ff:ff','zz:ab:cd:12:34:56']:
-   self.assertNotEqual(self.run_key(mac=mac).returncode,0)
+  for mac in ['00:00:00:00:00:00','ff:ff:ff:ff:ff:ff','FF:FF:FF:FF:FF:FF','zz:ab:cd:12:34:56']:
+   with self.subTest(mac=mac):
+    r=self.run_key(mac=mac);self.assertNotEqual(r.returncode,0,r.stdout+r.stderr)
 if __name__=='__main__':unittest.main(verbosity=2)

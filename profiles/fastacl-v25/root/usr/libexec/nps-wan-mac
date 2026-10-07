@@ -3,7 +3,7 @@ set -eu
 umask 077
 SYS_NET="${NPS_SYS_NET:-/sys/class/net}"
 valid_mac() {
- case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff|FF:FF:FF:FF:FF:FF) return 1;; esac
+ case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff|FF:FF:FF:FF:FF:FF) return 1;; esac
  printf '%s\n' "$1" | grep -Eq '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$'
 }
 read_device_mac() {
