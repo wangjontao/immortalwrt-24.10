@@ -25,8 +25,11 @@ function M.replace(u,nodes,owner)
   local counts,active={},{}; local bound={}
   u:foreach('fastacl25','device',function(d) bound[d.node or '']=true; bound[d.preproxy or '']=true end)
   for _,n in ipairs(nodes) do
-    local identity=n.protocol..'\n'..n.name; counts[identity]=(counts[identity] or 0)+1
-    identity=identity..'\n'..counts[identity]
+    -- UCI option values must remain single-line. Newline-separated identities
+    -- make rpcd's UCI commit reject otherwise valid imported nodes.
+    local identity=#n.protocol..':'..n.protocol..':'..#n.name..':'..n.name
+    counts[identity]=(counts[identity] or 0)+1
+    identity=identity..':'..counts[identity]
     local id='n_'..hash(owner..'\n'..identity); local tries=0
     while u:get('fastacl25',id) and (u:get('fastacl25',id,'owner')~=owner or u:get('fastacl25',id,'identity')~=identity) do tries=tries+1; assert(tries<100,'Node identity collision'); id='n_'..hash(owner..'\n'..identity..'\n'..tries) end
     u:section('fastacl25','node',id,{name=n.name,protocol=n.protocol,outbound=json.stringify(n.outbound),owner=owner,identity=identity,retired='0'})

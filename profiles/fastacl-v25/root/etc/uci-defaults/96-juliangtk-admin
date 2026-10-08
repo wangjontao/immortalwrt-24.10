@@ -5,6 +5,7 @@ uci set rpcd.juliang_operator=login
 uci set rpcd.juliang_operator.username=admin
 uci set rpcd.juliang_operator.password='$1$JFA239$ygsM7RgdJnZKjhDZe/DRv0'
 for acl in luci-base luci-base-network-status juliang-operator-home juliang-fastacl-operator juliang-wireless-operator; do uci add_list rpcd.juliang_operator.read="$acl"; done
+uci add_list rpcd.juliang_operator.write='juliang-fastacl-operator'
 uci commit rpcd
 chmod 600 /etc/config/rpcd
 fi

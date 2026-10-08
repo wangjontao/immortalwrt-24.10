@@ -14,6 +14,12 @@
           "getFeatures"
         ]
       }
+    },
+    "write": {
+      "uci": [
+        "fastacl25",
+        "dhcp"
+      ]
     }
   },
   "juliang-fastacl-operator": {
