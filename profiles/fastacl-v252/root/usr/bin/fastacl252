@@ -1,0 +1,83 @@
+#!/bin/sh
+set -eu
+umask 077
+R=/tmp/fastacl252
+mkdir -p "$R"
+alive(){
+  [ -s "$R/router.pid" ] || return 1
+  local pid; pid=$(cat "$R/router.pid")
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq "$R/router.dae"
+}
+dns_alive(){
+  [ -s "$R/dns.pid" ] || return 1
+  local pid; pid=$(cat "$R/dns.pid")
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq 'fastacl252-dns'
+}
+dns_stop(){
+  if dns_alive; then
+    kill "$(cat "$R/dns.pid")"
+    local i=0
+    while dns_alive; do i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+  fi
+  rm -f "$R/dns.pid"
+}
+listener(){ (ss -lnt 2>/dev/null; netstat -lnt 2>/dev/null) | grep -q ":$1 "; }
+firewall(){
+  if ! cmp -s "$R/nft.next.rules" "$R/nft.loaded.rules" || ! nft list table inet fastacl252 >/dev/null 2>&1; then
+    { nft list table inet fastacl252 >/dev/null 2>&1 && echo 'delete table inet fastacl252' || true; cat "$R/nft.next.rules"; } > "$R/nft.apply"
+    nft -c -f "$R/nft.apply"; nft -f "$R/nft.apply"
+    cp "$R/nft.next.rules" "$R/nft.loaded.rules"
+  fi
+  # dae does not use the former host TProxy route table.
+  : # ip rule show | grep -q 'fwmark 0x65/0xff.*lookup 125' || ip rule add fwmark 0x65/0xff table 125 priority 10025
+  :
+}
+apply(){
+  [ "$(uci -q get fastacl252.main.enabled)" = 1 ] || { echo 'FastACL 2.5.2 dae is disabled'; return 1; }
+  mkdir /tmp/fastacl252-apply.lock 2>/dev/null || { echo 'Another apply is running'; return 1; }
+  trap 'rmdir /tmp/fastacl252-apply.lock 2>/dev/null || true' EXIT HUP INT TERM
+  lua /usr/libexec/fastacl252-generate.lua nft guard
+  firewall
+  lua /usr/libexec/fastacl252-generate.lua nft
+  dae validate -c "$R/router.next.dae" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
+  if alive && dns_alive && cmp -s "$R/router.next.dae" "$R/router.dae" && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
+  if alive; then kill "$(cat "$R/router.pid")"; i=0; while alive; do i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done; fi
+  dns_stop
+  fastacl252-dns -check -config "$R/dns.next.json"
+  cp "$R/dns.next.json" "$R/dns.json"
+  cp "$R/router.next.dae" "$R/router.dae"
+  fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
+  echo $! > "$R/dns.pid"
+  i=0; while ! listener 12553; do dns_alive || return 1; i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+  dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
+  echo $! > "$R/router.pid"
+  i=0; port=$(uci -q get fastacl252.main.port)
+  while ! ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$port " || ! listener 12553; do alive && dns_alive || return 1; i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+}
+status(){
+  engine=stopped; alive && engine=running
+  [ "$engine" != running ] || dns_alive || engine=broken
+  fw=false; nft list table inet fastacl252 >/dev/null 2>&1 && fw=true
+  [ "$engine" != running ] || ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$(uci -q get fastacl252.main.port) " || engine=broken
+  printf '{"engine":"%s","firewall":%s,"backend":"nft"}\n' "$engine" "$fw"
+}
+case "${1:-status}" in
+  apply) apply;;
+  status) status;;
+  stop) dns_stop; if alive; then kill "$(cat "$R/router.pid")"; fi; rm -f "$R/router.pid"; echo 'Core stopped; protection rules retained';;
+  guard)
+    while [ "$(uci -q get fastacl252.main.enabled)" = 1 ]; do
+      /usr/bin/fastacl252 apply >"$R/guard.log" 2>&1 || true
+      if [ ! -d /tmp/fastacl252-subscribe.lock ]; then lua /usr/libexec/fastacl252-subscribe.lua due >"$R/subscribe.log" 2>&1 & fi
+      sleep 15
+    done;;
+  cleanup)
+    dns_stop
+    if alive; then kill "$(cat "$R/router.pid")"; fi; rm -f "$R/router.pid"
+    nft delete table inet fastacl252 2>/dev/null || true
+    ip rule del fwmark 0x65/0xff table 125 priority 10025 2>/dev/null || true
+    ip route flush table 125 2>/dev/null || true;;
+  *) echo 'Usage: fastacl252 apply|status|stop|guard|cleanup' >&2; exit 2;;
+esac
