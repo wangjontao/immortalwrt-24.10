@@ -12,6 +12,8 @@ import (
  _ "github.com/daeuniverse/outbound/dialer/socks"
  _ "github.com/daeuniverse/outbound/dialer/http"
  _ "github.com/daeuniverse/outbound/dialer/v2ray"
+ _ "github.com/daeuniverse/outbound/protocol/vless"
+ _ "github.com/daeuniverse/outbound/protocol/vmess"
  _ "github.com/daeuniverse/outbound/dialer/trojan"
  _ "github.com/daeuniverse/outbound/dialer/shadowsocks"
  _ "github.com/daeuniverse/outbound/dialer/hysteria2"
