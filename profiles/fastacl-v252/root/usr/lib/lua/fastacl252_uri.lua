@@ -13,7 +13,7 @@ function M.node(n)
   if scheme=='socks' then scheme='socks5'; assert(not o.tls or not o.tls.enabled,'SOCKS TLS unsupported')
   elseif o.tls and o.tls.enabled then scheme='https' end
  elseif scheme=='shadowsocks' then scheme='ss';auth=enc(assert(o.method))..':'..enc(assert(o.password))..'@'
- elseif scheme=='vless' then auth=enc(assert(o.uuid))..'@';p.flow=o.flow
+ elseif scheme=='vless' then auth=enc(assert(o.uuid))..'@';p.flow=o.flow;p.type='tcp'
  elseif scheme=='trojan' or scheme=='hysteria2' then auth=enc(assert(o.password))..'@'
  elseif scheme=='tuic' then auth=enc(assert(o.uuid))..':'..enc(assert(o.password))..'@';p.congestion_control=o.congestion_control
  elseif scheme=='vmess' then
