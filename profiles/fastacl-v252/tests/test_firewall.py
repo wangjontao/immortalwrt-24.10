@@ -71,7 +71,7 @@ def main(core):
             out,_=compile(conf); file=temp/'router.dae'; file.write_text(out);file.chmod(0o600)
             ns(r,core,'validate','-c',str(file))
             out=out.replace('log_level: warn','log_level: debug');file.write_text(out);
-            log=open(temp/'core.log','w'); process=subprocess.Popen(['ip','netns','exec',r,core,'run','--disable-pidfile','--disable-sudo','-c',str(file)],stdout=log,stderr=log); procs.append(process)
+            log=open(temp/'core.log','w'); process=subprocess.Popen(['ip','netns','exec',r,'sh','-c','mount -t bpf bpffs /sys/fs/bpf; exec "$@"','dae-test',core,'run','--disable-pidfile','--disable-sudo','-c',str(file)],stdout=log,stderr=log); procs.append(process)
             time.sleep(3)
             if process.poll() is not None:
                 log.flush()
@@ -105,7 +105,7 @@ def main(core):
                 print(backend+': US/JP exits, direct, spoof rejection, IPv6 blocking, core failure protection passed',flush=True)
                 if backend=='iptables':
                     ns(r,'iptables','-t','mangle','-F'); ns(r,'iptables','-F'); ns(r,'ip6tables','-F')
-                    process=subprocess.Popen(['ip','netns','exec',r,core,'run','--disable-pidfile','--disable-sudo','-c',str(file)],stdout=log,stderr=log); procs.append(process); time.sleep(3)
+                    process=subprocess.Popen(['ip','netns','exec',r,'sh','-c','mount -t bpf bpffs /sys/fs/bpf; exec "$@"','dae-test',core,'run','--disable-pidfile','--disable-sudo','-c',str(file)],stdout=log,stderr=log); procs.append(process); time.sleep(3)
             log.close()
     finally:
         for p in procs:
