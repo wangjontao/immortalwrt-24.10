@@ -52,7 +52,7 @@ jobs:
 
         .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
 
-        (cd profiles/fastacl-v252/dns && go mod tidy && go test -race ./... && go
+        (cd profiles/fastacl-v252/dns && go mod tidy && go test -race -timeout 2m ./... && go
         build -o /tmp/fastacl252-dns .)
 
         .venv/bin/python profiles/fastacl-v252/tests/test_mihomo.py --core /tmp/dae
