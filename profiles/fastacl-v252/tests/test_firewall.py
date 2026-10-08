@@ -67,6 +67,7 @@ def main(core):
             temp=pathlib.Path(temp); conf=config(); conf['nodes']['us'].update(address='203.0.113.1',port='1080'); conf['nodes']['us'].pop('username'); conf['nodes']['us'].pop('password'); conf['nodes']['jp'].update(address='203.0.113.1',port='1081')
             out,_=compile(conf); file=temp/'router.dae'; file.write_text(out);file.chmod(0o600)
             ns(r,core,'validate','-c',str(file))
+            out=out.replace('log_level: warn','log_level: debug');file.write_text(out);
             log=open(temp/'core.log','w'); process=subprocess.Popen(['ip','netns','exec',r,core,'run','--disable-pidfile','--disable-sudo','-c',str(file)],stdout=log,stderr=log); procs.append(process)
             time.sleep(3)
             if process.poll() is not None:
@@ -80,7 +81,13 @@ def main(core):
                 else:ns(r,'nft','-f','-',input=rules['nft'])
                 for index,label in [(0,'US'),(1,'JP')]:
                     d=conf['devices'][index]; addr(d['ip'],d['mac'])
-                    got=ns(c,'curl','-fsS','--max-time','5','http://198.51.100.10:8080/').stdout
+                    result=ns(c,'curl','-fsS','--max-time','5','http://198.51.100.10:8080/',check=False)
+                    if result.returncode:
+                        log.flush();print((temp/'core.log').read_text(),flush=True)
+                        print(ns(r,'nft','list','ruleset').stdout,flush=True)
+                        print(ns(r,'tc','filter','show','dev','br-lan','ingress',check=False).stdout,flush=True)
+                        raise RuntimeError('device traffic failed: '+result.stderr)
+                    got=result.stdout
                     assert got==label,(backend,label,got)
                     assert ns(c,'ping','-6','-c','1','-W','1','fd00:1::1',check=False).returncode!=0,'Proxy IPv6 bypass'
                 # Unknown/direct devices must still use ordinary routing.
