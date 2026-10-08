@@ -203,6 +203,22 @@ jobs:
 
         mkdir -p dl/go-mod-cache
 
+        # Direct target builds do not pull in the top-level build prerequisites.
+
+        make tools/install -j"$(nproc)" || make tools/install -j1 V=s
+
+        make toolchain/install -j"$(nproc)" || make toolchain/install -j1 V=s
+
+        staging_dir/host/bin/m4 --version
+
+        # Direct target builds do not pull in the top-level build prerequisites.
+
+        make tools/install -j"$(nproc)" || make tools/install -j1 V=s
+
+        make toolchain/install -j"$(nproc)" || make toolchain/install -j1 V=s
+
+        staging_dir/host/bin/m4 --version
+
         make target/linux/compile -j"$(nproc)" V=s
 
         kernel=$(find build_dir/target-* -path "*/linux-mediatek_filogic/linux-6.6*/.config" | head -n1)
