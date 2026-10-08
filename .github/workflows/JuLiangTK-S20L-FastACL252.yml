@@ -203,10 +203,22 @@ jobs:
 
         mkdir -p dl/go-mod-cache
 
+        make target/linux/compile -j"$(nproc)" V=s
+
+        kernel=$(find build_dir/target-* -path "*/linux-mediatek_filogic/linux-6.6*/.config" | head -n1)
+
+        test -n "$kernel"
+
+        echo "Validating target kernel: $kernel"
+
+        grep -E "CONFIG_(BPF|HAVE_.*BPF|DEBUG_INFO|NET_CLS|NET_SCH_INGRESS)" "$kernel" || true
+
+        sh profiles/fastacl-v252/check-kernel.sh "$kernel"
+
         make -j"$(nproc)" || make -j1 V=s
 
 
-        kernel=$(find build_dir -path "*/linux-6.6*/.config" | head -n1)
+        kernel=$(find build_dir/target-* -path "*/linux-mediatek_filogic/linux-6.6*/.config" | head -n1)
 
         test -n "$kernel"
 
@@ -246,7 +258,7 @@ jobs:
         tag_name: JuLiangTK-S20L-FastACL2.5.2-dev.1-${{ env.BUILD_DATE }}
         name: JuLiangTK S20L FastACL 2.5.2 dae development ${{ env.BUILD_DATE }}
         files: upload/*
-        body: 'JuLiangTK S20L / MT7986A · ImmortalWrt 24.10 · FastACL 2.5.2 dae development
+        body: 'JuLiangTK S20L / MT7986A 路 ImmortalWrt 24.10 路 FastACL 2.5.2 dae development
           development firmware
 
           Source commit: ${{ github.sha }}
