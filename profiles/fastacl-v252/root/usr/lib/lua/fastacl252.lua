@@ -73,21 +73,25 @@ function M.firewall(c,backend)
   local proxy={}; for _,d in ipairs(c.devices) do if d.mode=='proxy' then proxy[#proxy+1]=d end end
   assert(backend=='nft','Invalid firewall backend')
   local q='"'..iface..'"'
-  local guard,pre,identity={},{},{}
+  local macs,ips,pairs={},{},{}
   for _,d in ipairs(proxy) do
-    guard[#guard+1]='iifname '..q..' ether saddr '..d.mac..' drop'
-    guard[#guard+1]='iifname '..q..' ip saddr '..d.ip..' drop'
-    identity[#identity+1]='iifname '..q..' ether saddr '..d.mac..' ip saddr != '..d.ip..' udp sport 68 udp dport 67 return'
-    identity[#identity+1]='iifname '..q..' ether saddr '..d.mac..' ip saddr != '..d.ip..' drop'
-    identity[#identity+1]='iifname '..q..' ip saddr '..d.ip..' ether saddr != '..d.mac..' drop'
-    pre[#pre+1]='iifname '..q..' ether saddr '..d.mac..' ip daddr '..cidr..' return'
-    for _,dst in ipairs(bypass) do pre[#pre+1]='iifname '..q..' ether saddr '..d.mac..' ip daddr '..dst..' return' end
-    -- dae owns tc/eBPF redirection; nft retains DNS and fail-closed guards.
+    macs[#macs+1]=d.mac;ips[#ips+1]=d.ip;pairs[#pairs+1]=d.mac..' . '..d.ip
   end
-  identity[#identity+1]='iifname '..q..' meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 return'
-  for _,line in ipairs(pre) do identity[#identity+1]=line end
-  pre=identity
-  local dns6='iifname '..q..' meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop'
-  return {nft='table inet fastacl252 {\nchain prerouting { type filter hook prerouting priority -151; policy accept;\n'..table.concat(pre,'\n')..'\n}\nchain forward { type filter hook forward priority -10; policy accept;\n'..dns6..'\n'..table.concat(guard,'\n')..'\n}\nchain dns_redirect { type nat hook prerouting priority -100; policy accept;\n'..'iifname '..q..' meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553\n'..'}\nchain input { type filter hook input priority -10; policy accept;\n'..dns6..'\n}\n}\n'}
+  local function set(name,kind,values)
+    return 'set '..name..' { type '..kind..';'..(#values>0 and ' elements = { '..table.concat(values,', ')..' };' or '')..' }\n'
+  end
+  local sets=set('proxy_macs','ether_addr',macs)..set('proxy_ips','ipv4_addr',ips)..set('proxy_pairs','ether_addr . ipv4_addr',pairs)
+  local input='iifname '..q..' '
+  local dns6=input..'meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n'
+  return {nft='table inet fastacl252 {\n'..sets..
+    'chain prerouting { type filter hook prerouting priority -151; policy accept;\n'..
+    input..'udp sport 68 udp dport 67 return\n'..
+    input..'meta nfproto ipv4 ether saddr @proxy_macs ether saddr . ip saddr != @proxy_pairs drop\n'..
+    input..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n}\n'..
+    'chain forward { type filter hook forward priority -10; policy accept;\n'..dns6..
+    input..'ether saddr @proxy_macs drop\n'..input..'ip saddr @proxy_ips drop\n}\n'..
+    'chain dns_redirect { type nat hook prerouting priority -100; policy accept;\n'..
+    input..'meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553\n}\n'..
+    'chain input { type filter hook input priority -10; policy accept;\n'..dns6..'}\n}\n'}
 end
 return M

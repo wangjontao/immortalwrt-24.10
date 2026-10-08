@@ -40,6 +40,12 @@ class Tests(unittest.TestCase):
         c=config();c['devices'][0]['preproxy']='front';a,b=compile(c);self.assertIn('socks5://a:secret@proxy.example.com:1080 -> vless://',a)
     def test_guards_and_dns(self):
         a=from_lua(policy.firewall(to_lua(config()),'nft'))['nft'];self.assertIn('redirect to :12553',a);self.assertNotIn('tproxy ip to',a)
+    def test_large_device_firewall_sets(self):
+        c=config();c['devices']=[dict(mac='02:00:00:01:%02X:%02X'%(n//256,n%256),ip='192.168.7.%d'%n,mode='proxy',node='us') for n in range(2,251)]
+        rules=from_lua(policy.firewall(to_lua(c),'nft'))['nft']
+        self.assertEqual(rules.count('set proxy_'),3)
+        self.assertEqual(rules.count('drop'),6)
+        self.assertIn('192.168.7.250',rules)
     def test_duplicate_binding(self):
         c=config();c['devices'][1]['ip']=c['devices'][0]['ip'];self.assertRaises(Exception,compile,c)
     def test_empty_direct(self):
@@ -64,3 +70,4 @@ if __name__=='__main__':
     result=unittest.main(argv=['test']+argsleft,exit=False).result
     if not result.wasSuccessful():raise SystemExit(1)
     fixtures(opts.core,opts.helper)
+

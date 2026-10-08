@@ -65,6 +65,7 @@ jobs:
     - name: Real eBPF device routing and core-failure protection
       run: sudo .venv/bin/python profiles/fastacl-v252/tests/test_firewall.py /tmp/dae
     - name: Console interaction tests
+      if: ${{ !cancelled() }}
       run: .venv/bin/python profiles/fastacl-v252/tests/test_browser.py
     - uses: actions/upload-artifact@v4
       if: always()

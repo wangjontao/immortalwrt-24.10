@@ -48,7 +48,10 @@ def main(core):
         ns(c,'ip','-6','addr','add','fd00:7::101/64','dev','eth0','nodad'); ns(c,'ip','link','set','eth0','up')
         ns(c,'ip','route','replace','default','via','192.168.7.1'); ns(c,'ip','-6','route','replace','default','via','fd00:7::1')
         ns(r,'ip','neigh','flush','dev','br-lan'); ns(c,'ip','neigh','flush','dev','eth0')
+    mounted=False
     try:
+        if cmd('mountpoint','-q','/sys/fs/bpf',check=False).returncode:
+            cmd('mkdir','-p','/sys/fs/bpf');cmd('mount','-t','bpf','bpffs','/sys/fs/bpf');mounted=True
         for n in names:cmd('ip','netns','add',n); ns(n,'ip','link','set','lo','up')
         for a,b,left,right in [('rc','ce',r,c),('rw','we',r,w)]:
             cmd('ip','link','add',a,'type','veth','peer','name',b); cmd('ip','link','set',a,'netns',left); cmd('ip','link','set',b,'netns',right)
@@ -111,6 +114,7 @@ def main(core):
             except subprocess.TimeoutExpired:p.kill();p.wait()
         cmd('ip','netns','del','daens',check=False)
         for name in names:cmd('ip','netns','del',name,check=False)
+        if mounted:cmd('umount','/sys/fs/bpf',check=False)
 
 if __name__=='__main__':
     if sys.argv[1:]==['--proxy']:proxy_server()
