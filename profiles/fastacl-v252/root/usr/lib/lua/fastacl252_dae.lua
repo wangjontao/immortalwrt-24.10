@@ -64,7 +64,7 @@ function M.compile(c)
     end
   end
   rules[#rules+1]='fallback: must_direct'
-  local conf='global {\n disable_waiting_network: true\n so_mark_from_dae: 0\n lan_interface: '..quote(c.interface)..'\n log_level: warn\n tproxy_port: '..tostring(c.port)..'\n tproxy_port_protect: true\n bootstrap_resolver: \'127.0.0.1:12553\'\n fallback_resolver: \'127.0.0.1:12553\'\n}\nnode {\n'..table.concat(nodes,'\n')..'\n}\ngroup {\n'..table.concat(groups,'\n')..'\n}\nrouting {\n'..table.concat(rules,'\n')..'\n}\n'
+  local conf='global {\n disable_waiting_network: true\n auto_config_kernel_parameter: true\n so_mark_from_dae: 0\n lan_interface: '..quote(c.interface)..'\n log_level: warn\n tproxy_port: '..tostring(c.port)..'\n tproxy_port_protect: true\n bootstrap_resolver: \'127.0.0.1:12553\'\n fallback_resolver: \'127.0.0.1:12553\'\n}\nnode {\n'..table.concat(nodes,'\n')..'\n}\ngroup {\n'..table.concat(groups,'\n')..'\n}\nrouting {\n'..table.concat(rules,'\n')..'\n}\n'
   return conf,relay
 end
 return M
