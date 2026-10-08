@@ -21,6 +21,7 @@ def proxy_server():
         def handle(self):
             self.request.settimeout(8)
             try:
+                need_http=True
                 if self.server.server_address[1]==1080:
                     v,n=self.exact(2); assert v==5; self.exact(n); self.request.sendall(b'\x05\x00')
                     v,cmd,_,typ=self.exact(4); assert cmd==1
@@ -29,9 +30,14 @@ def proxy_server():
                     elif typ==4:self.exact(16)
                     self.exact(2); self.request.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00'); label=b'US'
                 else:
-                    assert self.headers().startswith(b'CONNECT ')
-                    self.request.sendall(b'HTTP/1.1 200 Connection established\r\n\r\n'); label=b'JP'
-                self.headers(); self.request.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n'+label)
+                    header=self.headers();label=b'JP'
+                    if header.startswith(b'CONNECT '):
+                        self.request.sendall(b'HTTP/1.1 200 Connection established\r\n\r\n')
+                    else:
+                        assert header.startswith(b'GET http://198.51.100.10:8080/ '),header
+                        need_http=False
+                if need_http:self.headers()
+                self.request.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n'+label)
             except (OSError,EOFError): pass
     class Server(socketserver.ThreadingTCPServer): allow_reuse_address=True; daemon_threads=True
     for port in (1080,1081):
