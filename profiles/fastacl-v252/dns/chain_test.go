@@ -7,7 +7,8 @@ func TestRealFrontToLandingChain(t *testing.T) {
  seen:=make(chan string,2)
  go func(){c,e:=landing.Accept();if e!=nil{return};defer c.Close();c.SetDeadline(time.Now().Add(5*time.Second));reader:=bufio.NewReader(c);line,_:=reader.ReadString('\n');seen<-line
   for {s,e:=reader.ReadString('\n');if e!=nil{return};if s=="\r\n"{break}}
-  c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\nCHAIN"))
+  c.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+  payload:=make([]byte,1);if _,e:=io.ReadFull(reader,payload);e!=nil||payload[0]!=22{return};c.Write([]byte("CHAIN"))
  }()
  go func(){c,e:=front.Accept();if e!=nil{return};defer c.Close();c.SetDeadline(time.Now().Add(5*time.Second));h:=make([]byte,2);if _,e=io.ReadFull(c,h);e!=nil{return};m:=make([]byte,int(h[1]));io.ReadFull(c,m);c.Write([]byte{5,0})
   h=make([]byte,4);if _,e=io.ReadFull(c,h);e!=nil{return};var host string
@@ -17,6 +18,6 @@ func TestRealFrontToLandingChain(t *testing.T) {
  }()
  cfg:=Config{Exits:map[string]string{"12600":"http://"+landing.Addr().String()+" -> socks5://"+front.Addr().String()}}
  exits,e:=makeExits(cfg);if e!=nil{t.Fatal(e)};r:=&relay{exits:exits};ctx,cancel:=context.WithTimeout(context.Background(),5*time.Second);defer cancel()
- c,e:=r.privateDial(ctx,12600,"9.9.9.9");if e!=nil{t.Fatal(e)};defer c.Close();c.SetDeadline(time.Now().Add(5*time.Second));b:=make([]byte,5);if _,e=io.ReadFull(c,b);e!=nil||string(b)!="CHAIN"{t.Fatal("chain did not reach landing",e)}
+ c,e:=r.privateDial(ctx,12600,"9.9.9.9");if e!=nil{t.Fatal(e)};defer c.Close();c.SetDeadline(time.Now().Add(5*time.Second));if _,e=c.Write([]byte{22});e!=nil{t.Fatal(e)};b:=make([]byte,5);if _,e=io.ReadFull(c,b);e!=nil||string(b)!="CHAIN"{t.Fatal("chain did not reach landing",e)}
  a,z:=<-seen,<-seen;if a!=landing.Addr().String()||!strings.HasPrefix(z,"CONNECT 9.9.9.9:443 "){t.Fatal("wrong chain traversal",a,z)}
 }
