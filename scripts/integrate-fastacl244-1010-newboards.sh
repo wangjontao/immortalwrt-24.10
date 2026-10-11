@@ -156,3 +156,14 @@ mkdir -p "$ROOT/usr/lib/lua/luci/view/passwall" "$ROOT/usr/lib/lua/luci/view/pas
 cp "$TMP/1010/profiles/fastacl244-juliang-mt7981/acl/passwall.htm" "$ROOT/usr/lib/lua/luci/view/passwall/acl_ip_refresh.htm"
 cp "$TMP/1010/profiles/fastacl244-juliang-mt7981/acl/passwall2.htm" "$ROOT/usr/lib/lua/luci/view/passwall2/acl_ip_refresh.htm"
 printf '1010V1 FastACL2.4.4\n' > "$ROOT/etc/juliang-build-version"
+
+# QuickStart package is removed: point the retained operator landing route at JuLiang.
+python3 - "$ROOT" <<'PYHOME'
+from pathlib import Path
+import sys,json
+root=Path(sys.argv[1]);p=root/'usr/share/luci/menu.d/zz-juliang-operator.json'
+d=json.loads(p.read_text());d['admin/quickstart']['title']='JuLiang 控制中心';d['admin/quickstart']['action']={'type':'template','path':'juliang_operator/home'};p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+p=root/'usr/libexec/juliang-operator-patch.lua';p.write_text(p.read_text().replace('quickstart/home','juliang_operator/home'))
+assert (root/'usr/lib/lua/luci/view/juliang_operator/home.htm').is_file()
+PYHOME
+luac -p "$ROOT/usr/libexec/juliang-operator-patch.lua"
