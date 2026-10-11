@@ -138,6 +138,16 @@ for app in passwall passwall2; do
   mkdir -p "$ROOT/usr/lib/lua/luci/view/$app"
   curl -fL --retry 5 "https://raw.githubusercontent.com/wangjontao/Actions-OpenWrt/3b7617d1512b5992745bf4e6d072ba706324c5bd/profiles/proxy-realtime-ip-suite/root/usr/lib/lua/luci/view/$app/acl_ip_refresh.htm" -o "$ROOT/usr/lib/lua/luci/view/$app/acl_ip_refresh.htm"
 done
+
+# Copy the complete, immutable router-tested 1010 profile before validation.
+curl -fLsS --retry 5 --connect-timeout 30 --max-time 300 https://codeload.github.com/wangjontao/Actions-OpenWrt/tar.gz/b6d0f73a9d134871045ab7a2cd9fabacc9ce98d0 -o "$TMP/1010.tar.gz"
+mkdir -p "$TMP/1010"
+tar -xzf "$TMP/1010.tar.gz" --strip-components=1 -C "$TMP/1010"
+PROFILE="$TMP/1010/profiles/fastacl244-juliang-mt7981"
+for required in etc/init.d/juliang-domestic-dns etc/uci-defaults/96-juliang-fastacl-dns usr/lib/lua/juliang_fastacl_dns.lua usr/lib/lua/luci/view/juliang_fastacl/node_dns.htm www/luci-static/resources/juliang-fastacl-node-dns.js; do
+ test -s "$PROFILE/root/$required" || { echo "ERROR: incomplete 1010 profile: $required"; exit 1; }
+done
+cp -a "$PROFILE/root/." "$ROOT/"
 find "$ROOT/usr/bin" -name 'juliang*' -exec chmod 0755 {} +
 find "$ROOT/usr/libexec" -name 'juliang*' -exec chmod 0755 {} +
 chmod 0755 "$ROOT/etc/init.d/juliang-domestic-dns" "$ROOT/etc/uci-defaults/96-juliang-fastacl-dns"
