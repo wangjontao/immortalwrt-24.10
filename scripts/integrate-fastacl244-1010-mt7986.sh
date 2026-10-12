@@ -193,3 +193,14 @@ assert 'render("juliang_operator/home")' not in home
 (root/'etc/juliang-build-version').write_text('FastACL JuliangOS V2\n')
 PYV2HOME
 luac -p "$ROOT/usr/libexec/juliang-operator-patch.lua"
+
+# Reuse the tested public egress IP card without adding background polling.
+cp -a profiles/juliangos-v2/root/. "$ROOT/"
+python3 - "$ROOT" <<'PYEGRESS'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])/'usr/lib/lua/luci/view/juliang_operator/home.htm'
+s=p.read_text();anchor='  <div class="jo-actions">';assert anchor in s
+s=s.replace(anchor,'<%+juliang_operator/egress%>\n'+anchor,1);p.write_text(s)
+PYEGRESS
+luac -p "$ROOT/usr/lib/lua/luci/controller/juliang_egress.lua"
