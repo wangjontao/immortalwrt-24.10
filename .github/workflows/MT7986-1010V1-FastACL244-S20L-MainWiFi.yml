@@ -1,10 +1,10 @@
-name: CLX S20L MainWiFi FastACL 1010V1 FastACL2.4.4
+name: CLX S20L MainWiFi FastACL JuliangOS V2
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - codex/1010v1-fastacl244-mt7986
+      - codex/fastacl-juliangos-v2-mt7986
     paths:
       - '.github/workflows/MT7986-1010V1-FastACL244-S20L-MainWiFi.yml'
       - 'scripts/integrate-fastacl244-1010-mt7986.sh'
@@ -29,7 +29,7 @@ env:
 
 jobs:
   build:
-    name: CLX S20L FastACL 1010V1 FastACL2.4.4
+    name: CLX S20L FastACL JuliangOS V2
     runs-on: ubuntu-24.04
     timeout-minutes: 360
 
@@ -220,7 +220,7 @@ jobs:
           chmod 0755 package/base-files/files/etc/uci-defaults/99-enable-nps-wan-mac
 
           sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bin/config_generate
-          sed -i "s/hostname='.*'/hostname='DulWiFi'/g" package/base-files/files/bin/config_generate
+          sed -i "s/hostname='.*'/hostname='JuliangTK'/g" package/base-files/files/bin/config_generate
           ROOT_HASH="$(openssl passwd -1 '@password@')"
           sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 
@@ -327,15 +327,15 @@ jobs:
           ! grep -q '^CONFIG_PACKAGE_kmod-warp=y' .config
           echo 'Source-native MT7986 WiFi verified; realtime IP and WAN self-heal installed.'
 
-      - name: Integrate FastACL 1010V1 FastACL2.4.4
+      - name: Integrate FastACL JuliangOS V2
         run: |
           bash scripts/integrate-fastacl244-1010-mt7986.sh files
           for root in files package/base-files/files; do
             mkdir -p "$root/etc"
-            printf '1010V1 FastACL2.4.4 MainWiFi\n' > "$root/etc/fastacl-firmware-version"
+            printf 'FastACL JuliangOS V2 MainWiFi\n' > "$root/etc/fastacl-firmware-version"
           done
           sed -i '/^CONFIG_VERSION_NUMBER=/d;/^CONFIG_VERSION_DIST=/d' .config
-          printf '\nCONFIG_VERSIONOPT=y\nCONFIG_VERSION_NUMBER="1010V1 FastACL2.4.4 MainWiFi"\nCONFIG_VERSION_DIST="JuLiangTK"\n' >> .config
+          printf '\nCONFIG_VERSIONOPT=y\nCONFIG_VERSION_NUMBER="FastACL JuliangOS V2 MainWiFi"\nCONFIG_VERSION_DIST="JuLiangTK"\n' >> .config
           sed -i "/^CONFIG_PACKAGE_luci-app-store=/d; /^CONFIG_PACKAGE_luci-app-quickstart=/d; /^CONFIG_PACKAGE_quickstart=/d" .config
           printf '# CONFIG_PACKAGE_luci-app-store is not set\n# CONFIG_PACKAGE_luci-app-quickstart is not set\n# CONFIG_PACKAGE_quickstart is not set\n' >> .config
           make defconfig
@@ -350,7 +350,7 @@ jobs:
           grep -q 'if not _jfa_enabled then' files/usr/lib/lua/luci/view/passwall2/acl_ip_refresh.htm
           grep -q "Port='20022'" files/etc/uci-defaults/97-juliang-operator-mode
           grep -q "username='admin'" files/etc/uci-defaults/97-juliang-operator-mode
-          echo 'FastACL 1010V1 FastACL2.4.4 + PassWall2 ACL page fix staged successfully.'
+          echo 'FastACL JuliangOS V2 + PassWall2 ACL page fix staged successfully.'
 
       - name: Download sources
         run: |
@@ -413,7 +413,7 @@ jobs:
       - name: Upload S20L firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CLX-S20L-MainWiFi-FastACL-1010V1-FastACL2.4.4-${{ env.BUILD_DATE }}
+          name: CLX-S20L-MainWiFi-FastACL-JuliangOS-V2-FastACL2.4.4-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -421,17 +421,17 @@ jobs:
       - name: Publish S20L firmware release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: CLX-S20L-MainWiFi-FastACL-1010V1-FastACL2.4.4-24.10-${{ env.BUILD_DATE }}
-          name: CLX S20L MainWiFi FastACL 1010V1 FastACL2.4.4 24.10 ${{ env.BUILD_DATE }}
+          tag_name: CLX-S20L-MainWiFi-FastACL-JuliangOS-V2-FastACL2.4.4-24.10-${{ env.BUILD_DATE }}
+          name: CLX S20L MainWiFi FastACL JuliangOS V2 24.10 ${{ env.BUILD_DATE }}
           files: upload/*
           body: |
             CLX S20L / MT7986A / wangjontao ImmortalWrt 24.10 source. Wireless uses this source's native kmod-mt7915e + MT7986 firmware/WO firmware; closed mt_wifi/WARP is not used.
             Source commit: ${{ env.WRT_HASH }}
-            FastACL core: 1010V1 FastACL2.4.4 pinned to 144a65368fdd43df64690f60946a8b7c1a0bec69; PassWall2 access-control template fix pinned to 8d4fdd5.
+            FastACL core: FastACL JuliangOS V2 pinned to 144a65368fdd43df64690f60946a8b7c1a0bec69; PassWall2 access-control template fix pinned to 8d4fdd5.
             Management IP: 192.168.7.1
-            Hostname: DulWiFi
+            Hostname: JuliangTK
             Wi-Fi: main only; JuLiangTk-5G channel 48, JuLiangTk-2.4G channel 9; password a1111111. Batch creation available in FastACL2.4.4.
-            Included: custom JuLiang dashboard (no iStore/QuickStart), Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps, and FastACL 1010V1 FastACL2.4.4. PassWall/PassWall2 stay installed for node storage/UI and manual fallback; the preserved uploaded 20WiFi ACL files are not activated while FastACL is enabled.
-            October 10 DNS provider selection, custom and per-node DNS, compact gradient console and template fixes included. Batch limits: 14 additional 5GHz and 8 additional 2.4GHz, subject to actual driver capacity.
+            Included: custom JuLiang dashboard (no iStore/QuickStart), Argon, TTYD, LuCI tools, scheduled reboot, LuCI Statistics, PassWall 26.3.6-1, PassWall2 26.3.5-1, HomeProxy, OpenClash, luci-app-nps, and FastACL JuliangOS V2. PassWall/PassWall2 stay installed for node storage/UI and manual fallback; the preserved uploaded 20WiFi ACL files are not activated while FastACL is enabled.
+            Fix: standalone homepage preserved at every boot; all configured WiFi interfaces and per-interface clients listed. October 10 DNS provider selection, custom and per-node DNS, compact gradient console and template fixes included. Batch limits: 14 additional 5GHz and 8 additional 2.4GHz, subject to actual driver capacity.
             Dedicated WiFi is created on demand in FastACL; no preset AP1-AP5.
             NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.jontao.top:8024 TCP, compression and encryption enabled.

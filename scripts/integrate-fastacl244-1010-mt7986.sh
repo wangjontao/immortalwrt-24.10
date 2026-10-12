@@ -179,3 +179,17 @@ p=root/'usr/libexec/juliang-operator-patch.lua';p.write_text(p.read_text().repla
 assert (root/'usr/lib/lua/luci/view/juliang_operator/home.htm').is_file()
 PYHOME
 luac -p "$ROOT/usr/libexec/juliang-operator-patch.lua"
+
+# Standalone JuLiang home: never overwrite it with a QuickStart wrapper at boot.
+python3 - "$ROOT" <<'PYV2HOME'
+from pathlib import Path
+import sys
+root=Path(sys.argv[1]);p=root/'usr/libexec/juliang-operator-patch.lua';s=p.read_text()
+a=s.index('local function patch_quickstart_template()');b=s.index('local function patch_istore_backend()',a)
+s=s[:a]+'local function patch_quickstart_template()\n    return true -- Preserve standalone JuLiang homepage.\nend\n\n'+s[b:];p.write_text(s)
+home=(root/'usr/lib/lua/luci/view/juliang_operator/home.htm').read_text()
+assert 'quickstart/main' not in home
+assert 'render("juliang_operator/home")' not in home
+(root/'etc/juliang-build-version').write_text('FastACL JuliangOS V2\n')
+PYV2HOME
+luac -p "$ROOT/usr/libexec/juliang-operator-patch.lua"
