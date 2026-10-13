@@ -25,6 +25,12 @@ function M.catalog()
   return out
 end
 
+function M.provider(id)
+  local p=providers[id]
+  if not p then return nil end
+  return {id=id,label=p.label,scope=p.scope,kind=p.kind,ip=p.ip,name=p.name or ''}
+end
+
 function M.builtin(id)
   local p=providers[id]
   if not p then return nil end
