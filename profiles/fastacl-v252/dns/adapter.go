@@ -38,7 +38,16 @@ func makeExits(cfg Config)(map[int]netproxy.Dialer,error) {
   if e!=nil {return nil,fmt.Errorf("exit %d: unsupported or invalid node",id)}
   result[id]=d
  }
- for _,id:=range cfg.Devices {if result[id]==nil{return nil,fmt.Errorf("device references missing exit")}}
+ require:=func(id int,where string)error {
+  if id==0{return nil}
+  if id<12600 || id>=14000{return fmt.Errorf("%s references invalid exit",where)}
+  if result[id]==nil{return fmt.Errorf("%s references missing exit",where)}
+  return nil
+ }
+ for _,id:=range cfg.Devices {if e:=require(id,"device");e!=nil{return nil,e}}
+ for _,p:=range cfg.DevicePolicies {if e:=require(p.Exit,"device DNS policy");e!=nil{return nil,e}}
+ for _,p:=range cfg.NetworkPolicies {if e:=require(p.Exit,"network DNS policy");e!=nil{return nil,e}}
+ if e:=require(cfg.DefaultPolicy.Exit,"default DNS policy");e!=nil{return nil,e}
  return result,nil
 }
 func (r *relay) privateDial(ctx context.Context,id int,ip string)(net.Conn,error) {
