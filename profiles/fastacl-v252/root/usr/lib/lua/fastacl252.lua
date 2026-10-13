@@ -100,7 +100,12 @@ function M.firewall(c,backend)
   local ifaces,proxy_wifi={},{}; local seen={}
   for _,v in ipairs(c.interfaces or {c.interface}) do if not seen[v] then ifaces[#ifaces+1]=quote_iface(v);seen[v]=true end end
   for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then proxy_wifi[#proxy_wifi+1]=quote_iface(w.interface) end end
-  local sets=nft_set('lan_ifaces','ifname',ifaces)..nft_set('proxy_wifi_ifaces','ifname',proxy_wifi)..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)
+  local wifi_set,wifi_drop='',''
+  if #proxy_wifi>0 then
+    wifi_set=nft_set('proxy_wifi_ifaces','ifname',proxy_wifi)
+    wifi_drop='iifname @proxy_wifi_ifaces drop\n'
+  end
+  local sets=nft_set('lan_ifaces','ifname',ifaces)..wifi_set..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)
   local all='iifname @lan_ifaces '; local main='iifname '..quote_iface(c.interface)..' '
   local dns6=all..'meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n'
   return {nft='table inet fastacl252 {\n'..sets..
@@ -109,7 +114,7 @@ function M.firewall(c,backend)
     main..'meta nfproto ipv4 ether saddr @proxy_macs ether saddr . ip saddr != @proxy_pairs drop\n'..
     main..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n}\n'..
     'chain forward { type filter hook forward priority -10; policy accept;\n'..dns6..
-    'iifname @proxy_wifi_ifaces drop\n'..
+    wifi_drop..
     main..'ether saddr @proxy_macs drop\n'..main..'ip saddr @proxy_ips drop\n}\n'..
     'chain dns_redirect { type nat hook prerouting priority -100; policy accept;\n'..
     all..'meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553\n}\n'..
