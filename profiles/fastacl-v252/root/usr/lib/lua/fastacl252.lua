@@ -70,7 +70,9 @@ function M.validate(c,guards_only)
     assert(M.in_lan(d.ip,c.router_ip,c.netmask),'Device IP outside LAN / router / network / broadcast')
     assert(not seenip[d.ip] and not seenmac[d.mac],'Duplicate device IP or MAC')
     seenip[d.ip],seenmac[d.mac]=true,true
-    validate_exit(c,d,guards_only); dns.resolve(d,d.mode,c,sink,'device_'..d.id)
+    validate_exit(c,d,guards_only)
+    local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
+    dns.resolve(d,d.mode,c,sink,'device_'..did)
   end
   local ranges={}; do local a,b=cidr_range(M.cidr(c.router_ip,c.netmask)); ranges[#ranges+1]={a,b,c.network} end
   local seennet={}
