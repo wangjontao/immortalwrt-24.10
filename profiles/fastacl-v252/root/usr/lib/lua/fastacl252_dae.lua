@@ -59,7 +59,8 @@ function M.compile(c)
       rules[#rules+1]=mac..' && '..ip..' -> must_'..name
       relay.devices[d.ip]=port -- compatibility for the DNS exit validator
     end
-    local resolver=dns.resolve(d,d.mode,c,resolvers,'device_'..d.id)
+    local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
+    local resolver=dns.resolve(d,d.mode,c,resolvers,'device_'..did)
     relay.device_policies[d.ip]={resolver=resolver,exit=port}
   end
   for _,w in ipairs(c.wifis or {}) do
