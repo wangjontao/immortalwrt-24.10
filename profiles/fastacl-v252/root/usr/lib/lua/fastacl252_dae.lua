@@ -57,7 +57,10 @@ function M.compile(c)
       rules[#rules+1]=mac..' && !'..ip..' -> block'
       rules[#rules+1]=ip..' && !'..mac..' -> block'
       rules[#rules+1]=mac..' && '..ip..' -> must_'..name
-      relay.devices[d.ip]=port -- compatibility for the DNS exit validator
+      -- Legacy private-DNS mode consumed this map.  Dev.2 uses the explicit
+      -- device_policies map for normal/per-device DNS so keep the old map
+      -- empty unless the old private-DNS compatibility path is selected.
+      if c.dns_policy=='private' then relay.devices[d.ip]=port end
     end
     local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
     local resolver=dns.resolve(d,d.mode,c,resolvers,'device_'..did)
