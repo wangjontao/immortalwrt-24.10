@@ -28,8 +28,7 @@ end
 local function used_subnets(u)
   local used={}
   u:foreach('network','interface',function(s)
-    local v=s.ipaddr
-    if type(v)=='table' then v=v[1] end
+    local v=s.ipaddr; if type(v)=='table' then v=v[1] end
     local n=tostring(v or ''):match('^172%.16%.(%d+)%.1$')
     if n then used[tonumber(n)]=true end
   end)
@@ -42,11 +41,9 @@ end
 local function radio_map(u)
   local r={['2g']={},['5g']={}}
   u:foreach('wireless','wifi-device',function(s)
-    local b=band_of(s)
-    if r[b] then r[b][#r[b]+1]=s['.name'] end
+    local b=band_of(s); if r[b] then r[b][#r[b]+1]=s['.name'] end
   end)
-  table.sort(r['2g']); table.sort(r['5g'])
-  return r
+  table.sort(r['2g']); table.sort(r['5g']); return r
 end
 local function counts(u)
   local c={['2g']=0,['5g']=0}
@@ -70,35 +67,34 @@ local function validate_binding(u,node,pre)
   return 'proxy',node,pre
 end
 local function set_dns(u,section,req,mode)
-  local dns=require 'fastacl252_dns'
-  local id=tostring(req.dns or 'inherit')
+  local dns=require 'fastacl252_dns'; local id=tostring(req.dns or 'inherit')
   assert(dns.valid_id(id),'DNS 选择无效')
+  if id~='inherit' and id~='custom' then
+    local p=assert(dns.provider(id),'DNS 服务商不存在')
+    assert(p.scope==(mode=='proxy' and 'proxy' or 'direct'),'DNS 服务商与当前出口模式不匹配')
+  end
   local tmp={dns=id,dns_type=req.dns_type,dns_ip=req.dns_ip,dns_name=req.dns_name}
   local main=u:get_all('fastacl252','main') or {}; dns.resolve(tmp,mode,main,{},'wifi')
   u:set('fastacl252',section,'dns',id)
   if id=='custom' then
-    u:set('fastacl252',section,'dns_type',tmp.dns_type or 'doh')
-    u:set('fastacl252',section,'dns_ip',tmp.dns_ip or '')
-    u:set('fastacl252',section,'dns_name',tmp.dns_name or '')
+    u:set('fastacl252',section,'dns_type',tmp.dns_type or 'doh'); u:set('fastacl252',section,'dns_ip',tmp.dns_ip or ''); u:set('fastacl252',section,'dns_name',tmp.dns_name or '')
   else
     u:delete('fastacl252',section,'dns_type'); u:delete('fastacl252',section,'dns_ip'); u:delete('fastacl252',section,'dns_name')
   end
 end
 
 function M.status(u)
-  local main=u:get_all('fastacl252','main') or {}; local map=radio_map(u); local c=counts(u)
-  local rows={}
+  local main=u:get_all('fastacl252','main') or {}; local map=radio_map(u); local c=counts(u); local rows={}
   u:foreach('fastacl252','wifi',function(s)
-    if owned(s) then
-      rows[#rows+1]={id=s['.name'],network=s.network or '',ssid=s.ssid or '',band=s.band or '',mode=s.mode or 'direct',node=s.node or '',preproxy=s.preproxy or '',dns=s.dns or 'inherit',dns_type=s.dns_type or '',dns_ip=s.dns_ip or '',dns_name=s.dns_name or ''}
-    end
+    if owned(s) then rows[#rows+1]={id=s['.name'],network=s.network or '',ssid=s.ssid or '',band=s.band or '',subnet=s.subnet or '',mode=s.mode or 'direct',node=s.node or '',preproxy=s.preproxy or '',dns=s.dns or 'inherit',dns_type=s.dns_type or '',dns_ip=s.dns_ip or '',dns_name=s.dns_name or ''} end
   end)
   table.sort(rows,function(a,b) return a.id<b.id end)
   return {radios=map,managed=rows,counts=c,max5=tonumber(main.max_wifi_5g or 14),max2=tonumber(main.max_wifi_2g or 8)}
 end
 
 function M.create(u,req)
-  req=req or {}; local st=M.status(u); local n5=int(req.count5 or 0,0,st.max5,'5GHz 新增数量超限'); local n2=int(req.count2 or 0,0,st.max2,'2.4GHz 新增数量超限')
+  req=req or {}; local st=M.status(u)
+  local n5=int(req.count5 or 0,0,st.max5,'5GHz 新增数量超限'); local n2=int(req.count2 or 0,0,st.max2,'2.4GHz 新增数量超限')
   assert(n5+n2>0,'请至少新增一个 WiFi')
   assert(st.counts['5g']+n5<=st.max5,'5GHz 最多新增 '..st.max5..' 个 WiFi')
   assert(st.counts['2g']+n2<=st.max2,'2.4GHz 最多新增 '..st.max2..' 个 WiFi')
@@ -106,10 +102,8 @@ function M.create(u,req)
   if n2>0 then assert(#st.radios['2g']>0,'未检测到 2.4GHz 无线设备') end
   local key=tostring(req.key or ''); assert(#key>=8 and #key<=63 and not key:find('[^ -~]'),'WiFi 密码需要 8-63 个 ASCII 字符')
   local prefix=tostring(req.prefix or 'A'); assert(#prefix>0 and #prefix<=24 and not prefix:find('[%c]'),'WiFi 名称前缀无效')
-  local start=int(req.start or 1,1,999,'WiFi 起始编号无效')
-  local mode,node,pre=validate_binding(u,req.node,req.preproxy)
-  local hidden=req.hidden==true or tostring(req.hidden)=='1'
-  local used=used_subnets(u); local created={}; local seq=0
+  local start=int(req.start or 1,1,999,'WiFi 起始编号无效'); local mode,node,pre=validate_binding(u,req.node,req.preproxy)
+  local hidden=req.hidden==true or tostring(req.hidden)=='1'; local used=used_subnets(u); local created={}; local seq=0
   local function one(band,radio)
     local id=next_name(u); local sn=next_subnet(used); seq=seq+1
     local ssid=prefix..tostring(start+seq-1); assert(#ssid<=32,'SSID 超过 32 字节')
@@ -123,8 +117,7 @@ function M.create(u,req)
     add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','forwarding',id..'_wan',{src=id,dest='wan'},id)
     add(u,'fastacl252','wifi',id,{network=id,ssid=ssid,band=band,subnet=cidr,mode=mode,node=node,preproxy=pre},id)
-    set_dns(u,id,req,mode)
-    created[#created+1]={id=id,ssid=ssid,band=band,network=id,subnet=cidr}
+    set_dns(u,id,req,mode); created[#created+1]={id=id,ssid=ssid,band=band,network=id,subnet=cidr}
   end
   for _=1,n5 do one('5g',st.radios['5g'][1]) end
   for _=1,n2 do one('2g',st.radios['2g'][1]) end
@@ -135,8 +128,16 @@ function M.update(u,req)
   local id=tostring(req.id or ''); local s=u:get_all('fastacl252',id)
   assert(s and s['.type']=='wifi' and owned(s),'FastACL WiFi 不存在')
   local mode,node,pre=validate_binding(u,req.node,req.preproxy)
-  u:set('fastacl252',id,'mode',mode); u:set('fastacl252',id,'node',node); u:set('fastacl252',id,'preproxy',pre)
-  set_dns(u,id,req,mode)
+  u:set('fastacl252',id,'mode',mode); u:set('fastacl252',id,'node',node); u:set('fastacl252',id,'preproxy',pre); set_dns(u,id,req,mode)
+end
+
+function M.hide_all(u,hidden)
+  hidden=hidden==true or tostring(hidden)=='1'
+  local count=0
+  u:foreach('wireless','wifi-iface',function(s)
+    if s.mode=='ap' or not s.mode then u:set('wireless',s['.name'],'hidden',hidden and '1' or '0'); count=count+1 end
+  end)
+  return count
 end
 
 function M.remove(u,id)
@@ -145,9 +146,7 @@ function M.remove(u,id)
   local net=s.network; assert(net and net~='','WiFi 网络信息缺失')
   for _,cfg in ipairs(CONFIGS) do
     local del={}
-    u:foreach(cfg,nil,function(x)
-      if x['.name']==id or (owned(x) and x.jfa25_network==net) then del[#del+1]=x['.name'] end
-    end)
+    u:foreach(cfg,nil,function(x) if x['.name']==id or (owned(x) and x.jfa25_network==net) then del[#del+1]=x['.name'] end end)
     for _,name in ipairs(del) do u:delete(cfg,name) end
   end
 end

@@ -1,7 +1,13 @@
-# FastACL 2.5.2-dev.1 dae development
+# FastACL 2.5.2-dev.2 dae development
 
-Independent S20L / ImmortalWrt 24.10 edition pinned to dae v2.1.1. DNS relay and console use the separate fastacl252 configuration. Direct encrypted DNS is the default. Advanced privacy DNS follows the same native proxy chain as the assigned device and fails with SERVFAIL instead of falling back to direct DNS. Native links list the landing before the front; actual traversal is front then landing.
+Independent JuLiangTK S20L / ImmortalWrt 24.10 edition pinned to dae v2.1.1. The main WiFi keeps device-level MAC + fixed-IP routing. Optional managed WiFi networks can be created on demand (up to +14 5GHz and +8 2.4GHz), each with its own 172.16.x.0/24, DHCP, AP isolation, proxy binding and DNS policy. No extra WiFi is created by default.
 
-Validation gates include Lua parsing, importer and subscription tests, Go race and real two-endpoint chain tests, browser interactions, and actual dae eBPF network-namespace traffic. Tests verify distinct device exits, direct devices, IP/MAC mismatch blocking, IPv6 protection and core-failure blocking. Firmware builds depend on all validation jobs succeeding. These cloud tests do not replace an S20L cold-boot and WiFi hardware test. Do not run multiple transparent proxy engines simultaneously.
+The LuCI UI includes a responsive JuLiang control center, device routing, multi-WiFi management, node import/subscriptions and DNS provider selection. Direct DNS choices include Baidu, AliDNS and Tencent DNSPod; proxy DNS choices include Cloudflare, Google, Cisco OpenDNS and Quad9. Devices and managed WiFi can override the global resolver with a supported provider or custom DNS. Proxy-side custom DNS must use DoH and follows the assigned proxy exit to avoid direct DNS leakage.
 
-Official upstream source: https://github.com/daeuniverse/dae/tree/v2.1.1 (AGPL-3.0).
+Manual import accepts SOCKS5/SK5/HTTP/HTTPS/VLESS/VMess/Trojan/SS/Hysteria2/TUIC and common host:port:user:pass lines. Subscription formats include HTTPS link lists, Base64, Clash YAML and sing-box JSON. Bound subscription nodes are retained when removed upstream.
+
+The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS points to nps.jontao.top:8024 and derives its VKey from the uppercase physical WAN MAC. Restricted LuCI operator access is included; SSH remains on port 20022.
+
+Validation gates cover Lua syntax, import/subscription regressions, Go race tests, dae configuration validation, real eBPF routing/fail-close tests and responsive browser interactions. Firmware builds start only after validation succeeds. These cloud tests do not replace a real S20L cold boot, WiFi radio test and mobile-device routing test.
+
+Official dae source: https://github.com/daeuniverse/dae/tree/v2.1.1 (AGPL-3.0).
