@@ -17,8 +17,14 @@ for root in files package/base-files/files; do
   find "$root" -type f \( -iname '*passwall*' -o -iname '*homeproxy*' -o -iname '*openclash*' -o -iname '*20wifi*' -o -iname '*juliang-fastacl*' \) -delete
 done
 
+# NPS uses a domain in dev.2. Keep the feed defaults and LuCI validator aligned
+# so nps.jontao.top can be displayed, edited and saved without an IP-only error.
 for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f 2>/dev/null); do
   sed -i 's/47\.83\.9\.208/nps.jontao.top/g' "$p"
+done
+for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/*' -type f -name '*.lua' 2>/dev/null); do
+  sed -i -e 's/server\.datatype = "ipaddr"/server.datatype = "host"/g' \
+         -e "s/server\.datatype = 'ipaddr'/server.datatype = 'host'/g" "$p"
 done
 if [ -f package/base-files/files/usr/libexec/nps-wan-mac ]; then
   sed -i 's/47\.83\.9\.208/nps.jontao.top/g' package/base-files/files/usr/libexec/nps-wan-mac
@@ -31,6 +37,10 @@ sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d package/fastacl252/files/etc/uci-defaults -type f -exec chmod 755 {} \;
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
+
+grep -q "fastacl252.main.version=2.5.2-dev.2" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
+grep -q "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
 cp build-configs/JuLiangTK-S20L-FastACL252.txt .config
 sh scripts/integrate-fastacl252-dependencies.sh
