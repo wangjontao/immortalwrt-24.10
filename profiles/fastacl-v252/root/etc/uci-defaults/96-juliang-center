@@ -1,10 +1,10 @@
 #!/bin/sh
-ROOT_HASH="$(awk -F: '$1=="root" {print $2; exit}' /etc/shadow 2>/dev/null)"
-[ -n "$ROOT_HASH" ] || exit 1
+# Restricted JuLiang operator account. Keep this independent from the root password.
+ADMIN_HASH='$1$3npqZWGe$Kx7zaB8RMGzczxaAmCqFv1'
 uci -q delete rpcd.juliang_operator >/dev/null 2>&1 || true
 uci set rpcd.juliang_operator='login'
 uci set rpcd.juliang_operator.username='admin'
-uci set rpcd.juliang_operator.password="$ROOT_HASH"
+uci set rpcd.juliang_operator.password="$ADMIN_HASH"
 uci add_list rpcd.juliang_operator.read='luci-base'
 uci add_list rpcd.juliang_operator.read='luci-base-network-status'
 uci add_list rpcd.juliang_operator.read='juliang-center'
