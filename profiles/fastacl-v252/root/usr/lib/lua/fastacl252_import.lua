@@ -83,7 +83,7 @@ function M.parse(line)
   assert(o.server_port>=1 and o.server_port<=65535,'Invalid port')
   return {name=name and name~='' and name or o.type..' '..o.server..':'..o.server_port,outbound=o,protocol=o.type=='shadowsocks' and 'ss' or o.type}
 end
-function M.batch(text)
+local function raw_batch(text)
   local nodes={}; local n=0
   for line in text:gmatch('[^\r\n]+') do
     n=n+1
@@ -136,10 +136,17 @@ function M.subscription(text)
     local j=require('lyaml').load(text); assert(type(j)=='table' and type(j.proxies)=='table','Invalid Clash YAML')
     for _,n in ipairs(j.proxies) do nodes[#nodes+1]=M.clash(n) end
   else
-    if not text:match('^[%w]+://') and not text:match('^[^:]+:%d+:') then text=b64(text:gsub('%s','')) end
-    nodes=M.batch(text)
+    local first=text:match('^([^\r\n]+)') or ''
+    local raw=first:match('^[%w]+://') or first:match('^[^:%s]+:%d+') or first:match('^%[[^%]]+%]:%d+')
+    if not raw then text=b64(text:gsub('%s','')) end
+    nodes=raw_batch(text)
   end
   assert(#nodes>0 and #nodes<=512,'Subscription must contain 1–512 supported nodes')
   return nodes
+end
+-- Manual import uses the same tolerant parser as subscriptions, while keeping
+-- line-number diagnostics for normal multi-line links.
+function M.batch(text)
+  return M.subscription(text)
 end
 return M
