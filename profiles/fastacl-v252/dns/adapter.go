@@ -15,6 +15,7 @@ import (
  _ "github.com/daeuniverse/outbound/protocol/vless"
  _ "github.com/daeuniverse/outbound/protocol/vmess"
  _ "github.com/daeuniverse/outbound/dialer/trojan"
+ _ "github.com/daeuniverse/outbound/protocol/trojanc"
  _ "github.com/daeuniverse/outbound/dialer/shadowsocks"
  _ "github.com/daeuniverse/outbound/dialer/hysteria2"
  _ "github.com/daeuniverse/outbound/dialer/tuic"
@@ -35,7 +36,7 @@ func makeExits(cfg Config)(map[int]netproxy.Dialer,error) {
  for key,link:=range cfg.Exits {
   id,e:=strconv.Atoi(key);if e!=nil || id<12600 || id>=14000 || strings.ContainsAny(link,"\r\n\x00") {return nil,fmt.Errorf("invalid exit configuration")}
   d,_,e:=dialer.NewNetproxyDialerFromLink(encryptedBase{},&dialer.ExtraOption{AllowInsecure:false},link)
-  if e!=nil {return nil,fmt.Errorf("exit %d: unsupported or invalid node",id)}
+  if e!=nil {return nil,fmt.Errorf("exit %d: unsupported or invalid node: %w",id,e)}
   result[id]=d
  }
  require:=func(id int,where string)error {
