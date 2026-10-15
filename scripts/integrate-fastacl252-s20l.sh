@@ -17,7 +17,7 @@ for root in files package/base-files/files; do
   find "$root" -type f \( -iname '*passwall*' -o -iname '*homeproxy*' -o -iname '*openclash*' -o -iname '*20wifi*' -o -iname '*juliang-fastacl*' \) -delete
 done
 
-# NPS uses a domain in dev.2. Keep the feed defaults and LuCI validator aligned
+# NPS uses a domain in Lite. Keep the feed defaults and LuCI validator aligned
 # so nps.jontao.top can be displayed, edited and saved without an IP-only error.
 for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f 2>/dev/null); do
   sed -i 's/47\.83\.9\.208/nps.jontao.top/g' "$p"
@@ -38,7 +38,8 @@ find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d 
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.5.2-dev.2" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "fastacl252.main.version=2.5.2-lite.1" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.5.2-lite.1" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
@@ -47,7 +48,7 @@ sh scripts/integrate-fastacl252-dependencies.sh
 for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-statistics nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
-if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in dev.2'; exit 1; fi
+if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in Lite'; exit 1; fi
 if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-[^=]+)=(y|m)$' .config; then echo 'Forbidden proxy plugin selected'; exit 1; fi
 grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
 grep -q 'compatible = "clx,s20l", "mediatek,mt7986a"' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
