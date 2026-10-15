@@ -3,7 +3,8 @@ set -eu
 
 TAG="jfa252-ui244-20261015"
 TARGET="/usr/lib/lua/luci/view/fastacl252/console.htm"
-RAW="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/codex/fastacl252-ui244-fix/profiles/fastacl-v252/root/usr/lib/lua/luci/view/fastacl252/console.htm"
+# Pin the verified UI commit so live routers always receive the tested file.
+RAW="https://raw.githubusercontent.com/wangjontao/immortalwrt-24.10/65fc44d4bc8dae5ca51ae7f4039c3707bd2e1a47/profiles/fastacl-v252/root/usr/lib/lua/luci/view/fastacl252/console.htm"
 TMP="/tmp/${TAG}.console.htm"
 STAMP="$(date +%Y%m%d-%H%M%S 2>/dev/null || echo now)"
 BACKUP="/root/${TAG}-backup-${STAMP}"
