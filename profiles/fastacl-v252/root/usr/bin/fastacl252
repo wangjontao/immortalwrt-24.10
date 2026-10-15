@@ -1,83 +1,248 @@
 #!/bin/sh
 set -eu
 umask 077
+
 R=/tmp/fastacl252
+LOCK=/tmp/fastacl252-apply.lock
 mkdir -p "$R"
+
+pause_fast(){
+  sleep 0.1 2>/dev/null && return 0
+  command -v usleep >/dev/null 2>&1 && { usleep 100000; return 0; }
+  sleep 1
+}
+
+acquire_lock(){
+  local i=0
+  while ! mkdir "$LOCK" 2>/dev/null; do
+    i=$((i+1))
+    [ "$i" -lt 30 ] || { echo 'FastACL apply busy' >&2; return 1; }
+    pause_fast
+  done
+  trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT HUP INT TERM
+}
+
 alive(){
   [ -s "$R/router.pid" ] || return 1
-  local pid; pid=$(cat "$R/router.pid")
+  local pid; pid=$(cat "$R/router.pid" 2>/dev/null || true)
   case "$pid" in ''|*[!0-9]*) return 1;; esac
-  kill -0 "$pid" 2>/dev/null && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq "$R/router.dae"
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq "$R/router.dae"
 }
+
 dns_alive(){
   [ -s "$R/dns.pid" ] || return 1
-  local pid; pid=$(cat "$R/dns.pid")
+  local pid; pid=$(cat "$R/dns.pid" 2>/dev/null || true)
   case "$pid" in ''|*[!0-9]*) return 1;; esac
-  kill -0 "$pid" 2>/dev/null && tr '\000' ' ' < "/proc/$pid/cmdline" | grep -Fq 'fastacl252-dns'
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq 'fastacl252-dns'
 }
+
+listener(){
+  (ss -lnt 2>/dev/null; netstat -lnt 2>/dev/null) | grep -q ":$1 "
+}
+
+dae_ready(){
+  alive || return 1
+  local port; port=$(uci -q get fastacl252.main.port 2>/dev/null || echo 12345)
+  ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$port "
+}
+
+dns_ready(){ dns_alive && listener 12553; }
+
+wait_dae(){
+  local i=0
+  while ! dae_ready; do
+    i=$((i+1)); [ "$i" -lt 40 ] || return 1
+    pause_fast
+  done
+}
+
+wait_dns(){
+  local i=0
+  while ! dns_ready; do
+    i=$((i+1)); [ "$i" -lt 30 ] || return 1
+    pause_fast
+  done
+}
+
 dns_stop(){
   if dns_alive; then
-    kill "$(cat "$R/dns.pid")"
+    kill "$(cat "$R/dns.pid")" 2>/dev/null || true
     local i=0
-    while dns_alive; do i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+    while dns_alive; do
+      i=$((i+1)); [ "$i" -lt 20 ] || { kill -9 "$(cat "$R/dns.pid")" 2>/dev/null || true; break; }
+      pause_fast
+    done
   fi
   rm -f "$R/dns.pid"
 }
-listener(){ (ss -lnt 2>/dev/null; netstat -lnt 2>/dev/null) | grep -q ":$1 "; }
-firewall(){
+
+dae_stop(){
+  if alive; then
+    kill "$(cat "$R/router.pid")" 2>/dev/null || true
+    local i=0
+    while alive; do
+      i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$(cat "$R/router.pid")" 2>/dev/null || true; break; }
+      pause_fast
+    done
+  fi
+  rm -f "$R/router.pid"
+}
+
+generate_next(){
+  lua /usr/libexec/fastacl252-generate.lua nft guard
+  lua /usr/libexec/fastacl252-generate.lua nft
+}
+
+validate_next(){
+  dae validate -c "$R/router.next.dae" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
+  fastacl252-dns -check -config "$R/dns.next.json" >"$R/dns-check.log" 2>&1 || { cat "$R/dns-check.log"; return 1; }
+}
+
+firewall_apply(){
   if ! cmp -s "$R/nft.next.rules" "$R/nft.loaded.rules" || ! nft list table inet fastacl252 >/dev/null 2>&1; then
-    { nft list table inet fastacl252 >/dev/null 2>&1 && echo 'delete table inet fastacl252' || true; cat "$R/nft.next.rules"; } > "$R/nft.apply"
-    nft -c -f "$R/nft.apply"; nft -f "$R/nft.apply"
+    {
+      nft list table inet fastacl252 >/dev/null 2>&1 && echo 'delete table inet fastacl252' || true
+      cat "$R/nft.next.rules"
+    } > "$R/nft.apply"
+    nft -c -f "$R/nft.apply"
+    nft -f "$R/nft.apply"
     cp "$R/nft.next.rules" "$R/nft.loaded.rules"
   fi
-  # dae does not use the former host TProxy route table.
-  : # ip rule show | grep -q 'fwmark 0x65/0xff.*lookup 125' || ip rule add fwmark 0x65/0xff table 125 priority 10025
-  :
 }
-apply(){
-  [ "$(uci -q get fastacl252.main.enabled)" = 1 ] || { echo 'FastACL 2.5.2 dae is disabled'; return 1; }
-  mkdir /tmp/fastacl252-apply.lock 2>/dev/null || { echo 'Another apply is running'; return 1; }
-  trap 'rmdir /tmp/fastacl252-apply.lock 2>/dev/null || true' EXIT HUP INT TERM
-  lua /usr/libexec/fastacl252-generate.lua nft guard
-  firewall
-  lua /usr/libexec/fastacl252-generate.lua nft
-  dae validate -c "$R/router.next.dae" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
-  if alive && dns_alive && cmp -s "$R/router.next.dae" "$R/router.dae" && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
-  if alive; then kill "$(cat "$R/router.pid")"; i=0; while alive; do i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done; fi
-  dns_stop
-  fastacl252-dns -check -config "$R/dns.next.json"
+
+start_dns_next(){
   cp "$R/dns.next.json" "$R/dns.json"
-  cp "$R/router.next.dae" "$R/router.dae"
   fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
   echo $! > "$R/dns.pid"
-  i=0; while ! listener 12553; do dns_alive || return 1; i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+  wait_dns || { cat "$R/dns.log" 2>/dev/null || true; return 1; }
+}
+
+start_dae_next(){
+  cp "$R/router.next.dae" "$R/router.dae"
   dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
   echo $! > "$R/router.pid"
-  i=0; port=$(uci -q get fastacl252.main.port)
-  while ! ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$port " || ! listener 12553; do alive && dns_alive || return 1; i=$((i+1)); [ "$i" -lt 8 ] || return 1; sleep 1; done
+  wait_dae || { cat "$R/router.log" 2>/dev/null || true; return 1; }
 }
+
+reload_dns_next(){
+  if dns_alive && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
+  [ ! -s "$R/dns.json" ] || cp "$R/dns.json" "$R/dns.prev.json"
+  dns_stop
+  if start_dns_next; then return 0; fi
+  echo '[FastACL] DNS relay hot reload failed, rolling back' >&2
+  dns_stop
+  if [ -s "$R/dns.prev.json" ]; then
+    cp "$R/dns.prev.json" "$R/dns.json"
+    fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
+    echo $! > "$R/dns.pid"
+    wait_dns || true
+  fi
+  return 1
+}
+
+reload_dae_next(){
+  if dae_ready && cmp -s "$R/router.next.dae" "$R/router.dae"; then return 0; fi
+  if ! dae_ready; then
+    dae_stop
+    start_dae_next
+    return $?
+  fi
+
+  cp "$R/router.dae" "$R/router.prev.dae"
+  cp "$R/router.next.dae" "$R/router.dae"
+  local pid; pid=$(cat "$R/router.pid")
+  if dae reload "$pid" >"$R/reload.log" 2>&1 && wait_dae; then
+    echo 'hot' > "$R/last-apply-mode"
+    return 0
+  fi
+
+  # Hot reload is preferred, but an application-only restart is still much
+  # lighter than reloading network/wifi/firewall and guarantees new sessions
+  # cannot remain pinned to the previous outbound.
+  echo '[FastACL] dae hot reload failed; falling back to dae-only restart' >&2
+  cat "$R/reload.log" 2>/dev/null || true
+  dae_stop
+  if start_dae_next; then
+    echo 'app-restart' > "$R/last-apply-mode"
+    return 0
+  fi
+
+  echo '[FastACL] new dae config failed; rolling back previous application config' >&2
+  dae_stop
+  if [ -s "$R/router.prev.dae" ]; then
+    cp "$R/router.prev.dae" "$R/router.next.dae"
+    start_dae_next || true
+  fi
+  return 1
+}
+
+hot_apply(){
+  acquire_lock
+  generate_next
+  validate_next
+  firewall_apply
+  reload_dns_next
+  reload_dae_next
+  echo 'hot' > "$R/last-request-mode"
+}
+
+cold_apply(){
+  acquire_lock
+  generate_next
+  validate_next
+  firewall_apply
+  dae_stop
+  dns_stop
+  start_dns_next
+  start_dae_next
+  echo 'cold' > "$R/last-request-mode"
+  echo 'app-restart' > "$R/last-apply-mode"
+}
+
+ensure_runtime(){
+  if dae_ready && dns_ready && nft list table inet fastacl252 >/dev/null 2>&1; then return 0; fi
+  echo '[FastACL] runtime unhealthy; recovering application dataplane' >&2
+  cold_apply
+}
+
 status(){
-  engine=stopped; alive && engine=running
+  local engine=stopped fw=false mode=none request=none
+  alive && engine=running
   [ "$engine" != running ] || dns_alive || engine=broken
-  fw=false; nft list table inet fastacl252 >/dev/null 2>&1 && fw=true
-  [ "$engine" != running ] || ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$(uci -q get fastacl252.main.port) " || engine=broken
-  printf '{"engine":"%s","firewall":%s,"backend":"nft"}\n' "$engine" "$fw"
+  [ "$engine" != running ] || dae_ready || engine=broken
+  nft list table inet fastacl252 >/dev/null 2>&1 && fw=true
+  [ ! -s "$R/last-apply-mode" ] || mode=$(cat "$R/last-apply-mode")
+  [ ! -s "$R/last-request-mode" ] || request=$(cat "$R/last-request-mode")
+  printf '{"engine":"%s","firewall":%s,"backend":"nft","switch":"%s","request":"%s"}\n' "$engine" "$fw" "$mode" "$request"
 }
+
 case "${1:-status}" in
-  apply) apply;;
+  apply|hot-apply) hot_apply;;
+  cold-apply) cold_apply;;
+  ensure) ensure_runtime;;
   status) status;;
-  stop) dns_stop; if alive; then kill "$(cat "$R/router.pid")"; fi; rm -f "$R/router.pid"; echo 'Core stopped; protection rules retained';;
+  stop)
+    dns_stop
+    dae_stop
+    echo 'Core stopped; protection rules retained';;
   guard)
-    while [ "$(uci -q get fastacl252.main.enabled)" = 1 ]; do
-      /usr/bin/fastacl252 apply >"$R/guard.log" 2>&1 || true
-      if [ ! -d /tmp/fastacl252-subscribe.lock ]; then lua /usr/libexec/fastacl252-subscribe.lua due >"$R/subscribe.log" 2>&1 & fi
+    while [ "$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 0)" = 1 ]; do
+      if ! dae_ready || ! dns_ready || ! nft list table inet fastacl252 >/dev/null 2>&1; then
+        /usr/bin/fastacl252 ensure >"$R/guard.log" 2>&1 || true
+      fi
+      if [ ! -d /tmp/fastacl252-subscribe.lock ]; then
+        lua /usr/libexec/fastacl252-subscribe.lua due >"$R/subscribe.log" 2>&1 &
+      fi
       sleep 15
     done;;
   cleanup)
     dns_stop
-    if alive; then kill "$(cat "$R/router.pid")"; fi; rm -f "$R/router.pid"
+    dae_stop
     nft delete table inet fastacl252 2>/dev/null || true
-    ip rule del fwmark 0x65/0xff table 125 priority 10025 2>/dev/null || true
-    ip route flush table 125 2>/dev/null || true;;
-  *) echo 'Usage: fastacl252 apply|status|stop|guard|cleanup' >&2; exit 2;;
+    rm -f "$R/nft.loaded.rules";;
+  *)
+    echo 'Usage: fastacl252 hot-apply|cold-apply|ensure|status|stop|guard|cleanup' >&2
+    exit 2;;
 esac
