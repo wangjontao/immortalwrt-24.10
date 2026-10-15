@@ -1,0 +1,38 @@
+name: FastACL252 DNS relay HOTFIX-4
+
+'on':
+  push:
+    branches:
+      - codex/fastacl252-hotfix4-batch-delete-dns
+    paths:
+      - profiles/fastacl-v252/dns/**
+      - .github/workflows/FastACL252-dns-hotfix4.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+      - name: Build ARM64 fastacl252-dns
+        working-directory: profiles/fastacl-v252/dns
+        run: |
+          go mod tidy
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -trimpath -ldflags='-s -w' -o /tmp/fastacl252-dns .
+          file /tmp/fastacl252-dns
+          sha256sum /tmp/fastacl252-dns | tee /tmp/fastacl252-dns.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fastacl252-dns-hotfix4-linux-arm64
+          path: |
+            /tmp/fastacl252-dns
+            /tmp/fastacl252-dns.sha256
+          if-no-files-found: error
