@@ -1,0 +1,49 @@
+name: FastACL 2.5.2 HOTFIX-6 Fast Switch Validation
+
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+      - codex/fastacl252-dae-s20l
+    paths:
+      - profiles/fastacl-v252/root/usr/libexec/fastacl252-hotfix6-fast-switch.sh
+      - profiles/fastacl-v252/root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch
+      - .github/workflows/FastACL252-HOTFIX6-fast-switch.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fastacl252-hotfix6-fast-switch
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1
+      - name: Apply hotfix to a clean root copy
+        run: |
+          rm -rf /tmp/h6root
+          mkdir -p /tmp/h6root
+          cp -a profiles/fastacl-v252/root/. /tmp/h6root/
+          FASTACL252_BOOT=1 sh profiles/fastacl-v252/root/usr/libexec/fastacl252-hotfix6-fast-switch.sh /tmp/h6root
+          sh -n /tmp/h6root/usr/bin/fastacl252
+          lua5.1 -e "assert(loadfile('/tmp/h6root/usr/lib/lua/luci/controller/fastacl252.lua'))"
+          grep -q "2.5.2-hotfix.6" /tmp/h6root/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q "job_log=joblog" /tmp/h6root/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q "节点切换失败（RC=" /tmp/h6root/usr/lib/lua/luci/view/fastacl252/console.htm
+          grep -q "切换超过 15 秒" /tmp/h6root/usr/lib/lua/luci/view/fastacl252/console.htm
+          grep -q 'ui-apply.pending' /tmp/h6root/usr/bin/fastacl252
+      - name: Verify idempotent second install
+        run: |
+          FASTACL252_BOOT=1 sh profiles/fastacl-v252/root/usr/libexec/fastacl252-hotfix6-fast-switch.sh /tmp/h6root
+      - name: Check firstboot hook
+        run: |
+          sh -n profiles/fastacl-v252/root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch
+          grep -q 'FASTACL252_BOOT=1 sh /usr/libexec/fastacl252-hotfix6-fast-switch.sh' profiles/fastacl-v252/root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch
