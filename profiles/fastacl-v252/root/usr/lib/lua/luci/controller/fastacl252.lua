@@ -13,20 +13,29 @@ local function acquire_lock(fs)
   return false
 end
 local function release_lock(fs) fs.rmdir('/tmp/fastacl252-edit.lock') end
-local function apply_async()
+local function tail(s,n)
+  s=tostring(s or ''); n=n or 4000
+  return #s>n and s:sub(-n) or s
+end
+local function apply_now(mode)
   local fs=require 'nixio.fs'; local sys=require 'luci.sys'
   fs.mkdir('/tmp/fastacl252')
   fs.writefile('/tmp/fastacl252/apply.result','pending')
-  sys.call("( /usr/bin/fastacl252 apply > /tmp/fastacl252/apply.log 2>&1; rc=$?; echo $rc > /tmp/fastacl252/apply.result ) </dev/null >/dev/null 2>&1 &")
+  local rc=sys.call('/usr/bin/fastacl252 '..mode..' > /tmp/fastacl252/apply.log 2>&1')
+  fs.writefile('/tmp/fastacl252/apply.result',rc==0 and '0' or '1')
+  return rc==0,tail(fs.readfile('/tmp/fastacl252/apply.log') or '',5000)
 end
 local function provider_ok(id,scope)
   local p=require('fastacl252_dns').provider(id)
   return p and p.scope==scope
 end
+local function restore_files(fs,backup,names)
+  for _,n in ipairs(names) do if backup[n]~=nil then fs.writefile('/etc/config/'..n,backup[n]) end end
+end
 
 function index()
   if not nixio.fs.access('/etc/config/fastacl252') then return end
-  local p=entry({'admin','services','fastacl252'},template('fastacl252/console'),_('FastACL 2.5.2 dae 控制台'),27)
+  local p=entry({'admin','services','fastacl252'},template('fastacl252/console'),_('FastACL 2.5.2 Lite 控制台'),27)
   p.dependent=false; gate(p)
   local e
   e=gate(entry({'admin','services','fastacl252_status'},call('status'),nil)); e.leaf=true
@@ -51,9 +60,11 @@ function status()
     subscriptions[#subscriptions+1]={id=s['.name'],name=s.name or s['.name'],enabled=s.enabled~='0',interval_hours=tonumber(s.interval_hours or '24'),status=json.parse(fs.readfile('/tmp/fastacl252/sub-'..s['.name']..'.json') or '') or {}}
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
-  reply({ok=true,version='2.5.2-dev.2',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({ok=true,version='2.5.2-lite.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
+-- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
+-- only when a managed fixed address is actually added/removed/changed.
 function save()
   local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local sys=require 'luci.sys'
   local policy=require 'fastacl252'; local env=require 'fastacl252_env'; local dns=require 'fastacl252_dns'
@@ -62,17 +73,21 @@ function save()
   local request=json.parse(raw)
   if type(request)~='table' then reply({ok=false,error='请求格式错误'}); return end
   if not acquire_lock(fs) then return end
-  local u=require('uci').cursor(); local oldcfg=fs.readfile('/etc/config/fastacl252'); local olddhcp=fs.readfile('/etc/config/dhcp'); local committed=false
+
+  local u=require('uci').cursor()
+  local backup={fastacl252=fs.readfile('/etc/config/fastacl252'),dhcp=fs.readfile('/etc/config/dhcp')}
+  local committed=false; local dhcp_changed=false; local apply_detail=''; local enabled=false
   local ok,err=pcall(function()
     for _,cfg in ipairs({'fastacl252','dhcp'}) do local changes=u:changes(cfg); assert(not changes or not next(changes),'请先保存或撤销 LuCI 中未提交的配置') end
-    local c=env.read(u)
+    local c=env.read(u); enabled=c.enabled
     if request.direct_dns then assert(provider_ok(request.direct_dns,'direct'),'国内直连 DNS 选择无效'); c.direct_dns=request.direct_dns end
     if request.proxy_dns then assert(provider_ok(request.proxy_dns,'proxy'),'代理出口 DNS 选择无效'); c.proxy_dns=request.proxy_dns end
+
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'设备数量过多')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
-    local changed={}
+    local before={}; local changed={}
     for _,d in ipairs(updates) do
-      local mac=assert(policy.mac(d.mac),'MAC 地址无效'); assert(not changed[mac],'重复设备'); changed[mac]=true
+      local mac=assert(policy.mac(d.mac),'MAC 地址无效'); assert(not changed[mac],'重复设备'); changed[mac]=true; before[mac]=existing[mac]
       if d.remove==true then existing[mac]=nil else
         assert(type(d.name or '')=='string' and #(d.name or '')<=80,'设备名称无效')
         local node=tostring(d.node or ''); local mode=node~='' and 'proxy' or 'direct'; local dnsid=tostring(d.dns or 'inherit')
@@ -84,6 +99,7 @@ function save()
         existing[mac]={id='d_'..mac:gsub(':',''),mac=mac,ip=d.ip,name=d.name or '',mode=mode,node=node,preproxy=d.preproxy or '',dns=dnsid,dns_type=d.dns_type,dns_ip=d.dns_ip,dns_name=d.dns_name}
       end
     end
+
     c.devices={}; for _,d in pairs(existing) do c.devices[#c.devices+1]=d end
     policy.validate(c)
     local inventory=env.inventory(c,u)
@@ -97,36 +113,58 @@ function save()
       end)
       for _,r in ipairs(inventory) do assert(r.mac==d.mac or r.ip~=d.ip,'固定 IP 当前正被其他设备使用') end
     end
+
     if request.direct_dns then u:set('fastacl252','main','direct_dns',c.direct_dns) end
     if request.proxy_dns then u:set('fastacl252','main','proxy_dns',c.proxy_dns) end
+
     for mac in pairs(changed) do
-      local id='d_'..mac:gsub(':',''); local host='jfa25_'..id
-      u:delete('fastacl252',id); u:delete('dhcp',host)
-      local d=existing[mac]
+      local id='d_'..mac:gsub(':',''); local host='jfa25_'..id; local old=before[mac]; local d=existing[mac]
+      u:delete('fastacl252',id)
       if d then
-        local reserved=false
-        u:foreach('dhcp','host',function(s)
-          local list=type(s.mac)=='table' and s.mac or {s.mac or ''}
-          for _,v in ipairs(list) do for x in v:gmatch('%S+') do if policy.mac(x)==mac then assert(s.ip==d.ip,'此 MAC 已有其他固定 IP，请先调整原静态租约'); reserved=true end end end
-        end)
         u:section('fastacl252','device',id,{mac=mac,ip=d.ip,name=d.name,mode=d.mode,node=d.node or '',preproxy=d.preproxy or '',dns=d.dns or 'inherit'})
         if d.dns=='custom' then
           u:set('fastacl252',id,'dns_type',d.dns_type or 'doh'); u:set('fastacl252',id,'dns_ip',d.dns_ip or ''); u:set('fastacl252',id,'dns_name',d.dns_name or '')
         end
-        if not reserved then u:section('dhcp','host',host,{mac=mac,ip=d.ip,leasetime='infinite',jfa25='1'}) end
+      end
+
+      if not d or not old or tostring(old.ip or '')~=tostring(d.ip or '') then
+        dhcp_changed=true
+        u:delete('dhcp',host)
+        if d then
+          local reserved=false
+          u:foreach('dhcp','host',function(s)
+            if s['.name']~=host then
+              local list=type(s.mac)=='table' and s.mac or {s.mac or ''}
+              for _,v in ipairs(list) do for x in v:gmatch('%S+') do if policy.mac(x)==mac then assert(s.ip==d.ip,'此 MAC 已有其他固定 IP，请先调整原静态租约'); reserved=true end end end
+            end
+          end)
+          if not reserved then u:section('dhcp','host',host,{mac=mac,ip=d.ip,leasetime='infinite',jfa25='1'}) end
+        end
       end
     end
-    assert(u:commit('fastacl252'),'保存 FastACL 配置失败'); committed=true
-    assert(u:commit('dhcp'),'保存 DHCP 配置失败'); fs.chmod('/etc/config/fastacl252',384)
-    sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1')
-    if c.enabled then apply_async() end
+
+    assert(u:commit('fastacl252'),'保存 FastACL 配置失败')
+    if dhcp_changed then assert(u:commit('dhcp'),'保存 DHCP 配置失败') end
+    fs.chmod('/etc/config/fastacl252',384); committed=true
+    if dhcp_changed then sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1') end
+    if enabled then
+      local aok,detail=apply_now('hot-apply'); apply_detail=detail
+      assert(aok,'应用层快速切换失败：'..(detail~='' and detail or '未知错误'))
+    end
   end)
+
   if not ok then
     u:revert('fastacl252'); u:revert('dhcp')
-    if committed then fs.writefile('/etc/config/fastacl252',oldcfg or ''); fs.writefile('/etc/config/dhcp',olddhcp or '') end
+    if committed then
+      restore_files(fs,backup,{'fastacl252','dhcp'})
+      if dhcp_changed then sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1') end
+      if enabled then apply_now('hot-apply') end
+    end
   end
   release_lock(fs)
-  reply(ok and {ok=true,message='已保存；固定 IP 改变的设备请重新连接 WiFi。'} or {ok=false,error=tostring(err)})
+  if ok then
+    reply({ok=true,message=dhcp_changed and '已保存；仅重载 DHCP，代理已应用层快速切换。' or '应用层快速切换完成；未重载 network / WiFi / firewall。',detail=apply_detail})
+  else reply({ok=false,error=tostring(err),detail=apply_detail}) end
 end
 
 function import_nodes()
@@ -148,35 +186,77 @@ function import_nodes()
   reply({ok=ok,count=count,error=not ok and tostring(err) or nil,detail=not ok and detail or nil})
 end
 
+-- update = pure application hot switch; create/remove = topology cold path;
+-- hide_all = wireless-only reload.
 function wifi_action()
   local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local sys=require 'luci.sys'
   local req=json.parse(h.formvalue('data') or '')
   if type(req)~='table' then reply({ok=false,error='WiFi 请求格式错误'}); return end
   if not acquire_lock(fs) then return end
-  local names={'network','wireless','dhcp','firewall','fastacl252'}; local u=require('uci').cursor(); local backup={}
+  local u=require('uci').cursor(); local manager=require 'fastacl252_wifi'; local result; local detail=''
+
+  if req.action=='update' then
+    local original=fs.readfile('/etc/config/fastacl252'); local committed=false
+    local ok,err=pcall(function()
+      local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交配置')
+      manager.update(u,req); require('fastacl252_env').read(u)
+      assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); fs.chmod('/etc/config/fastacl252',384); committed=true
+      if u:get('fastacl252','main','enabled')=='1' then
+        local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'应用层快速切换失败：'..(d~='' and d or '未知错误'))
+      end
+      result={id=req.id,path='hot'}
+    end)
+    if not ok then
+      u:revert('fastacl252')
+      if committed and original then fs.writefile('/etc/config/fastacl252',original); apply_now('hot-apply') end
+    end
+    release_lock(fs)
+    reply(ok and {ok=true,result=result,message='节点已应用层快速切换；network / WiFi / firewall 均未重载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+    return
+  end
+
+  if req.action=='hide_all' then
+    local original=fs.readfile('/etc/config/wireless'); local ok,err=pcall(function()
+      local pending=u:changes('wireless'); assert(not pending or not next(pending),'请先保存或撤销无线配置')
+      result={count=manager.hide_all(u,req.hidden)}
+      assert(u:commit('wireless'),'保存无线隐藏状态失败')
+      assert(sys.call('wifi reload >/dev/null 2>&1')==0,'WiFi reload 失败')
+    end)
+    if not ok then u:revert('wireless'); if original then fs.writefile('/etc/config/wireless',original) end end
+    release_lock(fs)
+    reply(ok and {ok=true,result=result,message='SSID 显示状态已更新；未重载 network / firewall / dae。'} or {ok=false,error=tostring(err)})
+    return
+  end
+
+  local names={'network','wireless','dhcp','firewall','fastacl252'}; local backup={}
   for _,n in ipairs(names) do backup[n]=fs.readfile('/etc/config/'..n) end
-  local result
+  local committed=false
   local ok,err=pcall(function()
     for _,n in ipairs(names) do local c=u:changes(n); assert(not c or not next(c),'请先保存或撤销 LuCI 中未提交的配置') end
-    local manager=require 'fastacl252_wifi'
     if req.action=='create' then result=manager.create(u,req)
-    elseif req.action=='update' then manager.update(u,req); result={id=req.id}
     elseif req.action=='remove' then manager.remove(u,req.id); result={id=req.id}
-    elseif req.action=='hide_all' then result={count=manager.hide_all(u,req.hidden)}
     else error('不支持的 WiFi 操作') end
-    for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
     require('fastacl252_env').read(u)
-    sys.call('/etc/init.d/network reload >/dev/null 2>&1')
+    for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
+    committed=true
+    assert(sys.call('/etc/init.d/network reload >/dev/null 2>&1')==0,'network reload 失败')
     sys.call('wifi reload >/dev/null 2>&1')
     sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
     sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
-    if u:get('fastacl252','main','enabled')=='1' then apply_async() end
+    if u:get('fastacl252','main','enabled')=='1' then
+      local aok,d=apply_now('cold-apply'); detail=d; assert(aok,'拓扑应用失败：'..(d~='' and d or '未知错误'))
+    end
   end)
   if not ok then
-    for _,n in ipairs(names) do u:revert(n); if backup[n] then fs.writefile('/etc/config/'..n,backup[n]) end end
+    for _,n in ipairs(names) do u:revert(n) end
+    if committed then
+      restore_files(fs,backup,names)
+      sys.call('/etc/init.d/network reload >/dev/null 2>&1'); sys.call('wifi reload >/dev/null 2>&1'); sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
+      if u:get('fastacl252','main','enabled')=='1' then apply_now('cold-apply') end
+    end
   end
   release_lock(fs)
-  reply(ok and {ok=true,result=result,message='WiFi 配置已保存并重新加载'} or {ok=false,error=tostring(err)})
+  reply(ok and {ok=true,result=result,message='WiFi 拓扑已保存并重新加载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
 end
 
 function subscription()
