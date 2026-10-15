@@ -34,8 +34,12 @@ func makeExits(cfg Config)(map[int]netproxy.Dialer,error) {
  result:=map[int]netproxy.Dialer{}
  for key,link:=range cfg.Exits {
   id,e:=strconv.Atoi(key);if e!=nil || id<12600 || id>=14000 || strings.ContainsAny(link,"\r\n\x00") {return nil,fmt.Errorf("invalid exit configuration")}
-  d,_,e:=dialer.NewNetproxyDialerFromLink(encryptedBase{},&dialer.ExtraOption{AllowInsecure:false},link)
-  if e!=nil {return nil,fmt.Errorf("exit %d: unsupported or invalid node",id)}
+  // The outbound V2Ray/VLESS constructor expects a concrete TLS implementation
+  // for normal TLS links. dae normally supplies these defaults globally, but this
+  // standalone DNS relay constructs the outbound dialer directly, so set them here.
+  opt:=&dialer.ExtraOption{AllowInsecure:false,TlsImplementation:"tls",UtlsImitate:"chrome"}
+  d,_,e:=dialer.NewNetproxyDialerFromLink(encryptedBase{},opt,link)
+  if e!=nil {return nil,fmt.Errorf("exit %d: unsupported or invalid node: %w",id,e)}
   result[id]=d
  }
  require:=func(id int,where string)error {
