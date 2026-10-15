@@ -23,8 +23,8 @@ for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/con
   sed -i 's/47\.83\.9\.208/nps.jontao.top/g' "$p"
 done
 for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/*' -type f -name '*.lua' 2>/dev/null); do
-  sed -i -e 's/server\.datatype = "ipaddr"/server.datatype = "host"/g' \
-         -e "s/server\.datatype = 'ipaddr'/server.datatype = 'host'/g" "$p"
+  sed -i -e 's/server\.datatype[[:space:]]*=[[:space:]]*"ipaddr"/server.datatype = "host"/g' \
+         -e "s/server\.datatype[[:space:]]*=[[:space:]]*'ipaddr'/server.datatype = 'host'/g" "$p"
 done
 if [ -f package/base-files/files/usr/libexec/nps-wan-mac ]; then
   sed -i 's/47\.83\.9\.208/nps.jontao.top/g' package/base-files/files/usr/libexec/nps-wan-mac

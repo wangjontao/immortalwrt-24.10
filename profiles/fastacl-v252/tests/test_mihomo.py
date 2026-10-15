@@ -32,6 +32,13 @@ def compile(c):
 class Tests(unittest.TestCase):
     def test_device_rules(self):
         a,b=compile(config());self.assertIn("sip(192.168.7.101/32) -> must_exit_us",a);self.assertIn('fallback: must_direct',a);self.assertFalse(b['devices'])
+    def test_empty_relay_tables_are_json_objects(self):
+        c=config(); c['devices']=[]; c['nodes']={}
+        _,relay=policy.compile(to_lua(c))
+        encoded=lua.eval("require('fastacl252_dae').encode_relay")(relay)
+        data=json.loads(encoded)
+        for key in ['devices','exits','resolvers','device_policies','network_policies']:
+            self.assertIsInstance(data[key],dict)
     def test_shared_nodes(self):
         c=config();c['devices'][1]['node']='us';a,b=compile(c);self.assertEqual(a.count('policy: fixed(0)'),1)
     def test_private_dns_isolation(self):
@@ -62,7 +69,7 @@ def fixtures(core,helper):
         if name=='chain':c['devices'][0]['preproxy']='front'
         if name=='empty':c['devices']=[]
         a,b=compile(c);p=out/(name+'.dae');p.write_text(a,encoding='utf8');p.chmod(0o600)
-        q=out/(name+'-dns.json');q.write_text(json.dumps(b),encoding='utf8');q.chmod(0o600)
+        q=out/(name+'-dns.json');q.write_text(lua.eval("require('fastacl252_dae').encode_relay")(to_lua(b)),encoding='utf8');q.chmod(0o600)
         if core:subprocess.run([core,'validate','-c',str(p)],check=True)
         if helper:subprocess.run([helper,'-check','-config',str(q)],check=True)
 if __name__=='__main__':

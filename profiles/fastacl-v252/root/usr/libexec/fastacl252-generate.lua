@@ -9,4 +9,4 @@ for k,v in pairs(rules) do save(k..'.next.rules',v) end
 if arg[2]=='guard' then return end
 local conf,relay=policy.compile(c)
 save('router.next.dae',conf)
-save('dns.next.json',json.stringify(relay,true))
+save('dns.next.json',require('fastacl252_dae').encode_relay(relay))

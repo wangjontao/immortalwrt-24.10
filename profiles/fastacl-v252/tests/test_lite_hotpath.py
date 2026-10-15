@@ -2,11 +2,11 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-controller = (ROOT / "root/usr/lib/lua/luci/controller/fastacl252.lua").read_text()
-runtime = (ROOT / "root/usr/bin/fastacl252").read_text()
-init = (ROOT / "root/etc/init.d/fastacl252").read_text()
-pkg = (ROOT / "package-Makefile").read_text()
-defaults = (ROOT / "root/etc/uci-defaults/99-juliangtk-fastacl252").read_text()
+controller = (ROOT / "root/usr/lib/lua/luci/controller/fastacl252.lua").read_text(encoding='utf-8')
+runtime = (ROOT / "root/usr/bin/fastacl252").read_text(encoding='utf-8')
+init = (ROOT / "root/etc/init.d/fastacl252").read_text(encoding='utf-8')
+pkg = (ROOT / "package-Makefile").read_text(encoding='utf-8')
+defaults = (ROOT / "root/etc/uci-defaults/99-juliangtk-fastacl252").read_text(encoding='utf-8')
 
 
 def between(text: str, start: str, end: str) -> str:
@@ -71,3 +71,12 @@ assert "procd_add_reload_trigger fastacl252" in init
 assert "procd_add_reload_trigger fastacl252 firewall" not in init
 
 print("FastACL 2.5.2 Lite hot-path architecture: OK")
+
+# DNS hot updates must acknowledge a live in-process reload, never stop listeners.
+dns_hot = between(runtime, "reload_dns_next(){", "# dae's own reload")
+healthy_reload = dns_hot[dns_hot.index('cp "$R/dns.json"'):]
+assert 'fastacl252-dns -reload' in healthy_reload
+assert 'dns_stop' not in healthy_reload
+assert 'start_dns_next' not in healthy_reload
+assert not (ROOT / 'root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch').exists()
+assert '+libuci-lua' in pkg

@@ -12,10 +12,10 @@ function M.check(nodes)
   end
   local conf,relay=policy.compile(c)
   fs.mkdir('/tmp/fastacl252')
-  fs.chmod('/tmp/fastacl252',448)
+  fs.chmod('/tmp/fastacl252','700')
   assert(fs.writefile('/tmp/fastacl252/nodes-check.dae',conf),'Cannot stage node check')
-  fs.chmod('/tmp/fastacl252/nodes-check.dae',384)
-  fs.writefile('/tmp/fastacl252/nodes-dns-check.json',json.stringify(relay));fs.chmod('/tmp/fastacl252/nodes-dns-check.json',384)
+  fs.chmod('/tmp/fastacl252/nodes-check.dae','600')
+  fs.writefile('/tmp/fastacl252/nodes-dns-check.json',require('fastacl252_dae').encode_relay(relay));fs.chmod('/tmp/fastacl252/nodes-dns-check.json','600')
   local links=sys.call('fastacl252-dns -check -config /tmp/fastacl252/nodes-dns-check.json >/tmp/fastacl252/nodes-check.log 2>&1');fs.remove('/tmp/fastacl252/nodes-dns-check.json');assert(links==0,'Invalid native dae node')
   local rc=sys.call('dae validate -c /tmp/fastacl252/nodes-check.dae >/tmp/fastacl252/nodes-check.log 2>&1')
   fs.remove('/tmp/fastacl252/nodes-check.dae'); assert(rc==0,'节点包含核心不支持的参数，请检查节点格式')
@@ -26,12 +26,13 @@ end
 function M.replace(u,nodes,owner)
   local counts,active={},{}; local bound={}
   u:foreach('fastacl252','device',function(d) bound[d.node or '']=true; bound[d.preproxy or '']=true end)
+  u:foreach('fastacl252','wifi',function(w) bound[w.node or '']=true; bound[w.preproxy or '']=true end)
   for _,n in ipairs(nodes) do
     local identity=n.protocol..'\n'..n.name; counts[identity]=(counts[identity] or 0)+1
     identity=identity..'\n'..counts[identity]
     local id='n_'..hash(owner..'\n'..identity); local tries=0
     while u:get('fastacl252',id) and (u:get('fastacl252',id,'owner')~=owner or u:get('fastacl252',id,'identity')~=identity) do tries=tries+1; assert(tries<100,'Node identity collision'); id='n_'..hash(owner..'\n'..identity..'\n'..tries) end
-    u:section('fastacl252','node',id,{name=n.name,protocol=n.protocol,outbound=json.stringify(n.outbound),owner=owner,identity=identity,retired='0'})
+    require('fastacl252').section(u,'fastacl252','node',id,{name=n.name,protocol=n.protocol,outbound=json.stringify(n.outbound),owner=owner,identity=identity,retired='0'})
     active[id]=true
   end
   local remove={}; u:foreach('fastacl252','node',function(n)

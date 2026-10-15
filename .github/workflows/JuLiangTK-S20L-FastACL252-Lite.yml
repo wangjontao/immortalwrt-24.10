@@ -46,6 +46,7 @@ jobs:
       - name: Validate Lite hot path and syntax
         run: |
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
+          python3 profiles/fastacl-v252/tests/test_runtime.py
           find profiles/fastacl-v252/root -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
           find profiles/fastacl-v252/root -type f | while read -r file; do
             if head -n1 "$file" | grep -q '^#!/bin/sh'; then sh -n "$file"; shfmt -ln posix "$file" >/dev/null; fi
@@ -134,6 +135,7 @@ jobs:
           grep -q "version='2.5.2-lite.1'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
           grep -q "dae reload" package/fastacl252/files/usr/bin/fastacl252
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
+          python3 profiles/fastacl-v252/tests/test_runtime.py
       - name: Download sources
         run: |
           make download -j"$(nproc)"

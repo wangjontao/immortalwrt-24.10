@@ -2,8 +2,8 @@
 set -eu
 umask 077
 
-R=/tmp/fastacl252
-LOCK=/tmp/fastacl252-apply.lock
+R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
+LOCK="${R}-apply.lock"
 mkdir -p "$R"
 
 pause_fast(){
@@ -23,7 +23,11 @@ acquire_lock(){
   while ! mkdir "$LOCK" 2>/dev/null; do
     owner=$(cat "$LOCK/pid" 2>/dev/null || true)
     case "$owner" in
-      ''|*[!0-9]*) ;;
+      ''|*[!0-9]*)
+        if [ $(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || date +%s) )) -gt 10 ]; then
+          rm -rf "$LOCK" 2>/dev/null || true
+          continue
+        fi;;
       *)
         if ! kill -0 "$owner" 2>/dev/null; then
           rm -rf "$LOCK" 2>/dev/null || true
@@ -35,7 +39,9 @@ acquire_lock(){
     pause_fast
   done
   printf '%s\n' "$$" > "$LOCK/pid"
-  trap 'release_lock' EXIT HUP INT TERM
+  trap 'release_lock' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' HUP TERM
 }
 
 alive(){
@@ -55,13 +61,13 @@ dns_alive(){
 }
 
 listener(){
-  (ss -lnt 2>/dev/null; netstat -lnt 2>/dev/null) | grep -q ":$1 "
+  (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$1 "
 }
 
 dae_ready(){
   alive || return 1
   local port; port=$(uci -q get fastacl252.main.port 2>/dev/null || echo 12345)
-  ip netns exec daens ss -lntu 2>/dev/null | grep -q ":$port "
+  (ip netns exec daens ss -lntu 2>/dev/null || ip netns exec daens netstat -lntu 2>/dev/null) | grep -q ":$port "
 }
 
 dns_ready(){ dns_alive && listener 12553; }
@@ -143,18 +149,20 @@ start_dae_next(){
 }
 
 reload_dns_next(){
-  if dns_alive && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
-  [ ! -s "$R/dns.json" ] || cp "$R/dns.json" "$R/dns.prev.json"
-  dns_stop
-  if start_dns_next; then return 0; fi
-  echo '[FastACL] DNS relay hot reload failed, rolling back' >&2
-  dns_stop
-  if [ -s "$R/dns.prev.json" ]; then
-    cp "$R/dns.prev.json" "$R/dns.json"
-    fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
-    echo $! > "$R/dns.pid"
-    wait_dns || true
+  if dns_ready && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
+  if ! dns_ready; then
+    dns_stop
+    start_dns_next
+    return $?
   fi
+  cp "$R/dns.json" "$R/dns.prev.json"
+  cp "$R/dns.next.json" "$R/dns.json.pending"
+  mv "$R/dns.json.pending" "$R/dns.json"
+  if fastacl252-dns -reload -config "$R/dns.json" >"$R/dns-reload.log" 2>&1; then return 0; fi
+  echo '[FastACL] DNS reload rejected; keeping the running policy and listener' >&2
+  cat "$R/dns-reload.log" >&2
+  cp "$R/dns.prev.json" "$R/dns.json.pending"
+  mv "$R/dns.json.pending" "$R/dns.json"
   return 1
 }
 
@@ -226,6 +234,9 @@ hot_apply(){
 
 cold_apply(){
   acquire_lock
+  # Install fail-close guards even if a saved proxy configuration is invalid.
+  lua /usr/libexec/fastacl252-generate.lua nft guard
+  firewall_apply
   generate_next
   validate_next
   firewall_apply
@@ -239,14 +250,14 @@ cold_apply(){
 
 ensure_runtime(){
   if dae_ready && dns_ready && nft list table inet fastacl252 >/dev/null 2>&1; then return 0; fi
-  echo '[FastACL] runtime unhealthy; recovering application dataplane' >&2
-  cold_apply
+  echo '[FastACL] runtime unhealthy; recovering only failed components' >&2
+  hot_apply
 }
 
 status(){
   local engine=stopped fw=false mode=none request=none
   alive && engine=running
-  [ "$engine" != running ] || dns_alive || engine=broken
+  [ "$engine" != running ] || dns_ready || engine=broken
   [ "$engine" != running ] || dae_ready || engine=broken
   nft list table inet fastacl252 >/dev/null 2>&1 && fw=true
   [ ! -s "$R/last-apply-mode" ] || mode=$(cat "$R/last-apply-mode")

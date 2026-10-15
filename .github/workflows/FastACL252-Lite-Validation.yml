@@ -46,6 +46,7 @@ jobs:
       - name: Lite architecture regression
         run: |
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
+          python3 profiles/fastacl-v252/tests/test_runtime.py
           grep -q "PKG_VERSION:=2.5.2-lite.1" profiles/fastacl-v252/package-Makefile
           grep -q "version='2.5.2-lite.1'" profiles/fastacl-v252/root/usr/lib/lua/luci/controller/fastacl252.lua
 

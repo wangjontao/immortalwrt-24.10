@@ -1,5 +1,14 @@
 -- FastACL 2.5.2-dev.2 policy compiler: main-LAN device policies + managed WiFi subnet policies.
 local M={}
+-- libuci's native cursor has set/add but no LuCI-specific section() helper.
+function M.section(u,config,kind,name,values)
+  assert(M.id(name),'Invalid UCI section name')
+  assert(u:set(config,name,kind),'Cannot create UCI section: '..config..'.'..name)
+  for key,value in pairs(values or {}) do
+    assert(u:set(config,name,key,value),'Cannot set UCI option: '..config..'.'..name..'.'..key)
+  end
+  return name
+end
 function M.ipnum(s)
   local a,b,c,d=tostring(s or ''):match('^(%d+)%.(%d+)%.(%d+)%.(%d+)$')
   a,b,c,d=tonumber(a),tonumber(b),tonumber(c),tonumber(d)

@@ -26,12 +26,29 @@ local function next_name(u)
   fail('FastACL 多 WiFi 配置名称已用尽')
 end
 local function used_subnets(u)
-  local used={}
+  local used={}; local policy=require 'fastacl252'
+  local pool=assert(policy.ipnum('172.16.0.0'))
+  local function reserve(address,mask)
+    local ip,prefix=tostring(address or ''):match('^([^/]+)/(%d+)$')
+    ip=ip or address
+    local n=policy.ipnum(ip); local p=tonumber(prefix) or policy.prefix(mask or '255.255.255.0')
+    if not n or not p or p<1 or p>32 or p%1~=0 then return end
+    local size=2^(32-p); local first=math.floor(n/size)*size; local last=first+size-1
+    for i=1,254 do
+      local subnet=pool+i*256
+      if subnet<=last and subnet+255>=first then used[i]=true end
+    end
+  end
   u:foreach('network','interface',function(s)
-    local v=s.ipaddr; if type(v)=='table' then v=v[1] end
-    local n=tostring(v or ''):match('^172%.16%.(%d+)%.1$')
-    if n then used[tonumber(n)]=true end
+    local addresses=type(s.ipaddr)=='table' and s.ipaddr or {s.ipaddr}
+    for _,address in ipairs(addresses) do reserve(address,s.netmask) end
   end)
+  -- Include DHCP/WAN and other live routes that have no static UCI address.
+  local routes=require('luci.sys').exec('ip -4 route show 2>/dev/null')
+  for line in routes:gmatch('[^\n]+') do
+    local destination=line:match('^(%d+%.%d+%.%d+%.%d+/?%d*)%s')
+    if destination then reserve(destination,'32') end
+  end
   return used
 end
 local function next_subnet(used)
@@ -53,7 +70,7 @@ end
 local function add(u,cfg,kind,name,values,network)
   values.jfa25_owner=OWNER; values.jfa25_network=network
   assert(not u:get(cfg,name),'配置名称冲突: '..name)
-  assert(u:section(cfg,kind,name,values),'创建配置失败: '..cfg..'.'..name)
+  assert(require('fastacl252').section(u,cfg,kind,name,values),'创建配置失败: '..cfg..'.'..name)
 end
 local function validate_binding(u,node,pre)
   node=tostring(node or ''); pre=tostring(pre or '')

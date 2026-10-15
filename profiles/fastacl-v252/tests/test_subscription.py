@@ -4,11 +4,15 @@ from test_mihomo import from_lua
 runtime.globals().pystringify=lambda value:json.dumps(from_lua(value),ensure_ascii=False,sort_keys=True)
 runtime.execute("package.loaded['luci.jsonc'].stringify=pystringify; package.preload['nixio.fs']=function() return {} end; package.preload['luci.sys']=function() return {} end")
 manager=runtime.eval("require('fastacl252_nodes')")
+section=runtime.eval("require('fastacl252').section")
 make=runtime.eval('''function()
  local db={}; local u={db=db}
  function u:get(c,id,key) local s=db[id]; return s and (key and s[key] or s['.type']) end
- function u:set(c,id,key,value) db[id][key]=value end
- function u:section(c,t,id,data) data['.name']=id; data['.type']=t; db[id]=data end
+ function u:set(c,id,key,value)
+  if value==nil then db[id]={['.name']=id,['.type']=key}; return true end
+  if not db[id] then return false end
+  db[id][key]=value; return true
+ end
  function u:delete(c,id) db[id]=nil end
  function u:foreach(c,t,callback) local ids={}; for id,s in pairs(db) do if s['.type']==t then ids[#ids+1]=id end end; for _,id in ipairs(ids) do callback(db[id]) end end
  return u
@@ -22,8 +26,15 @@ class SubscriptionTests(unittest.TestCase):
     def test_removed_bound_node_retained(self):
         u=make(); manager.replace(u,table([node('US'),node('JP')]),'airport1')
         old=next(k for k in u.db.keys() if u.db[k]['name']=='US')
-        u.section(u,'fastacl252','device','device1',table(dict(node=old)))
+        section(u,'fastacl252','device','device1',table(dict(node=old)))
         manager.replace(u,table([node('JP')]),'airport1'); self.assertEqual(u.db[old]['retired'],'1'); self.assertEqual(u.db['device1']['node'],old)
+    def test_removed_wifi_bound_node_retained(self):
+        u=make(); manager.replace(u,table([node('US')]),'airport1')
+        old=next(iter(u.db.keys()))
+        section(u,'fastacl252','wifi','wifi1',table(dict(node=old)))
+        manager.replace(u,table([]),'airport1')
+        self.assertEqual(u.db[old]['retired'],'1')
+        self.assertEqual(u.db['wifi1']['node'],old)
     def test_removed_unbound_node_deleted(self):
         u=make(); manager.replace(u,table([node('US'),node('JP')]),'airport1'); manager.replace(u,table([node('JP')]),'airport1')
         self.assertEqual(len(list(u.db.keys())),1)

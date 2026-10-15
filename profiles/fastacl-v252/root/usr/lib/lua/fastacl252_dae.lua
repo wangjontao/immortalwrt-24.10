@@ -77,4 +77,23 @@ function M.compile(c)
   local conf='global {\n disable_waiting_network: true\n auto_config_kernel_parameter: true\n so_mark_from_dae: 0\n lan_interface: '..quote(interfaces)..'\n log_level: warn\n tproxy_port: '..tostring(c.port)..'\n tproxy_port_protect: true\n bootstrap_resolver: \'127.0.0.1:12553\'\n fallback_resolver: \'127.0.0.1:12553\'\n}\nnode {\n'..table.concat(nodes,'\n')..'\n}\ngroup {\n'..table.concat(groups,'\n')..'\n}\nrouting {\n'..table.concat(rules,'\n')..'\n}\n'
   return conf,relay
 end
+-- Go relay map fields must be JSON objects, including when empty.
+function M.encode_relay(relay)
+  local json=require 'luci.jsonc'
+  local maps={devices=true,exits=true,resolvers=true,device_policies=true,network_policies=true}
+  local function object(t)
+    local keys,fields={},{}
+    for k in pairs(t) do keys[#keys+1]=k end
+    table.sort(keys)
+    for _,k in ipairs(keys) do fields[#fields+1]=json.stringify(k)..':'..json.stringify(t[k]) end
+    return '{'..table.concat(fields,',')..'}'
+  end
+  local keys,fields={},{}
+  for k in pairs(relay) do keys[#keys+1]=k end
+  table.sort(keys)
+  for _,k in ipairs(keys) do
+    fields[#fields+1]=json.stringify(k)..':'..(maps[k] and object(relay[k]) or json.stringify(relay[k]))
+  end
+  return '{'..table.concat(fields,',')..'}'
+end
 return M

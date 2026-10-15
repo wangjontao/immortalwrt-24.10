@@ -121,7 +121,7 @@ function save()
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id; local old=before[mac]; local d=existing[mac]
       u:delete('fastacl252',id)
       if d then
-        u:section('fastacl252','device',id,{mac=mac,ip=d.ip,name=d.name,mode=d.mode,node=d.node or '',preproxy=d.preproxy or '',dns=d.dns or 'inherit'})
+        require('fastacl252').section(u,'fastacl252','device',id,{mac=mac,ip=d.ip,name=d.name,mode=d.mode,node=d.node or '',preproxy=d.preproxy or '',dns=d.dns or 'inherit'})
         if d.dns=='custom' then
           u:set('fastacl252',id,'dns_type',d.dns_type or 'doh'); u:set('fastacl252',id,'dns_ip',d.dns_ip or ''); u:set('fastacl252',id,'dns_name',d.dns_name or '')
         end
@@ -138,14 +138,14 @@ function save()
               for _,v in ipairs(list) do for x in v:gmatch('%S+') do if policy.mac(x)==mac then assert(s.ip==d.ip,'此 MAC 已有其他固定 IP，请先调整原静态租约'); reserved=true end end end
             end
           end)
-          if not reserved then u:section('dhcp','host',host,{mac=mac,ip=d.ip,leasetime='infinite',jfa25='1'}) end
+          if not reserved then require('fastacl252').section(u,'dhcp','host',host,{mac=mac,ip=d.ip,leasetime='infinite',jfa25='1'}) end
         end
       end
     end
 
-    assert(u:commit('fastacl252'),'保存 FastACL 配置失败')
+    assert(u:commit('fastacl252'),'保存 FastACL 配置失败'); committed=true
     if dhcp_changed then assert(u:commit('dhcp'),'保存 DHCP 配置失败') end
-    fs.chmod('/etc/config/fastacl252',384); committed=true
+    fs.chmod('/etc/config/fastacl252','600'); committed=true
     if dhcp_changed then sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1') end
     if enabled then
       local aok,detail=apply_now('hot-apply'); apply_detail=detail
@@ -180,7 +180,7 @@ function import_nodes()
     assert(u:commit('fastacl252'),'保存节点失败'); count=#nodes
   end)
   if not ok then u:revert('fastacl252'); if original then fs.writefile('/etc/config/fastacl252',original) end end
-  fs.chmod('/etc/config/fastacl252',384); release_lock(fs)
+  fs.chmod('/etc/config/fastacl252','600'); release_lock(fs)
   local detail=not ok and (fs.readfile('/tmp/fastacl252/nodes-check.log') or '') or ''
   if #detail>3000 then detail=detail:sub(-3000) end
   reply({ok=ok,count=count,error=not ok and tostring(err) or nil,detail=not ok and detail or nil})
@@ -200,7 +200,7 @@ function wifi_action()
     local ok,err=pcall(function()
       local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交配置')
       manager.update(u,req); require('fastacl252_env').read(u)
-      assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); fs.chmod('/etc/config/fastacl252',384); committed=true
+      assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); committed=true; fs.chmod('/etc/config/fastacl252','600')
       if u:get('fastacl252','main','enabled')=='1' then
         local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'应用层快速切换失败：'..(d~='' and d or '未知错误'))
       end
@@ -237,8 +237,8 @@ function wifi_action()
     elseif req.action=='remove' then manager.remove(u,req.id); result={id=req.id}
     else error('不支持的 WiFi 操作') end
     require('fastacl252_env').read(u)
-    for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
     committed=true
+    for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
     assert(sys.call('/etc/init.d/network reload >/dev/null 2>&1')==0,'network reload 失败')
     sys.call('wifi reload >/dev/null 2>&1')
     sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
@@ -292,7 +292,7 @@ function subscription()
       if not id then local count=0; u:foreach('fastacl252','subscription',function() count=count+1 end); assert(count<32,'最多 32 个订阅'); id=u:add('fastacl252','subscription') end
       u:set('fastacl252',id,'name',name); u:set('fastacl252',id,'url',url); u:set('fastacl252',id,'interval_hours',tostring(hours)); u:set('fastacl252',id,'enabled',data.enabled==false and '0' or '1')
     end
-    assert(u:commit('fastacl252'),'保存订阅失败'); fs.chmod('/etc/config/fastacl252',384)
+    assert(u:commit('fastacl252'),'保存订阅失败'); fs.chmod('/etc/config/fastacl252','600')
   end)
   if not ok then u:revert('fastacl252'); if original then fs.writefile('/etc/config/fastacl252',original) end end
   release_lock(fs); reply({ok=ok,error=not ok and tostring(err) or nil})
