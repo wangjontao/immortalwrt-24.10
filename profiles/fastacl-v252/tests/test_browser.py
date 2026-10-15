@@ -18,7 +18,7 @@ try:
         stage='initial load';page.goto(url)
         expect(page.get_by_text('FastACL 2.5.2 Lite',exact=False)).to_be_visible()
         expect(page.locator('#f25-devices .item')).to_have_count(3)
-        expect(page.get_by_text('附加 WiFi',exact=True)).to_be_visible()
+        expect(page.get_by_role('heading',name='附加 WiFi',exact=True)).to_be_visible()
         expect(page.locator('#f25-direct-dns')).to_have_value('alidns')
         expect(page.locator('#f25-proxy-dns')).to_have_value('cloudflare')
 
