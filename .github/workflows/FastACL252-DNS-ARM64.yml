@@ -10,7 +10,7 @@ name: FastACL 2.5.2 DNS Relay ARM64
       - .github/workflows/FastACL252-DNS-ARM64.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: fastacl252-dns-arm64
@@ -48,3 +48,16 @@ jobs:
             fastacl252-dns.sha256
           if-no-files-found: error
           retention-days: 30
+      - name: Publish hotfix release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: FastACL252-DNS-HOTFIX5-Trojan-ARM64
+          name: FastACL 2.5.2 DNS HOTFIX-5 Trojan ARM64
+          body: |
+            ARM64 DNS relay hotfix for FastACL 2.5.2.
+            Fixes Trojan nodes failing with: no conn creator registered for "trojanc".
+            Includes detailed underlying node parser errors.
+          files: |
+            fastacl252-dns
+            fastacl252-dns.sha256
+          make_latest: false
