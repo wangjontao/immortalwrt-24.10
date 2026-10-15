@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   validate:
-    name: Lite hot-path, Lua, Go and node validation
+    name: Lite hot-path, UI, Lua, Go and node validation
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -34,7 +34,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y lua5.1 nftables iproute2 curl shfmt
           python3 -m venv .venv
-          .venv/bin/pip install lupa PyYAML
+          .venv/bin/pip install lupa PyYAML playwright
+          .venv/bin/playwright install --with-deps chromium
           curl -fL --retry 3 -o /tmp/dae-amd64.tar.xz \
             https://github.com/daeuniverse/dae/releases/download/v2.1.1/dae-linux-x86_64.tar.xz
           echo 'c550af580dc97cc90986260da78c4bf72917f3213c2b5d8b79c45199d9c3dc90  /tmp/dae-amd64.tar.xz' | sha256sum -c -
@@ -77,6 +78,11 @@ jobs:
           for config in profiles/fastacl-v252/test-results/import-*.dae; do
             /tmp/dae validate -c "$config"
           done
+
+      - name: Responsive quick-switch console regression
+        run: |
+          cd profiles/fastacl-v252/tests
+          ../../..//.venv/bin/python test_browser.py
 
       - uses: actions/upload-artifact@v4
         if: always()
