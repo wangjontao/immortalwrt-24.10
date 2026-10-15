@@ -31,7 +31,7 @@ local function used_subnets(u)
   local function reserve(address,mask)
     local ip,prefix=tostring(address or ''):match('^([^/]+)/(%d+)$')
     ip=ip or address
-    local n=policy.ipnum(ip); local p=tonumber(prefix) or policy.prefix(mask or '255.255.255.0')
+    local n=policy.ipnum(ip); local p=tonumber(prefix) or tonumber(mask) or policy.prefix(mask or '255.255.255.0')
     if not n or not p or p<1 or p>32 or p%1~=0 then return end
     local size=2^(32-p); local first=math.floor(n/size)*size; local last=first+size-1
     for i=1,254 do

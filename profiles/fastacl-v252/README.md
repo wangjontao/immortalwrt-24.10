@@ -1,13 +1,19 @@
-# FastACL 2.5.2-dev.2 dae development
+# FastACL 2.5.2 Lite/Fast
 
-Independent JuLiangTK S20L / ImmortalWrt 24.10 edition pinned to dae v2.1.1. The main WiFi keeps device-level MAC + fixed-IP routing. Optional managed WiFi networks can be created on demand (up to +14 5GHz and +8 2.4GHz), each with its own 172.16.x.0/24, DHCP, AP isolation, proxy binding and DNS policy. No extra WiFi is created by default.
+This independent `codex/fastacl252-lite-fast` branch combines the 2.4.4 application-switching model with the official dae v2.1.1/eBPF dataplane for JuLiangTK S20L / ImmortalWrt 24.10. The package is `2.5.2-lite.1-r2`.
 
-The LuCI UI includes a responsive JuLiang control center, device routing, multi-WiFi management, node import/subscriptions and DNS provider selection. Direct DNS choices include Baidu, AliDNS and Tencent DNSPod; proxy DNS choices include Cloudflare, Google, Cisco OpenDNS and Quad9. Devices and managed WiFi can override the global resolver with a supported provider or custom DNS. Proxy-side custom DNS must use DoH and follows the assigned proxy exit to avoid direct DNS leakage.
+Node, preproxy and DNS changes use `fastacl252 hot-apply`. The normal hot path keeps both daemon PIDs, reloads dae in process, swaps DNS policy snapshots through a root-only Unix control socket, and atomically updates only FastACL's private nft table when its rules change. It never reloads network, WiFi or the system firewall. A fixed-IP binding change alone can reload dnsmasq. Established dae connections may retain their previous exit; new connections use the updated policy.
 
-Manual import accepts SOCKS5/SK5/HTTP/HTTPS/VLESS/VMess/Trojan/SS/Hysteria2/TUIC and common host:port:user:pass lines. Subscription formats include HTTPS link lists, Base64, Clash YAML and sing-box JSON. Bound subscription nodes are retained when removed upstream.
+Creating/removing managed WiFi changes topology and uses the cold path. SSID visibility changes reload wireless only. The health-driven guard repairs missing private firewall rules without restarting healthy daemons; an actual dae reload failure may fall back to a dae-only restart. A rejected DNS reload retains the working DNS policy and listeners. Protection rules are installed before native-core validation, including during startup recovery.
 
-The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS points to nps.jontao.top:8024 and derives its VKey from the uppercase physical WAN MAC. Restricted LuCI operator access is included; SSH remains on port 20022.
+The main WiFi retains per-device MAC + fixed-IP routing, with unbound devices direct by default. Optional WiFi networks are created on demand, up to 14 additional 5GHz and 8 additional 2.4GHz networks, with separate bridges, DHCP, firewall zones and exit/DNS policies. Used subnets are excluded from the 172.16.x.0/24 allocation pool.
 
-Validation gates cover Lua syntax, import/subscription regressions, Go race tests, dae configuration validation, real eBPF routing/fail-close tests and responsive browser interactions. Firmware builds start only after validation succeeds. These cloud tests do not replace a real S20L cold boot, WiFi radio test and mobile-device routing test.
+Manual import accepts SOCKS5/SK5/HTTP/HTTPS/VLESS/VMess/Trojan/SS/Hysteria2/TUIC and host:port:user:pass lines. Subscription formats include HTTPS lists, Base64, Clash YAML and sing-box JSON. Device- and WiFi-bound subscription nodes are retained when removed upstream. Proxy DNS requires DoH and uses the assigned proxy chain without a direct fallback.
+
+This branch removes the legacy HOTFIX-6 first-boot substitutions. Native UCI writes, octal permissions, empty JSON object maps and protocol registration are tested directly rather than relying on permissive API mocks.
+
+Both Lite CI gates run shell/Lua syntax checks, import/subscription regressions, native Go tests with the race detector, persistent DNS TCP-session and daemon PID tests, runtime lifecycle/rollback tests, native dae configuration validation and browser UI tests. The shell lifecycle tests stub external commands and do not prove eBPF behavior. Real S20L cold boot, WiFi radio operation, simultaneous device/WiFi switching, failure isolation and measured switching latency remain hardware acceptance checks. CI success alone is not a hardware pass.
+
+The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS uses nps.jontao.top:8024 with an uppercase physical-WAN-MAC VKey. Restricted LuCI operator access is included; SSH uses port 20022.
 
 Official dae source: https://github.com/daeuniverse/dae/tree/v2.1.1 (AGPL-3.0).

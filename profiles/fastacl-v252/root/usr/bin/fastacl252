@@ -112,8 +112,12 @@ dae_stop(){
   rm -f "$R/router.pid"
 }
 
-generate_next(){
+generate_guards(){
   lua /usr/libexec/fastacl252-generate.lua nft guard
+  firewall_apply
+}
+
+generate_next(){
   lua /usr/libexec/fastacl252-generate.lua nft
 }
 
@@ -224,6 +228,7 @@ reload_dae_next(){
 
 hot_apply(){
   acquire_lock
+  generate_guards
   generate_next
   validate_next
   firewall_apply
@@ -235,8 +240,7 @@ hot_apply(){
 cold_apply(){
   acquire_lock
   # Install fail-close guards even if a saved proxy configuration is invalid.
-  lua /usr/libexec/fastacl252-generate.lua nft guard
-  firewall_apply
+  generate_guards
   generate_next
   validate_next
   firewall_apply

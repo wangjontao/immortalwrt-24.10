@@ -123,6 +123,15 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.pids(), before)
         self.assertTrue((self.root / 'firewall-loaded').exists())
 
+    def test_invalid_startup_installs_guards_before_core_validation(self):
+        self.apply('cleanup')
+        (self.root / 'firewall-loaded').unlink(missing_ok=True)
+        self.scenario(core='invalid', dns='invalid', invalid=True)
+        self.apply('ensure', success=False)
+        self.assertTrue((self.root / 'firewall-loaded').exists())
+        self.assertFalse((self.root / 'router.pid').exists())
+        self.assertFalse((self.root / 'dns.pid').exists())
+
     def test_dae_reload_failure_restarts_only_dae(self):
         before = self.pids()
         self.scenario(core='second', dns='second', dae_reload_failure=True)
