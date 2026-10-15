@@ -1,5 +1,5 @@
 """Exercise the responsive FastACL 2.5.2 Lite UI against an isolated demo backend."""
-import pathlib, threading
+import pathlib, re, threading
 from http.server import ThreadingHTTPServer
 from playwright.sync_api import sync_playwright, expect
 import preview_server
