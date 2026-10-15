@@ -1,0 +1,39 @@
+name: FastACL252 ARM64 exit IP probe
+
+'on':
+  push:
+    branches:
+      - codex/fastacl252-hotfix3-feedback-ip
+    paths:
+      - profiles/fastacl-v252/probe/**
+      - .github/workflows/FastACL252-probe-hotfix.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Build ARM64 static probe
+        working-directory: profiles/fastacl-v252/probe
+        run: |
+          go mod tidy
+          gofmt -w main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o fastacl252-probe .
+          file fastacl252-probe
+          sha256sum fastacl252-probe > fastacl252-probe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fastacl252-probe-linux-arm64
+          path: |
+            profiles/fastacl-v252/probe/fastacl252-probe
+            profiles/fastacl-v252/probe/fastacl252-probe.sha256
+          if-no-files-found: error
