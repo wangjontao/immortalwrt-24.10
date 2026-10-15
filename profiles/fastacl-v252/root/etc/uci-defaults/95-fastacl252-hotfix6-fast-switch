@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -x /usr/libexec/fastacl252-hotfix6-fast-switch.sh ] || exit 0
+FASTACL252_BOOT=1 /usr/libexec/fastacl252-hotfix6-fast-switch.sh / >/tmp/fastacl252-hotfix6-firstboot.log 2>&1 || exit 1
+exit 0
