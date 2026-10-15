@@ -1,0 +1,50 @@
+name: FastACL 2.5.2 DNS Relay ARM64
+
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+      - codex/fastacl252-dae-s20l
+    paths:
+      - profiles/fastacl-v252/dns/**
+      - .github/workflows/FastACL252-DNS-ARM64.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fastacl252-dns-arm64
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build fastacl252-dns ARM64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+          cache: false
+      - name: Test DNS relay
+        run: |
+          cd profiles/fastacl-v252/dns
+          go mod tidy
+          go test -race -timeout 2m ./...
+      - name: Build ARM64 DNS relay
+        run: |
+          cd profiles/fastacl-v252/dns
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -trimpath -ldflags='-s -w' \
+            -o "$GITHUB_WORKSPACE/fastacl252-dns" .
+          file "$GITHUB_WORKSPACE/fastacl252-dns"
+          sha256sum "$GITHUB_WORKSPACE/fastacl252-dns" | tee "$GITHUB_WORKSPACE/fastacl252-dns.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fastacl252-dns-arm64
+          path: |
+            fastacl252-dns
+            fastacl252-dns.sha256
+          if-no-files-found: error
+          retention-days: 30
