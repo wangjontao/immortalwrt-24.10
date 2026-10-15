@@ -12,14 +12,30 @@ pause_fast(){
   sleep 1
 }
 
+release_lock(){
+  [ -s "$LOCK/pid" ] || return 0
+  [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ] || return 0
+  rm -rf "$LOCK" 2>/dev/null || true
+}
+
 acquire_lock(){
-  local i=0
+  local i=0 owner=''
   while ! mkdir "$LOCK" 2>/dev/null; do
+    owner=$(cat "$LOCK/pid" 2>/dev/null || true)
+    case "$owner" in
+      ''|*[!0-9]*) ;;
+      *)
+        if ! kill -0 "$owner" 2>/dev/null; then
+          rm -rf "$LOCK" 2>/dev/null || true
+          continue
+        fi;;
+    esac
     i=$((i+1))
     [ "$i" -lt 30 ] || { echo 'FastACL apply busy' >&2; return 1; }
     pause_fast
   done
-  trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT HUP INT TERM
+  printf '%s\n' "$$" > "$LOCK/pid"
+  trap 'release_lock' EXIT HUP INT TERM
 }
 
 alive(){
@@ -142,6 +158,29 @@ reload_dns_next(){
   return 1
 }
 
+# dae's own reload command can wait up to 60 seconds.  A UI node switch must
+# never inherit that latency, so cap the CLI wait to about four seconds.  If
+# the in-process reload does not finish, the caller falls back to dae-only
+# restart; system network/wifi/firewall are still untouched.
+dae_reload_fast(){
+  local pid="$1" cli i=0
+  : > "$R/reload.log"
+  dae reload "$pid" >"$R/reload.log" 2>&1 &
+  cli=$!
+  while kill -0 "$cli" 2>/dev/null; do
+    i=$((i+1))
+    if [ "$i" -ge 40 ]; then
+      echo '[FastACL] dae reload exceeded 4s fast-path budget' >> "$R/reload.log"
+      kill "$cli" 2>/dev/null || true
+      wait "$cli" 2>/dev/null || true
+      return 124
+    fi
+    pause_fast
+  done
+  if wait "$cli"; then return 0; fi
+  return 1
+}
+
 reload_dae_next(){
   if dae_ready && cmp -s "$R/router.next.dae" "$R/router.dae"; then return 0; fi
   if ! dae_ready; then
@@ -153,15 +192,12 @@ reload_dae_next(){
   cp "$R/router.dae" "$R/router.prev.dae"
   cp "$R/router.next.dae" "$R/router.dae"
   local pid; pid=$(cat "$R/router.pid")
-  if dae reload "$pid" >"$R/reload.log" 2>&1 && wait_dae; then
+  if dae_reload_fast "$pid" && wait_dae; then
     echo 'hot' > "$R/last-apply-mode"
     return 0
   fi
 
-  # Hot reload is preferred, but an application-only restart is still much
-  # lighter than reloading network/wifi/firewall and guarantees new sessions
-  # cannot remain pinned to the previous outbound.
-  echo '[FastACL] dae hot reload failed; falling back to dae-only restart' >&2
+  echo '[FastACL] dae hot reload failed/timeout; falling back to dae-only restart' >&2
   cat "$R/reload.log" 2>/dev/null || true
   dae_stop
   if start_dae_next; then
