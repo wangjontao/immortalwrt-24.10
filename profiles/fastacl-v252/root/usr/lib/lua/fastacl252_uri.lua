@@ -1,7 +1,23 @@
 local M={}
 local function enc(s) return tostring(s or ''):gsub('[^%w_.~-]',function(c) return string.format('%%%02X',c:byte()) end) end
+local function object(v,label)
+ if type(v)=='table' then return v end
+ if type(v)=='string' and v~='' then
+  local ok,t=pcall(require('luci.jsonc').parse,v)
+  assert(ok and type(t)=='table',(label or 'JSON')..' must be an object')
+  return t
+ end
+ return nil
+end
+local function copy(t)
+ local o={}; for k,v in pairs(t or {}) do o[k]=v end; return o
+end
 function M.node(n)
- local o=n.outbound or {type=n.protocol,server=n.address,server_port=tonumber(n.port),username=n.username,password=n.password}
+ local raw=object(n.outbound,'Node outbound')
+ local o=copy(raw or {type=n.protocol,server=n.address,server_port=tonumber(n.port),username=n.username,password=n.password})
+ o.tls=object(o.tls,'TLS') or o.tls
+ o.transport=object(o.transport,'Transport') or o.transport
+ o.obfs=object(o.obfs,'Obfs') or o.obfs
  local allowed={type=true,server=true,server_port=true,username=true,password=true,uuid=true,security=true,alter_id=true,flow=true,method=true,version=true,tls=true,transport=true,obfs=true,congestion_control=true,tag=true}
  for k in pairs(o) do assert(allowed[k],'Unsupported dae node field: '..k) end
  local host=assert(o.server); assert(not host:find('[%s/@?#]'),'Invalid server')
