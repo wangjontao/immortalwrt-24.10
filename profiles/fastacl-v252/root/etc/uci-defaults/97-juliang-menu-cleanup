@@ -1,0 +1,3 @@
+#!/bin/sh
+lua /usr/libexec/juliang-menu-cleanup.lua
+exit 0

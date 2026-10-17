@@ -25,3 +25,7 @@ assert "juliang_operator.write='*'" not in account and "juliang_operator.read='*
 acl=json.loads((ROOT/'root/usr/share/rpcd/acl.d/juliang-fastacl252.json').read_text(encoding='utf-8'))
 assert 'system' not in acl['juliang-fastacl252']['write'].get('uci',[])
 print('PASS wireless counters, missing fields, signal/link rates and restricted admin invariants')
+
+center=(ROOT/'root/usr/lib/lua/luci/controller/juliang_center.lua').read_text(encoding='utf-8')
+assert 'statistics/rx_bytes' in center and 'statistics/tx_bytes' in center
+assert 'traffic=counters' in center

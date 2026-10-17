@@ -1,6 +1,6 @@
 module('luci.controller.juliang_center',package.seeall)
 function index()
-  local p=entry({'admin','juliang'},firstchild(),_('JuLiang 控制中心'),1); p.dependent=false; p.acl_depends={'juliang-center'}
+  local p=entry({'admin','juliang'},firstchild(),_('JuLtiang 控制中心'),1); p.dependent=false; p.acl_depends={'juliang-center'}
   local h=entry({'admin','juliang','home'},template('juliang_center/home'),_('控制中心'),1); h.leaf=true; h.acl_depends={'juliang-center'}
   local a=entry({'admin','juliang','status'},call('status'),nil); a.leaf=true; a.acl_depends={'juliang-center'}
 end
@@ -15,5 +15,13 @@ function status()
   local managed=0; u:foreach('fastacl252','wifi',function() managed=managed+1 end)
   local fast=json.parse(sys.exec('/usr/bin/fastacl252 status 2>/dev/null')) or {}
   local up=tonumber(sys.exec("cut -d. -f1 /proc/uptime 2>/dev/null") or '0') or 0
-  reply({ok=true,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.3 dae/eBPF'})
+  local dev=wan.l3_device or wan.device or '';local counters={}
+  if dev:match('^[%w_.%-]+$') then
+    local fs=require'nixio.fs'
+    counters.rx_bytes=tonumber(fs.readfile('/sys/class/net/'..dev..'/statistics/rx_bytes') or '')
+    counters.tx_bytes=tonumber(fs.readfile('/sys/class/net/'..dev..'/statistics/tx_bytes') or '')
+  end
+  counters.timestamp=tonumber(sys.exec('cat /proc/uptime'):match('^[%d.]+')) or up
+  counters.device=dev
+  reply({ok=true,traffic=counters,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.3 dae/eBPF'})
 end

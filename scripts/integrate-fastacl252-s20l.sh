@@ -45,7 +45,7 @@ grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-julian
 
 cp build-configs/JuLiangTK-S20L-FastACL252.txt .config
 sh scripts/integrate-fastacl252-dependencies.sh
-for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot luci-app-statistics nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
+for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
 if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in Lite'; exit 1; fi
@@ -53,3 +53,9 @@ if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n
 grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_clx_s20l=y' .config
 grep -q 'compatible = "clx,s20l", "mediatek,mt7986a"' target/linux/mediatek/dts/mt7986a-clx-s20l.dts
 ./scripts/diffconfig.sh > JuLiangTK-S20L-final.config
+
+# Use the control-center name for Argon brand links without changing hardware identity.
+find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name header.htm \) -path '*argon*' 2>/dev/null | while IFS= read -r view; do
+  sed -i -e 's/>{{ hostname }}<\/a>/>JuLtiang 控制中心<\/a>/g' \
+    -e 's/><%=hostname%><\/a>/>JuLtiang 控制中心<\/a>/g' "$view"
+done

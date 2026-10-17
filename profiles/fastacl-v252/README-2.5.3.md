@@ -9,3 +9,5 @@
 root 保留完整管理和 SSH；admin 保留独立 crypt 密码与受限 LuCI ACL，不增加全局管理权限。无线视图复用 FastACL ACL 的只读 LuCI 入口，不暴露 WiFi 密钥。
 
 状态：功能基线已形成，仍需完整硬件、长稳、IPv6、故障防直连及升级场景测试。GitHub 发布使用 prerelease 标识，禁止视作全量验收通过。
+
+控制中心显示名为“JuLtiang 控制中心”，展示 WAN 实时收发速率及柔和渐变标题；界面不展示 S20L 品牌后缀，但构建目标仍为 CLX S20L。移除 NAS、统计菜单，不选择 luci-app-samba4 / luci-app-statistics；WAN 实时速率不依赖 collectd。
