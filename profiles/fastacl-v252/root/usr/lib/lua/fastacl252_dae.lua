@@ -1,4 +1,4 @@
--- Native dae configuration compiler for FastACL 2.5.2-dev.2.
+-- Native dae configuration compiler for FastACL 2.5.3.
 -- Supports the primary LAN plus independently routed managed WiFi subnets.
 local M={}
 local function quote(s)
@@ -74,7 +74,7 @@ function M.compile(c)
   end
   rules[#rules+1]='fallback: must_direct'
   local interfaces=table.concat(c.interfaces or {c.interface},',')
-  local conf='global {\n disable_waiting_network: true\n auto_config_kernel_parameter: true\n so_mark_from_dae: 0\n lan_interface: '..quote(interfaces)..'\n log_level: warn\n tproxy_port: '..tostring(c.port)..'\n tproxy_port_protect: true\n bootstrap_resolver: \'127.0.0.1:12553\'\n fallback_resolver: \'127.0.0.1:12553\'\n}\nnode {\n'..table.concat(nodes,'\n')..'\n}\ngroup {\n'..table.concat(groups,'\n')..'\n}\nrouting {\n'..table.concat(rules,'\n')..'\n}\n'
+  local conf='global {\n disable_waiting_network: true\n auto_config_kernel_parameter: true\n so_mark_from_dae: 0\n dial_mode: ip\n lan_interface: '..quote(interfaces)..'\n log_level: warn\n tproxy_port: '..tostring(c.port)..'\n tproxy_port_protect: true\n bootstrap_resolver: \'127.0.0.1:12553\'\n fallback_resolver: \'127.0.0.1:12553\'\n}\nnode {\n'..table.concat(nodes,'\n')..'\n}\ngroup {\n'..table.concat(groups,'\n')..'\n}\nrouting {\n'..table.concat(rules,'\n')..'\n}\n'
   return conf,relay
 end
 -- Go relay map fields must be JSON objects, including when empty.

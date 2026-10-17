@@ -35,9 +35,11 @@ end
 
 function index()
   if not nixio.fs.access('/etc/config/fastacl252') then return end
-  local p=entry({'admin','services','fastacl252'},template('fastacl252/console'),_('FastACL 2.5.2 Lite 控制台'),27)
+  local p=entry({'admin','services','fastacl252'},template('fastacl252/console'),_('FastACL 2.5.3 控制台'),27)
   p.dependent=false; gate(p)
   local e
+  e=gate(entry({'admin','services','fastacl252_wireless'},call('wireless_status'),nil));e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_probe'},post('probe'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_status'},call('status'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_save'},post('save'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_import'},post('import_nodes'),nil)); e.leaf=true
@@ -51,7 +53,12 @@ function status()
   local ok,c=pcall(env.read,u,true)
   if not ok then reply({ok=false,error=tostring(c)}); return end
   local nodes={}
-  for id,n in pairs(c.nodes) do nodes[#nodes+1]={id=id,name=n.name or id,protocol=n.protocol or '',owner=n.owner or '',retired=n.retired=='1'} end
+  for id,n in pairs(c.nodes) do
+    local o=type(n.outbound)=='table' and n.outbound or {};local devs,wifis,front=0,{},0
+    for _,d in ipairs(c.devices) do if d.node==id then devs=devs+1 end;if d.preproxy==id then front=front+1 end end
+    for _,w in ipairs(c.wifis or {}) do if w.node==id then wifis[#wifis+1]=w.ssid or w.id end;if w.preproxy==id then front=front+1 end end
+    nodes[#nodes+1]={id=id,name=n.name or id,protocol=n.protocol or '',owner=n.owner or '',retired=n.retired=='1',server=o.server or '',server_port=o.server_port,transport=type(o.transport)=='table' and o.transport.type or 'tcp',tls=type(o.tls)=='table' and o.tls.enabled==true,device_count=devs,wifi_names=wifis,front_count=front}
+  end
   table.sort(nodes,function(a,b) return a.name<b.name end)
   local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local sys=require 'luci.sys'
   local runtime=json.parse(sys.exec('/usr/bin/fastacl252 status 2>/dev/null')) or {}
@@ -60,7 +67,7 @@ function status()
     subscriptions[#subscriptions+1]={id=s['.name'],name=s.name or s['.name'],enabled=s.enabled~='0',interval_hours=tonumber(s.interval_hours or '24'),status=json.parse(fs.readfile('/tmp/fastacl252/sub-'..s['.name']..'.json') or '') or {}}
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
-  reply({ok=true,version='2.5.2-lite.1',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({ok=true,version='2.5.3',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -311,4 +318,36 @@ function delete_node()
   end)
   if not ok then u:revert('fastacl252') end
   release_lock(fs); reply({ok=ok,error=not ok and tostring(err) or nil})
+end
+
+-- Read-only saved-node/assigned-exit probe. Never changes client bindings.
+function probe()
+ local h=require'luci.http'; local fs=require'nixio.fs'; local sys=require'luci.sys';local json=require'luci.jsonc'
+ if not fs.mkdir('/tmp/fastacl252-probe.lock') then reply({ok=false,error='已有出口检测正在进行，请稍后重试'});return end
+ local result
+ local ok,err=pcall(function()
+  local c=require('fastacl252_env').read();local kind=h.formvalue('kind');local target=h.formvalue('id');local x;local mode='proxy'
+  if kind=='node' then assert(require('fastacl252').id(target) and c.nodes[target],'节点不存在');x={node=target}
+  elseif kind=='device' then
+   local mac=assert(require('fastacl252').mac(target),'设备 MAC 无效')
+   for _,d in ipairs(c.devices) do if d.mac==mac then x=d;mode=d.mode;break end end
+   if not x then x={};mode='direct' end
+  else error('检测类型无效') end
+  local link=''
+  if mode=='proxy' then
+   local compiler=require'fastacl252_dae';link=compiler.link(assert(c.nodes[x.node],'绑定节点不存在'))
+   if x.preproxy and x.preproxy~='' then link=link..' -> '..compiler.link(assert(c.nodes[x.preproxy],'前置节点不存在')) end
+  end
+  assert(fs.writefile('/tmp/fastacl252-probe.lock/spec.json',json.stringify({link=link})),'写入检测配置失败');fs.chmod('/tmp/fastacl252-probe.lock/spec.json','600')
+  local data=sys.exec('fastacl252-dns -probe-file /tmp/fastacl252-probe.lock/spec.json 2>/dev/null')
+  result=json.parse(data);assert(type(result)=='table','检测程序未返回结果')
+  result.kind=kind;result.mode=mode;result.scope='saved_exit';result.note=kind=='device' and '路由器侧检测已保存的绑定出口，不代表手机实机连通性' or '路由器侧节点出口检测'
+ end)
+ fs.remove('/tmp/fastacl252-probe.lock/spec.json');fs.rmdir('/tmp/fastacl252-probe.lock')
+ if ok then reply(result) else reply({ok=false,error='出口检测失败，请检查设备绑定和节点状态'}) end
+end
+
+function wireless_status()
+ local ok,result=pcall(require('fastacl252_wireless').read)
+ reply(ok and result or {ok=false,error='读取无线设备信息失败'})
 end

@@ -15,9 +15,9 @@ def between(text: str, start: str, end: str) -> str:
     return text[a:b]
 
 
-assert "version='2.5.2-lite.1'" in controller
-assert "PKG_VERSION:=2.5.2-lite.1" in pkg
-assert "fastacl252.main.version=2.5.2-lite.1" in defaults
+assert "version='2.5.3'" in controller
+assert "PKG_VERSION:=2.5.3" in pkg
+assert "fastacl252.main.version=2.5.3" in defaults
 
 # Managed WiFi node/preproxy/DNS updates are pure application-layer switches.
 wifi_update = between(controller, "if req.action=='update' then", "if req.action=='hide_all' then")
@@ -70,7 +70,7 @@ assert "/usr/bin/fastacl252 apply" not in guard
 assert "procd_add_reload_trigger fastacl252" in init
 assert "procd_add_reload_trigger fastacl252 firewall" not in init
 
-print("FastACL 2.5.2 Lite hot-path architecture: OK")
+print("FastACL 2.5.3 hot-path architecture: OK")
 
 # DNS hot updates must acknowledge a live in-process reload, never stop listeners.
 dns_hot = between(runtime, "reload_dns_next(){", "# dae's own reload")

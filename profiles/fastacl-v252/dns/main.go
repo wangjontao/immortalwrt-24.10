@@ -445,10 +445,12 @@ func validPolicy(cfg Config, p PolicyConfig) error {
 	return nil
 }
 func main() {
+	probe := flag.String("probe-file", "", "query exit IP using a temporary saved-node specification")
 	file := flag.String("config", "", "configuration JSON")
 	check := flag.Bool("check", false, "validate native nodes without listening")
 	reload := flag.Bool("reload", false, "reload the running relay without restarting listeners")
 	flag.Parse()
+	if *probe != "" { runProbe(*probe); return }
 	if *reload {
 		if e := requestReload(*file); e != nil {
 			log.Fatal(e)
@@ -498,7 +500,7 @@ func main() {
 			}
 		}
 	}()
-	fmt.Println("FastACL 2.5.2 Lite DNS ready")
+	fmt.Println("FastACL 2.5.3 DNS ready")
 	for {
 		b := make([]byte, 65535)
 		n, a, e := u.ReadFromUDP(b)

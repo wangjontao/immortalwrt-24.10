@@ -1,6 +1,7 @@
 local M={}
 
 local providers={
+  follow_exit={label='DNS 跟随代理出口（Cloudflare DoH）',scope='proxy',kind='doh',ip='1.1.1.1',name='cloudflare-dns.com',path='/dns-query'},
   baidu={label='百度 DNS',scope='direct',kind='udp',ip='180.76.76.76',port=53},
   alidns={label='阿里 DNS',scope='direct',kind='doh',ip='223.5.5.5',name='dns.alidns.com',path='/dns-query'},
   tencent={label='腾讯 DNSPod',scope='direct',kind='doh',ip='1.12.12.12',name='doh.pub',path='/dns-query'},
@@ -42,6 +43,7 @@ end
 function M.resolve(section,mode,main,resolvers,keyprefix)
   section=section or {}; main=main or {}; resolvers=resolvers or {}
   local id=section.dns or 'inherit'
+  if id=='follow_exit' then assert(mode=='proxy','DNS 跟随代理出口只能用于代理设备或 WiFi') end
   if id=='' or id=='inherit' then id=(mode=='proxy' and (main.proxy_dns or 'cloudflare') or (main.direct_dns or 'alidns')) end
   if id=='custom' then
     local kind=section.dns_type or 'doh'

@@ -131,7 +131,7 @@ function M.create(u,req)
     add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='1',disabled='0',hidden=hidden and '1' or '0'},id)
     add(u,'firewall','zone',id,{name=id,network={id},input='REJECT',output='ACCEPT',forward='REJECT'},id)
     add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
-    add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53',family='ipv4',target='ACCEPT'},id)
+    add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','forwarding',id..'_wan',{src=id,dest='wan'},id)
     add(u,'fastacl252','wifi',id,{network=id,ssid=ssid,band=band,subnet=cidr,mode=mode,node=node,preproxy=pre},id)
     set_dns(u,id,req,mode); created[#created+1]={id=id,ssid=ssid,band=band,network=id,subnet=cidr}

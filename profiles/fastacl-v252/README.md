@@ -1,6 +1,6 @@
-# FastACL 2.5.2 Lite/Fast
+# FastACL 2.5.3/Fast
 
-This independent `codex/fastacl252-lite-fast` branch combines the 2.4.4 application-switching model with the official dae v2.1.1/eBPF dataplane for JuLiangTK S20L / ImmortalWrt 24.10. The package is `2.5.2-lite.1-r2`.
+This independent `codex/fastacl252-lite-fast` branch combines the 2.4.4 application-switching model with the official dae v2.1.1/eBPF dataplane for JuLiangTK S20L / ImmortalWrt 24.10. The package is `2.5.3-r2`.
 
 Node, preproxy and DNS changes use `fastacl252 hot-apply`. The normal hot path keeps both daemon PIDs, reloads dae in process, swaps DNS policy snapshots through a root-only Unix control socket, and atomically updates only FastACL's private nft table when its rules change. It never reloads network, WiFi or the system firewall. A fixed-IP binding change alone can reload dnsmasq. Established dae connections may retain their previous exit; new connections use the updated policy.
 

@@ -1,4 +1,4 @@
-"""Exercise the compact FastACL 2.5.2 Lite UI against an isolated demo backend."""
+"""Exercise the compact FastACL 2.5.3 UI against an isolated demo backend."""
 import pathlib, re, threading, traceback
 from http.server import ThreadingHTTPServer
 from playwright.sync_api import sync_playwright, expect
@@ -16,19 +16,31 @@ try:
         page.on('pageerror',lambda e:errors.append(str(e)))
 
         stage='initial load';page.goto(url)
-        expect(page.get_by_text('FastACL 2.5.2 Lite',exact=False)).to_be_visible()
+        expect(page.get_by_text('FastACL 2.5.3',exact=False)).to_be_visible()
         expect(page.locator('#f25-devices .item')).to_have_count(3)
         expect(page.get_by_role('heading',name='附加 WiFi',exact=True)).to_be_visible()
         expect(page.locator('#f25-direct-dns')).to_have_value('alidns')
         expect(page.locator('#f25-proxy-dns')).to_have_value('cloudflare')
 
-        stage='global DNS hot save'
+        stage='wireless stations and sampled rates'
+        expect(page.locator('#f25-wireless-list')).to_contain_text('手机 A')
+        expect(page.locator('#f25-wireless-list')).to_contain_text('192.168.7.101')
+        expect(page.locator('#f25-wireless-list')).to_contain_text('0.80 Mbps',timeout=10000)
+        stage='node exit probe'
+        page.locator('.node-row').first.get_by_role('button',name='检测出口',exact=True).click()
+        expect(page.locator('.node-row').first.locator('.probe-result')).to_contain_text('203.0.113.9')
+        stage='collapse persistence'
+        node_section=page.locator('#f25-node-list').locator('xpath=ancestor::details[1]')
+        node_section.locator('summary').click()
+        expect(page.locator('#f25-node-list')).not_to_be_visible()
+        node_section.locator('summary').click()
+        stage='global DNS hot save' 
         page.locator('#f25-proxy-dns').select_option('google')
         page.get_by_role('button',name='保存 DNS',exact=True).click()
         expect(page.get_by_role('status')).to_contain_text('应用层快速切换完成',timeout=10000)
 
         stage='main device quick assignment'
-        page.locator('#f25-node-list .item').first.get_by_role('button',name='快速分配').click()
+        page.locator('#f25-node-list .item').first.get_by_role('button',name='分配',exact=True).click()
         expect(page.get_by_text('快速分配节点',exact=True)).to_be_visible()
         page.locator('#f25-assign-type').select_option('device')
         page.locator('#f25-assign-target').select_option('02:00:00:00:00:02')
@@ -49,7 +61,7 @@ try:
         expect(page.locator('#f25-wifis .item')).to_have_count(2)
 
         stage='managed WiFi quick assignment'
-        page.locator('#f25-node-list .item').nth(1).get_by_role('button',name='快速分配').click()
+        page.locator('#f25-node-list .item').nth(1).get_by_role('button',name='分配',exact=True).click()
         page.locator('#f25-assign-type').select_option('wifi')
         page.locator('#f25-assign-target').select_option('jfa25w01')
         page.locator('#f25-assign-go').click()
@@ -70,7 +82,7 @@ try:
         expect(page.get_by_text('全局 DNS',exact=True)).to_be_visible()
         page.screenshot(path=str(OUT/'ui-mobile-lite.png'),full_page=True)
         assert not errors,errors
-        browser.close();print('FastACL 2.5.2 Lite quick-switch, batch-delete and responsive UI passed')
+        browser.close();print('FastACL 2.5.3 quick-switch, batch-delete and responsive UI passed')
 except Exception:
     detail='stage: '+stage+'\n\n'+traceback.format_exc()+'\npage errors:\n'+'\n'.join(errors)
     (OUT/'ui-browser-error.txt').write_text(detail,encoding='utf-8')

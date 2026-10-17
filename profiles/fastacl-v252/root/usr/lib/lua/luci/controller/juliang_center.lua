@@ -15,5 +15,5 @@ function status()
   local managed=0; u:foreach('fastacl252','wifi',function() managed=managed+1 end)
   local fast=json.parse(sys.exec('/usr/bin/fastacl252 status 2>/dev/null')) or {}
   local up=tonumber(sys.exec("cut -d. -f1 /proc/uptime 2>/dev/null") or '0') or 0
-  reply({ok=true,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.2-dev.2 dae/eBPF'})
+  reply({ok=true,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.3 dae/eBPF'})
 end

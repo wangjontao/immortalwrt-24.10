@@ -1,4 +1,4 @@
-"""Local demo backend for the FastACL 2.5.2 Lite LuCI UI; no router access."""
+"""Local demo backend for the FastACL 2.5.3 LuCI UI; no router access."""
 import json, pathlib, re, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
@@ -13,7 +13,7 @@ CATALOG=[
  {'id':'opendns','label':'Cisco OpenDNS','scope':'proxy','kind':'doh','ip':'208.67.222.222','name':'doh.opendns.com'},
  {'id':'quad9','label':'Quad9','scope':'proxy','kind':'doh','ip':'9.9.9.9','name':'dns.quad9.net'},
 ]
-state={'ok':True,'version':'2.5.2-lite.1 · 本地演示','enabled':True,'direct_dns':'alidns','proxy_dns':'cloudflare','dns_catalog':CATALOG,
+state={'ok':True,'version':'2.5.3 · 本地演示','enabled':True,'direct_dns':'alidns','proxy_dns':'cloudflare','dns_catalog':CATALOG,
  'network':'lan','router_ip':'192.168.7.1','runtime':{'engine':'running','firewall':True,'backend':'nft','switch':'hot','request':'hot'},'job':'0','apply_log':'','subscription_running':False,
  'nodes':[{'id':'us','name':'美国出口 A','protocol':'socks'},{'id':'jp','name':'日本出口 B','protocol':'http'},{'id':'front','name':'前置节点','protocol':'vless'}],
  'subscriptions':[],
@@ -39,6 +39,8 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self,data):
         b=json.dumps(data,ensure_ascii=False).encode();self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.end_headers();self.wfile.write(b)
     def do_GET(self):
+        if self.path.endswith('/fastacl252_wireless'):
+            t=time.monotonic();self.reply({'ok':True,'timestamp':t,'interfaces':[{'id':'phy1-ap0','ssid':'JuLiangTK','radio':'radio1','network':'lan','up':True,'stations':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','signal':-51,'rx_bytes':int(t*100000),'tx_bytes':int(t*300000),'tx_link_mbps':866.7,'rx_link_mbps':780}]}]});return
         if self.path.endswith('/fastacl252_status'):self.reply(state);return
         if self.path not in ('/','/index.html'):self.send_error(404);return
         text=(ROOT/'root/usr/lib/lua/luci/view/fastacl252/console.htm').read_text(encoding='utf-8')
@@ -48,6 +50,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.end_headers();self.wfile.write(text.encode())
     def do_POST(self):
         form=parse_qs(self.rfile.read(int(self.headers.get('Content-Length',0))).decode())
+        if self.path.endswith('/fastacl252_probe'):
+            self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'note':'绑定出口检测，非手机实机检测'});return
         if self.path.endswith('/fastacl252_save'):
             data=json.loads(form['data'][0]);state['direct_dns']=data.get('direct_dns',state['direct_dns']);state['proxy_dns']=data.get('proxy_dns',state['proxy_dns'])
             for d in data.get('devices',[]):

@@ -28,6 +28,12 @@ import (
 type encryptedBase struct{}
 
 func (encryptedBase) DialContext(ctx context.Context, network, address string) (netproxy.Conn, error) {
+    mn, err := netproxy.ParseMagicNetwork(network)
+    if err != nil { return nil, err }
+    network = mn.Network
+    if mn.IPVersion != "" && (network == "tcp" || network == "udp") {
+        network += mn.IPVersion
+    }
 	resolver := &net.Resolver{PreferGo: true, StrictErrors: true, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 		d := net.Dialer{Timeout: 5 * time.Second}
 		return d.DialContext(ctx, network, "127.0.0.1:12553")
