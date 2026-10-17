@@ -8,6 +8,23 @@ end
 local function reply(t)
   local h=require 'luci.http'; h.prepare_content('application/json'); h.write(require('luci.jsonc').stringify(t))
 end
+local function wired_ports()
+  local fs=require'nixio.fs';local json=require'luci.jsonc'
+  local board=json.parse(fs.readfile('/etc/board.json') or '') or {};local rows={};local seen={}
+  local function add(dev,role)
+    if type(dev)~='string' or not dev:match('^[%w_.%-]+$') or seen[dev] then return end
+    seen[dev]=true;local base='/sys/class/net/'..dev..'/'
+    local carrier=tonumber(fs.readfile(base..'carrier') or '')
+    local speed=tonumber(fs.readfile(base..'speed') or '')
+    local duplex=(fs.readfile(base..'duplex') or ''):match('%S+')
+    rows[#rows+1]={device=dev,role=role,connected=carrier==1,known=carrier~=nil,speed=carrier==1 and speed and speed>0 and speed or nil,duplex=duplex}
+  end
+  for _,role in ipairs({'wan','lan'}) do
+    local net=(board.network or {})[role] or {}
+    if type(net.ports)=='table' then for _,dev in ipairs(net.ports) do add(dev,role) end else add(net.device,role) end
+  end
+  return rows
+end
 function status()
   local json=require 'luci.jsonc'; local sys=require 'luci.sys'; local u=require('uci').cursor()
   local wan=json.parse(sys.exec('ubus call network.interface.wan status 2>/dev/null')) or {}
@@ -24,5 +41,5 @@ function status()
   end
   counters.timestamp=tonumber(sys.exec('cat /proc/uptime'):match('^[%d.]+')) or up
   counters.device=dev
-  reply({ok=true,traffic=counters,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.3 dae/eBPF'})
+  reply({ok=true,ports=wired_ports(),traffic=counters,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.5.3 dae/eBPF'})
 end
