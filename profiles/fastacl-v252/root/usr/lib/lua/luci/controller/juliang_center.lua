@@ -2,6 +2,7 @@ module('luci.controller.juliang_center',package.seeall)
 function index()
   local p=entry({'admin','juliang'},firstchild(),_('JuLtiang 控制中心'),1); p.dependent=false; p.acl_depends={'juliang-center'}
   local h=entry({'admin','juliang','home'},template('juliang_center/home'),_('控制中心'),1); h.leaf=true; h.acl_depends={'juliang-center'}
+  local w=entry({'admin','juliang','wireless'},template('juliang_center/wireless'),_('无线设备'),2); w.leaf=true; w.acl_depends={'juliang-center'}
   local a=entry({'admin','juliang','status'},call('status'),nil); a.leaf=true; a.acl_depends={'juliang-center'}
 end
 local function reply(t)

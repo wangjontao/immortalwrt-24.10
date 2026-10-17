@@ -23,9 +23,15 @@ try:
         expect(page.locator('#f25-proxy-dns')).to_have_value('cloudflare')
 
         stage='wireless stations and sampled rates'
+        expect(page.locator('#f25-wireless-list')).to_have_count(0)
+        page.goto(url+'/wireless')
         expect(page.locator('#f25-wireless-list')).to_contain_text('手机 A')
         expect(page.locator('#f25-wireless-list')).to_contain_text('192.168.7.101')
         expect(page.locator('#f25-wireless-list')).to_contain_text('0.80 Mbps',timeout=10000)
+        page.set_viewport_size({'width':390,'height':844})
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        page.set_viewport_size({'width':1440,'height':1080})
+        page.goto(url)
         stage='node exit probe'
         page.locator('.node-row').first.get_by_role('button',name='检测出口',exact=True).click()
         expect(page.locator('.node-row').first.locator('.probe-result')).to_contain_text('203.0.113.9')

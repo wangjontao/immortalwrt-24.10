@@ -42,11 +42,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.endswith('/fastacl252_wireless'):
             t=time.monotonic();self.reply({'ok':True,'timestamp':t,'interfaces':[{'id':'phy1-ap0','ssid':'JuLiangTK','radio':'radio1','network':'lan','up':True,'stations':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','signal':-51,'rx_bytes':int(t*100000),'tx_bytes':int(t*300000),'tx_link_mbps':866.7,'rx_link_mbps':780}]}]});return
         if self.path.endswith('/fastacl252_status'):self.reply(state);return
-        if self.path not in ('/','/index.html'):self.send_error(404);return
-        text=(ROOT/'root/usr/lib/lua/luci/view/fastacl252/console.htm').read_text(encoding='utf-8')
+        if self.path not in ('/', '/index.html', '/wireless'):self.send_error(404);return
+        text=(ROOT/('root/usr/lib/lua/luci/view/juliang_center/wireless.htm' if self.path=='/wireless' else 'root/usr/lib/lua/luci/view/fastacl252/console.htm')).read_text(encoding='utf-8')
         text=text.replace('<%+header%>','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FastACL Lite 演示</title><style>body{font:15px system-ui;background:#f4f6fa;color:#242b40;padding:24px}button{padding:8px 14px;border:1px solid #bbc4db;border-radius:6px;background:#fff}.cbi-button-apply,.cbi-button-add{background:#5263d9;color:white}input,select,textarea{padding:8px;border:1px solid #cbd1df;border-radius:6px}h3{margin-top:0}</style>')
         text=text.replace('<%+footer%>','</html>')
-        text=re.sub(r'<%=luci.dispatcher.build_url\("admin","services"\)%>','/cgi-bin/luci/admin/services',text).replace('<%=token%>','demo-token')
+        text=re.sub(r'<%=luci.dispatcher.build_url\("admin","services"\)%>','/cgi-bin/luci/admin/services',text).replace('<%=token%>','demo-token').replace('<%=luci.dispatcher.build_url("admin","services","fastacl252_wireless")%>','/cgi-bin/luci/admin/services/fastacl252_wireless')
         self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.end_headers();self.wfile.write(text.encode())
     def do_POST(self):
         form=parse_qs(self.rfile.read(int(self.headers.get('Content-Length',0))).decode())
