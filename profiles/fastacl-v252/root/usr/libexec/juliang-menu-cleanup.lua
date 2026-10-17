@@ -10,3 +10,16 @@ for name in fs.dir('/usr/share/luci/menu.d') do
  end
 end
 fs.remove('/tmp/luci-indexcache')
+
+-- LuCI caches menus per login in sessionStorage, independently of server caches.
+-- Invalidate only that menu once when this UI revision is first loaded.
+local marker='juliang-menu-revision'
+local script=[=[<script id="juliang-menu-revision">(function(){try{var k='luci-session-store',d=JSON.parse(sessionStorage.getItem(k)||'{}'),r='253-wireless-menu-1';for(var s in d){if(d[s]&&typeof d[s]==='object'&&d[s].juliangMenuRevision!==r){delete d[s].menu;d[s].juliangMenuRevision=r}}sessionStorage.setItem(k,JSON.stringify(d))}catch(e){}})();</script>]=]
+for _,path in ipairs({'/usr/share/ucode/luci/template/themes/argon/header.ut','/usr/lib/lua/luci/view/themes/argon/header.htm'}) do
+ local text=fs.readfile(path)
+ if text and not text:find(marker,1,true) then
+  local updated,n=text:gsub('<head>',function() return '<head>\n'..script end,1)
+  if n>0 then assert(fs.writefile(path,updated));fs.chmod(path,'644') end
+ end
+end
+for path in fs.glob('/tmp/luci-indexcache*') do fs.remove(path) end
