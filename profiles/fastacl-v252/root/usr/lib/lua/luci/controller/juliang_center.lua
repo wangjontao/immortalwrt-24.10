@@ -15,6 +15,12 @@ function can_reboot()
   local ok,r=pcall(require('luci.util').ubus,'session','access',{ubus_rpc_session=sid,scope='ubus',object='system',['function']='reboot'})
   return ok and type(r)=='table' and r.access==true
 end
+function can_autoreboot()
+  local sid=require('luci.dispatcher').context.authsession
+  if not sid then return false end
+  local ok,r=pcall(require('luci.util').ubus,'session','access',{ubus_rpc_session=sid,scope='uci',object='autoreboot',['function']='write'})
+  return ok and type(r)=='table' and r.access==true
+end
 function reboot_action()
   local h=require'luci.http'
   if not can_reboot() then h.status(403,'Forbidden');reply({ok=false,error='当前帐号没有重启权限'});return end

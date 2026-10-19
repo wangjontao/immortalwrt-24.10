@@ -16,7 +16,7 @@ files={
  '/usr/share/luci/menu.d/apps.json':json.dumps({'admin/services/upnp':{'title':'UPnP','action':{'type':'view','path':'upnp/upnp'}},'admin/services/ddns':{'title':'DDNS'},'admin/services/wol':{'title':'WOL'},'admin/services/ksmbd':{'title':'Shares'},'admin/statistics':{'title':'Stats'}}),
  '/usr/lib/lua/luci/controller/nps.lua':'old controller',
  '/usr/libexec/juliang-nps-controller.lua':(ROOT/'root/usr/libexec/juliang-nps-controller.lua').read_text(encoding='utf-8'),
- '/usr/share/ucode/luci/template/themes/argon/header.ut':'<head><script id="juliang-menu-revision">old</script></head>',
+ '/usr/share/ucode/luci/template/themes/argon/header.ut':'<head><script id="juliang-menu-revision">old</script></head><a class="brand">JuLtiang 控制中心</a>',
 }
 lua.globals().read=lambda p:files.get(p)
 lua.globals().write=lambda p,s:files.__setitem__(p,s) or True
@@ -39,4 +39,6 @@ assert 'admin/statistics' not in apps
 assert files['/usr/lib/lua/luci/controller/nps.lua']==files['/usr/libexec/juliang-nps-controller.lua']
 header=files['/usr/share/ucode/luci/template/themes/argon/header.ut']
 assert header.count('id="juliang-menu-revision"')==1 and '255-device-subscription-list-1' in header
+assert '>JuLiang</span><span' in header and '>控制中心</span></a>' in header
+assert header.count('white-space:nowrap')==2
 print('PASS idempotent first-boot menu migration, compatibility payload and session menu invalidation')

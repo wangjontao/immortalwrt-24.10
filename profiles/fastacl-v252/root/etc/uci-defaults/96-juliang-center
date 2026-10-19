@@ -8,6 +8,7 @@ uci set rpcd.juliang_operator.password="$ADMIN_HASH"
 uci add_list rpcd.juliang_operator.read='luci-base'
 uci add_list rpcd.juliang_operator.read='luci-base-network-status'
 uci add_list rpcd.juliang_operator.read='juliang-center'
+uci add_list rpcd.juliang_operator.write='juliang-center'
 uci add_list rpcd.juliang_operator.read='juliang-fastacl252'
 uci add_list rpcd.juliang_operator.write='juliang-fastacl252'
 uci commit rpcd

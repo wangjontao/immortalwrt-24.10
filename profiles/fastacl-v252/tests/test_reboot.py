@@ -49,3 +49,7 @@ action='cancel';c.reboot_action();assert(calls==3)
 action='other';c.reboot_action();assert(calls==3)
 ''')
 print('PASS fake-clock countdown, cancel/replacement races, no early/duplicate reboot, spawn rollback, permission check and action whitelist; no real reboot executed')
+
+acl=json.loads((p/'usr/share/rpcd/acl.d/juliang-fastacl252.json').read_text(encoding='utf-8'))
+assert acl['juliang-center']['write']=={'ubus':{'system':['reboot']}}
+assert "uci add_list rpcd.juliang_operator.write='juliang-center'" in (p/'etc/uci-defaults/96-juliang-center').read_text(encoding='utf-8')

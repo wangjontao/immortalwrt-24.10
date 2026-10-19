@@ -33,6 +33,8 @@ for _,path in ipairs({'/usr/share/ucode/luci/template/themes/argon/header.ut','/
  local text=fs.readfile(path)
  if text then
   text=text:gsub('JuLtiang','JuLiang')
+  -- Keep the brand on two deliberate lines at every sidebar width.
+  text=text:gsub('>JuLiang%s*控制中心</a>', '><span style="display:block;white-space:nowrap;line-height:1.2;text-align:center">JuLiang</span><span style="display:block;white-space:nowrap;line-height:1.4;text-align:center">控制中心</span></a>')
   text=text:gsub('<script id="juliang%-menu%-revision">.-</script>','')
   local updated,n=text:gsub('<head>',function() return '<head>\n'..script end,1)
   if n>0 then assert(fs.writefile(path,updated));fs.chmod(path,'644') end
