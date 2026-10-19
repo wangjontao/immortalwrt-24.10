@@ -1,4 +1,4 @@
--- Native dae configuration compiler for FastACL 2.5.3.
+-- Native dae configuration compiler for FastACL 2.5.5.
 -- Supports the primary LAN plus independently routed managed WiFi subnets.
 local M={}
 local function quote(s)

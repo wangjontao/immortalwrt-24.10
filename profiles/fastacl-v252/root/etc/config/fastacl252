@@ -1,5 +1,5 @@
 config main 'main'
-	option version '2.5.3'
+	option version '2.5.5'
 	option enabled '0'
 	option network 'lan'
 	option port '12525'

@@ -500,7 +500,7 @@ func main() {
 			}
 		}
 	}()
-	fmt.Println("FastACL 2.5.3 DNS ready")
+	fmt.Println("FastACL 2.5.5 DNS ready")
 	for {
 		b := make([]byte, 65535)
 		n, a, e := u.ReadFromUDP(b)

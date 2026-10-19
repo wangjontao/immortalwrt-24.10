@@ -18,7 +18,7 @@ for iface in $(uci show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-iface$/\
 done
 uci commit wireless
 uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
-uci set 'fastacl252.main.version=2.5.3'; uci commit fastacl252
+uci set 'fastacl252.main.version=2.5.5'; uci commit fastacl252
 /usr/libexec/fastacl252-enable.sh --config-only
 /etc/init.d/fastacl252 enable
 exit 0

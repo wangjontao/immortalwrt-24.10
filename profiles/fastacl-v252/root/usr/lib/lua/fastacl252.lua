@@ -1,4 +1,4 @@
--- FastACL 2.5.3 policy compiler: main-LAN device policies + managed WiFi subnet policies.
+-- FastACL 2.5.5 policy compiler: main-LAN device policies + managed WiFi subnet policies.
 local M={}
 -- libuci's native cursor has set/add but no LuCI-specific section() helper.
 function M.section(u,config,kind,name,values)

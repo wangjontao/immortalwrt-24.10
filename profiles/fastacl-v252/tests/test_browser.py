@@ -1,4 +1,4 @@
-"""Exercise the compact FastACL 2.5.3 UI against an isolated demo backend."""
+"""Exercise the compact FastACL 2.5.5 UI against an isolated demo backend."""
 import pathlib, re, threading, traceback
 from http.server import ThreadingHTTPServer
 from playwright.sync_api import sync_playwright, expect
@@ -16,7 +16,7 @@ try:
         page.on('pageerror',lambda e:errors.append(str(e)))
 
         stage='initial load';page.goto(url)
-        expect(page.get_by_text('FastACL 2.5.3',exact=False)).to_be_visible()
+        expect(page.get_by_text('FastACL 2.5.5',exact=False)).to_be_visible()
         expect(page.locator('#f25-devices .item')).to_have_count(3)
         expect(page.get_by_role('heading',name='多 WiFi 分配模式',exact=True)).to_be_visible()
         expect(page.locator('#f25-direct-dns')).to_have_value('alidns')
@@ -38,6 +38,16 @@ try:
         page.once('dialog',lambda d:d.accept('Renamed first node'))
         page.locator('.node-row').first.get_by_role('button',name='重命名',exact=True).click()
         expect(page.locator('.node-row').first.locator('.title')).to_have_text('Renamed first node')
+
+        stage='numbered subscription list'
+        page.locator('#f25-sub-name').fill('测试机场')
+        page.locator('#f25-sub-url').fill('https://subscription.example.invalid/list')
+        page.get_by_role('button',name='添加订阅',exact=True).click()
+        expect(page.locator('.subscription-row')).to_have_count(1)
+        expect(page.locator('.subscription-row .subscription-number')).to_have_text('01')
+        expect(page.locator('.subscription-row .subscription-identity')).to_contain_text('测试机场')
+        expect(page.locator('.subscription-row .subscription-update')).to_have_text('更新')
+        expect(page.locator('#f25-sub-update')).to_have_class(re.compile(r'\bsubscription-update\b'))
 
         stage='wireless stations and sampled rates'
         expect(page.locator('#f25-wireless-list')).to_have_count(0)
@@ -106,7 +116,7 @@ try:
         expect(page.get_by_text('全局 DNS',exact=True)).to_be_visible()
         page.screenshot(path=str(OUT/'ui-mobile-lite.png'),full_page=True)
         assert not errors,errors
-        browser.close();print('FastACL 2.5.3 quick-switch, batch-delete and responsive UI passed')
+        browser.close();print('FastACL 2.5.5 quick-switch, batch-delete and responsive UI passed')
 except Exception:
     detail='stage: '+stage+'\n\n'+traceback.format_exc()+'\npage errors:\n'+'\n'.join(errors)
     (OUT/'ui-browser-error.txt').write_text(detail,encoding='utf-8')
