@@ -17,7 +17,7 @@ define Package/fastacl252/install
 	$(CP) ./files/* $(1)/
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(LN) ../bin/fastacl252-dns $(1)/usr/libexec/fastacl252-exit-probe
-	chmod 755 $(1)/usr/bin/fastacl252-dns $(1)/usr/bin/fastacl252 $(1)/usr/libexec/fastacl252-enable.sh $(1)/usr/libexec/nps-wan-mac $(1)/etc/init.d/fastacl252 $(1)/etc/init.d/nps-wan-mac $(1)/etc/hotplug.d/iface/99-nps-wan-mac
+	chmod 755 $(1)/usr/bin/fastacl252-dns $(1)/usr/bin/fastacl252 $(1)/usr/libexec/fastacl252-enable.sh $(1)/usr/libexec/juliang-reboot.sh $(1)/usr/libexec/nps-wan-mac $(1)/etc/init.d/fastacl252 $(1)/etc/init.d/nps-wan-mac $(1)/etc/hotplug.d/iface/99-nps-wan-mac
 	if [ -d $(1)/etc/uci-defaults ]; then chmod 755 $(1)/etc/uci-defaults/*; fi
 	chmod 600 $(1)/etc/config/fastacl252
 endef
