@@ -59,6 +59,7 @@ jobs:
           done
           .venv/bin/python profiles/fastacl-v252/tests/test_import.py
           .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_menu_cleanup.py
       - name: Validate DNS relay and native nodes
         run: |
           (cd profiles/fastacl-v252/dns && go mod tidy && go test -race -timeout 2m ./... && go build -trimpath -o /tmp/fastacl252-dns .)

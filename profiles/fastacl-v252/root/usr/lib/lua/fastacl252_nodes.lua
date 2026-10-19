@@ -32,7 +32,7 @@ function M.replace(u,nodes,owner)
     identity=identity..'\n'..counts[identity]
     local id='n_'..hash(owner..'\n'..identity); local tries=0
     while u:get('fastacl252',id) and (u:get('fastacl252',id,'owner')~=owner or u:get('fastacl252',id,'identity')~=identity) do tries=tries+1; assert(tries<100,'Node identity collision'); id='n_'..hash(owner..'\n'..identity..'\n'..tries) end
-    require('fastacl252').section(u,'fastacl252','node',id,{name=n.name,protocol=n.protocol,outbound=json.stringify(n.outbound),owner=owner,identity=identity,retired='0'})
+    require('fastacl252').section(u,'fastacl252','node',id,{name=u:get('fastacl252',id,'custom_name') or n.name,protocol=n.protocol,outbound=json.stringify(n.outbound),owner=owner,identity=identity,retired='0'})
     active[id]=true
   end
   local remove={}; u:foreach('fastacl252','node',function(n)
@@ -45,5 +45,13 @@ end
 function M.add(u,nodes)
   local index=tonumber(u:get('fastacl252','main','import_index') or '0')+1
   M.replace(u,nodes,'manual'..index); u:set('fastacl252','main','import_index',tostring(index))
+end
+function M.rename(u,id,name)
+  assert(policy.id(id) and u:get('fastacl252',id)=='node','节点不存在')
+  assert(type(name)=='string','节点名称无效')
+  name=name:gsub('^%s+',''):gsub('%s+$','')
+  assert(#name>0 and #name<=240 and not name:find('[%z\1-\31\127]'),'节点名称不能为空、超过 240 字节或包含控制字符')
+  assert(u:set('fastacl252',id,'name',name),'修改节点名称失败')
+  assert(u:set('fastacl252',id,'custom_name',name),'保存自定义名称失败')
 end
 return M

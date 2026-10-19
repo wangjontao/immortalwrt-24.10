@@ -44,7 +44,7 @@ function M.inventory(c,u)
   end
   local f=io.open('/tmp/dhcp.leases'); if f then
     for l in f:lines() do local exp,mac,ip,name=l:match('^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)')
-      if exp and (tonumber(exp)==0 or tonumber(exp)>os.time()) and policy.in_lan(ip,c.router_ip,c.netmask) then local r=row(mac); if r then r.ip=ip; r.name=name~='*' and name or ''; r.source='lease' end end
+      if exp and (tonumber(exp)==0 or tonumber(exp)>os.time()) and policy.in_lan(ip,c.router_ip,c.netmask) then local r=row(mac); if r then r.ip=ip; r.name=name~='*' and name or ''; r.hostname=r.name; r.source='lease' end end
     end; f:close()
   end
   for l in sys.exec('ip -4 neigh show dev '..util.shellquote(c.interface)..' 2>/dev/null'):gmatch('[^\n]+') do
@@ -52,6 +52,10 @@ function M.inventory(c,u)
     if ip and policy.in_lan(ip,c.router_ip,c.netmask) then local r=row(mac); if r then r.ip=ip; r.online=l:find('REACHABLE',1,true)~=nil or l:find('DELAY',1,true)~=nil or l:find('PROBE',1,true)~=nil; r.neighbor_state=l:match('(%u+)%s*$') end end
   end
   for _,d in ipairs(c.devices) do local r=row(d.mac); if r then r.bound=true; r.fixed_ip=d.ip; r.ip=r.ip~='' and r.ip or d.ip; r.name=d.name~='' and d.name or r.name; r.mode=d.mode; r.node=d.node or ''; r.preproxy=d.preproxy or ''; r.dns=d.dns or 'inherit'; r.dns_type=d.dns_type or ''; r.dns_ip=d.dns_ip or ''; r.dns_name=d.dns_name or ''; r.renew_required=r.ip~=d.ip end end
+  u:foreach('fastacl252','device_alias',function(a)
+    local mac=policy.mac(a.mac);local r=mac and rows[mac]
+    if r and type(a.name)=='string' and a.name~='' then r.name=a.name;r.custom_name=a.name end
+  end)
   local out={}; for _,r in pairs(rows) do out[#out+1]=r end
   table.sort(out,function(a,b) if a.bound~=b.bound then return a.bound end; return a.mac<b.mac end)
   return out

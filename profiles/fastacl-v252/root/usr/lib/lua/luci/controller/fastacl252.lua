@@ -26,8 +26,7 @@ local function apply_now(mode)
   return rc==0,tail(fs.readfile('/tmp/fastacl252/apply.log') or '',5000)
 end
 local function provider_ok(id,scope)
-  local p=require('fastacl252_dns').provider(id)
-  return p and p.scope==scope
+  return require('fastacl252_dns').allowed(id,scope)
 end
 local function restore_files(fs,backup,names)
   for _,n in ipairs(names) do if backup[n]~=nil then fs.writefile('/etc/config/'..n,backup[n]) end end
@@ -35,8 +34,9 @@ end
 
 function index()
   if not nixio.fs.access('/etc/config/fastacl252') then return end
-  local p=entry({'admin','services','fastacl252'},template('fastacl252/console'),_('FastACL 2.5.3 控制台'),27)
+  local p=entry({'admin','juliang','fastacl'},template('fastacl252/console'),_('FastACL 控制台'),3)
   p.dependent=false; gate(p)
+  local old=gate(entry({'admin','services','fastacl252'},alias('admin','juliang','fastacl'),nil));old.leaf=true
   local e
   e=gate(entry({'admin','services','fastacl252_wireless'},call('wireless_status'),nil));e.leaf=true
   e=gate(entry({'admin','services','fastacl252_probe'},post('probe'),nil)); e.leaf=true
@@ -45,6 +45,8 @@ function index()
   e=gate(entry({'admin','services','fastacl252_import'},post('import_nodes'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_subscription'},post('subscription'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_delete_node'},post('delete_node'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_rename_node'},post('rename_node'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_device_name'},post('device_name'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_wifi'},post('wifi_action'),nil)); e.leaf=true
 end
 
@@ -53,13 +55,14 @@ function status()
   local ok,c=pcall(env.read,u,true)
   if not ok then reply({ok=false,error=tostring(c)}); return end
   local nodes={}
-  for id,n in pairs(c.nodes) do
+  -- UCI sections retain insertion order: never iterate the node map with pairs().
+  u:foreach('fastacl252','node',function(section)
+    local id=section['.name']; local n=c.nodes[id]
     local o=type(n.outbound)=='table' and n.outbound or {};local devs,wifis,front=0,{},0
     for _,d in ipairs(c.devices) do if d.node==id then devs=devs+1 end;if d.preproxy==id then front=front+1 end end
     for _,w in ipairs(c.wifis or {}) do if w.node==id then wifis[#wifis+1]=w.ssid or w.id end;if w.preproxy==id then front=front+1 end end
     nodes[#nodes+1]={id=id,name=n.name or id,protocol=n.protocol or '',owner=n.owner or '',retired=n.retired=='1',server=o.server or '',server_port=o.server_port,transport=type(o.transport)=='table' and o.transport.type or 'tcp',tls=type(o.tls)=='table' and o.tls.enabled==true,device_count=devs,wifi_names=wifis,front_count=front}
-  end
-  table.sort(nodes,function(a,b) return a.name<b.name end)
+  end)
   local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local sys=require 'luci.sys'
   local runtime=json.parse(sys.exec('/usr/bin/fastacl252 status 2>/dev/null')) or {}
   local subscriptions={}
@@ -101,7 +104,7 @@ function save()
         assert(dns.valid_id(dnsid),'DNS 选择无效')
         if dnsid~='inherit' and dnsid~='custom' then
           local dp=assert(dns.provider(dnsid),'DNS 服务商不存在')
-          assert(dp.scope==(mode=='proxy' and 'proxy' or 'direct'),'DNS 服务商与当前出口模式不匹配')
+          assert(dns.allowed(dnsid,mode),'当前出口不支持此 DNS；代理出口请选择 DoH')
         end
         existing[mac]={id='d_'..mac:gsub(':',''),mac=mac,ip=d.ip,name=d.name or '',mode=mode,node=node,preproxy=d.preproxy or '',dns=dnsid,dns_type=d.dns_type,dns_ip=d.dns_ip,dns_name=d.dns_name}
       end
@@ -133,6 +136,8 @@ function save()
           u:set('fastacl252',id,'dns_type',d.dns_type or 'doh'); u:set('fastacl252',id,'dns_ip',d.dns_ip or ''); u:set('fastacl252',id,'dns_name',d.dns_name or '')
         end
       end
+
+      if d then require('fastacl252_devices').save_name(u,mac,d.name or '') end
 
       if not d or not old or tostring(old.ip or '')~=tostring(d.ip or '') then
         dhcp_changed=true
@@ -305,6 +310,40 @@ function subscription()
   release_lock(fs); reply({ok=ok,error=not ok and tostring(err) or nil})
 end
 
+-- A label edit never changes node IDs, credentials, routing or active bindings.
+-- Label-only changes do not invoke hot-apply, DHCP or any network service.
+function device_name()
+  local h=require'luci.http';local fs=require'nixio.fs';local u=require('uci').cursor()
+  if not acquire_lock(fs) then return end
+  local original=fs.readfile('/etc/config/fastacl252');local name
+  local ok,err=pcall(function()
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    local mac=assert(require('fastacl252').mac(h.formvalue('mac')),'设备 MAC 无效')
+    local env=require'fastacl252_env';local known=false
+    for _,d in ipairs(env.inventory(env.read(u,true),u)) do if d.mac==mac then known=true;break end end
+    assert(known,'设备已不在列表，请刷新后重试')
+    name=require('fastacl252_devices').save_name(u,mac,h.formvalue('name'))
+    assert(u:commit('fastacl252'),'保存设备备注失败')
+  end)
+  if not ok then u:revert('fastacl252');if original then fs.writefile('/etc/config/fastacl252',original) end end
+  fs.chmod('/etc/config/fastacl252','600');release_lock(fs)
+  reply({ok=ok,name=ok and name or nil,error=not ok and tostring(err) or nil})
+end
+
+function rename_node()
+  local h=require'luci.http';local fs=require'nixio.fs'
+  if not acquire_lock(fs) then return end
+  local u=require('uci').cursor();local original=fs.readfile('/etc/config/fastacl252')
+  local ok,err=pcall(function()
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    require('fastacl252_nodes').rename(u,h.formvalue('id'),h.formvalue('name'))
+    assert(u:commit('fastacl252'),'保存节点名称失败')
+  end)
+  if not ok then u:revert('fastacl252');if original then fs.writefile('/etc/config/fastacl252',original) end end
+  fs.chmod('/etc/config/fastacl252','600');release_lock(fs)
+  reply({ok=ok,error=not ok and tostring(err) or nil})
+end
+
 function delete_node()
   local fs=require 'nixio.fs'; local id=require('luci.http').formvalue('id'); local policy=require 'fastacl252'
   if not policy.id(id) then reply({ok=false,error='节点 ID 无效'}); return end
@@ -339,7 +378,7 @@ function probe()
    if x.preproxy and x.preproxy~='' then link=link..' -> '..compiler.link(assert(c.nodes[x.preproxy],'前置节点不存在')) end
   end
   assert(fs.writefile('/tmp/fastacl252-probe.lock/spec.json',json.stringify({link=link})),'写入检测配置失败');fs.chmod('/tmp/fastacl252-probe.lock/spec.json','600')
-  local data=sys.exec('fastacl252-dns -probe-file /tmp/fastacl252-probe.lock/spec.json 2>/dev/null')
+  local data=sys.exec('/usr/libexec/fastacl252-exit-probe -probe-file /tmp/fastacl252-probe.lock/spec.json 2>/dev/null')
   result=json.parse(data);assert(type(result)=='table','检测程序未返回结果')
   result.kind=kind;result.mode=mode;result.scope='saved_exit';result.note=kind=='device' and '路由器侧检测已保存的绑定出口，不代表手机实机连通性' or '路由器侧节点出口检测'
  end)

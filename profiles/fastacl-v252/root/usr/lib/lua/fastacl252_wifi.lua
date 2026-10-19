@@ -88,7 +88,7 @@ local function set_dns(u,section,req,mode)
   assert(dns.valid_id(id),'DNS 选择无效')
   if id~='inherit' and id~='custom' then
     local p=assert(dns.provider(id),'DNS 服务商不存在')
-    assert(p.scope==(mode=='proxy' and 'proxy' or 'direct'),'DNS 服务商与当前出口模式不匹配')
+    assert(dns.allowed(id,mode),'当前出口不支持此 DNS；代理出口请选择 DoH')
   end
   local tmp={dns=id,dns_type=req.dns_type,dns_ip=req.dns_ip,dns_name=req.dns_name}
   local main=u:get_all('fastacl252','main') or {}; dns.resolve(tmp,mode,main,{},'wifi')

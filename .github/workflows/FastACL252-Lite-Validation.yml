@@ -64,6 +64,7 @@ jobs:
         run: |
           .venv/bin/python profiles/fastacl-v252/tests/test_import.py
           .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_menu_cleanup.py
 
       - name: Native DNS relay tests
         run: |

@@ -59,6 +59,15 @@ class Tests(unittest.TestCase):
         c=config();c['devices']=[];a,b=compile(c);self.assertIn('fallback: must_direct',a)
     def test_unknown_native_option_rejected(self):
         c=config();c['nodes']['us']['outbound']=dict(type='socks',server='1.2.3.4',server_port=1080,unexpected=True);self.assertRaises(Exception,compile,c)
+    def test_domestic_doh_follows_proxy_exit(self):
+        for provider in ['alidns','tencent','dns360','follow_exit']:
+            c=config();c['devices'][0]['dns']=provider
+            _,relay=compile(c);p=relay['device_policies']['192.168.7.101']
+            self.assertEqual(p['resolver'],provider);self.assertGreater(p['exit'],0);self.assertEqual(relay['resolvers'][provider]['type'],'doh')
+    def test_plain_dns_rejected_for_proxy(self):
+        for provider in ['baidu','public114','cnnic']:
+            c=config();c['devices'][0]['dns']=provider
+            with self.assertRaises(Exception):compile(c)
     def test_lua_syntax(self):
         for p in (ROOT/'root').rglob('*.lua'):lua.execute('assert(loadstring(...))',p.read_text(encoding='utf-8'))
 def fixtures(core,helper):

@@ -5,6 +5,10 @@ from urllib.parse import parse_qs
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 CATALOG=[
+ {'id':'follow_exit','label':'DNS 跟随代理出口（Cloudflare DoH）','scope':'proxy','kind':'doh'},
+ {'id':'dns360','label':'360 安全 DNS','scope':'direct','kind':'doh'},
+ {'id':'public114','label':'114 公共 DNS','scope':'direct','kind':'udp'},
+ {'id':'cnnic','label':'CNNIC SDNS','scope':'direct','kind':'udp'},
  {'id':'baidu','label':'百度 DNS','scope':'direct','kind':'udp','ip':'180.76.76.76','name':''},
  {'id':'alidns','label':'阿里 DNS','scope':'direct','kind':'doh','ip':'223.5.5.5','name':'dns.alidns.com'},
  {'id':'tencent','label':'腾讯 DNSPod','scope':'direct','kind':'doh','ip':'1.12.12.12','name':'doh.pub'},
@@ -50,6 +54,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.end_headers();self.wfile.write(text.encode())
     def do_POST(self):
         form=parse_qs(self.rfile.read(int(self.headers.get('Content-Length',0))).decode())
+        if self.path.endswith('/fastacl252_rename_node'):
+            node=next(n for n in state['nodes'] if n['id']==form['id'][0]);node['name']=form['name'][0]
+            self.reply({'ok':True});return
+        if self.path.endswith('/fastacl252_device_name'):
+            row=next(r for r in state['devices'] if r['mac']==form['mac'][0]);name=form.get('name',[''])[0];row['name']=name;row['custom_name']=name
+            self.reply({'ok':True,'name':name});return
         if self.path.endswith('/fastacl252_probe'):
             self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'note':'绑定出口检测，非手机实机检测'});return
         if self.path.endswith('/fastacl252_save'):

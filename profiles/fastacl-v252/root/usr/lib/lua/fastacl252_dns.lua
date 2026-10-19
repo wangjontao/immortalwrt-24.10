@@ -5,6 +5,9 @@ local providers={
   baidu={label='百度 DNS',scope='direct',kind='udp',ip='180.76.76.76',port=53},
   alidns={label='阿里 DNS',scope='direct',kind='doh',ip='223.5.5.5',name='dns.alidns.com',path='/dns-query'},
   tencent={label='腾讯 DNSPod',scope='direct',kind='doh',ip='1.12.12.12',name='doh.pub',path='/dns-query'},
+  public114={label='114 公共 DNS',scope='direct',kind='udp',ip='114.114.114.114',port=53},
+  cnnic={label='CNNIC SDNS',scope='direct',kind='udp',ip='1.2.4.8',port=53},
+  dns360={label='360 安全 DNS',scope='direct',kind='doh',ip='101.226.4.6',name='doh.360.cn',path='/dns-query'},
   cloudflare={label='Cloudflare',scope='proxy',kind='doh',ip='1.1.1.1',name='cloudflare-dns.com',path='/dns-query'},
   google={label='Google',scope='proxy',kind='doh',ip='8.8.8.8',name='dns.google',path='/dns-query'},
   opendns={label='Cisco OpenDNS',scope='proxy',kind='doh',ip='208.67.222.222',name='doh.opendns.com',path='/dns-query'},
@@ -24,6 +27,14 @@ function M.catalog()
   end
   table.sort(out,function(a,b) if a.scope~=b.scope then return a.scope<b.scope end return a.label<b.label end)
   return out
+end
+
+-- Resolver location and egress path are independent. Proxy DNS must use DoH.
+function M.allowed(id,mode)
+  local p=providers[id]
+  if not p then return false end
+  if mode=='proxy' then return p.kind=='doh' end
+  return p.scope=='direct'
 end
 
 function M.provider(id)

@@ -18,9 +18,26 @@ try:
         stage='initial load';page.goto(url)
         expect(page.get_by_text('FastACL 2.5.3',exact=False)).to_be_visible()
         expect(page.locator('#f25-devices .item')).to_have_count(3)
-        expect(page.get_by_role('heading',name='附加 WiFi',exact=True)).to_be_visible()
+        expect(page.get_by_role('heading',name='多 WiFi 分配模式',exact=True)).to_be_visible()
         expect(page.locator('#f25-direct-dns')).to_have_value('alidns')
         expect(page.locator('#f25-proxy-dns')).to_have_value('cloudflare')
+
+        stage='device counters and label-only save'
+        expect(page.locator('#f25-stat-total')).to_have_text('3')
+        expect(page.locator('#f25-stat-online')).to_have_text('2')
+        expect(page.locator('.device-online.is-online')).to_have_count(2)
+        expect(page.locator('.device-online.is-offline')).to_have_count(1)
+        device=page.locator('#f25-devices .item').nth(1)
+        device.get_by_role('textbox').first.fill('办公室手机')
+        device.get_by_role('button',name='保存备注',exact=True).click()
+        expect(device.locator('.device-title')).to_contain_text('办公室手机')
+        device.get_by_role('textbox').first.fill('手机 B')
+        device.get_by_role('button',name='保存备注',exact=True).click()
+        expect(device.locator('.device-title')).to_contain_text('手机 B')
+        stage='node rename retains ordering'
+        page.once('dialog',lambda d:d.accept('Renamed first node'))
+        page.locator('.node-row').first.get_by_role('button',name='重命名',exact=True).click()
+        expect(page.locator('.node-row').first.locator('.title')).to_have_text('Renamed first node')
 
         stage='wireless stations and sampled rates'
         expect(page.locator('#f25-wireless-list')).to_have_count(0)
@@ -61,6 +78,7 @@ try:
         expect(page.get_by_role('status')).to_contain_text('成功导入 2 个节点',timeout=10000)
 
         stage='WiFi topology create'
+        page.locator('#f25-wifi-create-panel > summary').click()
         page.locator('#f25-w5').fill('1');page.locator('#f25-w2').fill('1');page.locator('#f25-wprefix').fill('AP')
         page.get_by_role('button',name='批量建立 WiFi',exact=True).click()
         expect(page.get_by_role('status')).to_contain_text('WiFi 拓扑已保存',timeout=10000)
