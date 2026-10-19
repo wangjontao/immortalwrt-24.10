@@ -91,6 +91,9 @@ jobs:
           - device: clx_s20l
             tag: S20L
             label: CLX S20L AX6000
+          - device: clx_s20p
+            tag: S20P
+            label: CLX S20P AX6000 2.5G
           - device: jdcloud_re-cp-03
             tag: JDCloud-RE-CP-03
             label: JDCloud Baili RE-CP-03 AX6000

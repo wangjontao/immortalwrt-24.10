@@ -40,6 +40,9 @@ try:
         expect(page.locator('.node-row').first.locator('.title')).to_have_text('Renamed first node')
 
         stage='numbered subscription list'
+        subscription=page.locator('#f25-sub-name').locator('xpath=ancestor::details[1]')
+        subscription.locator(':scope > summary').click()
+        expect(page.locator('#f25-sub-name')).to_be_visible()
         page.locator('#f25-sub-name').fill('测试机场')
         page.locator('#f25-sub-url').fill('https://subscription.example.invalid/list')
         page.get_by_role('button',name='添加订阅',exact=True).click()
