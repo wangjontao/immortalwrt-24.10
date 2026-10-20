@@ -7,12 +7,25 @@ local function reply(data)
   h.prepare_content('application/json')
   h.write(require('luci.jsonc').stringify(data))
 end
+local edit_handle
 local function acquire_lock(fs)
-  if fs.mkdir('/tmp/fastacl252-edit.lock') then return true end
-  reply({ok=false,error='配置正在保存，请稍后重试'})
-  return false
+  local nx=require'nixio'
+  local handle=nx.open('/tmp/fastacl252-edit.guard','w','600')
+  if not handle or not handle:lock('tlock') then
+    if handle then handle:close() end
+    reply({ok=false,error='配置正在保存，请稍后重试'});return false
+  end
+  fs.mkdir('/tmp/fastacl252-edit.lock')
+  if not fs.writefile('/tmp/fastacl252-edit.lock/pid',tostring(nx.getpid())) then
+    handle:close();reply({ok=false,error='无法建立配置锁'});return false
+  end
+  edit_handle=handle
+  return true
 end
-local function release_lock(fs) fs.rmdir('/tmp/fastacl252-edit.lock') end
+local function release_lock(fs)
+  fs.remove('/tmp/fastacl252-edit.lock/pid');fs.rmdir('/tmp/fastacl252-edit.lock')
+  if edit_handle then edit_handle:close();edit_handle=nil end
+end
 local function tail(s,n)
   s=tostring(s or ''); n=n or 4000
   return #s>n and s:sub(-n) or s
@@ -70,7 +83,7 @@ function status()
     subscriptions[#subscriptions+1]={id=s['.name'],name=s.name or s['.name'],enabled=s.enabled~='0',interval_hours=tonumber(s.interval_hours or '24'),status=json.parse(fs.readfile('/tmp/fastacl252/sub-'..s['.name']..'.json') or '') or {}}
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
-  reply({ok=true,version='2.5.5',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({ok=true,version='2.5.6',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -223,18 +236,18 @@ function wifi_action()
       if committed and original then fs.writefile('/etc/config/fastacl252',original); apply_now('hot-apply') end
     end
     release_lock(fs)
-    reply(ok and {ok=true,result=result,message='节点已应用层快速切换；network / WiFi / firewall 均未重载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+    reply(ok and {ok=true,result=result,message=((fs.readfile('/tmp/fastacl252/last-apply-mode') or ''):match('binding%-update') and '出口绑定已更新；dae / network / WiFi / firewall 均未重载。' or '应用配置已更新；network / WiFi / firewall 均未重载。'),detail=detail} or {ok=false,error=tostring(err),detail=detail})
     return
   end
 
-  if req.action=='hide_all' then
+  if req.action=='hide_all' or req.action=='hide_one' then
     local original=fs.readfile('/etc/config/wireless'); local ok,err=pcall(function()
       local pending=u:changes('wireless'); assert(not pending or not next(pending),'请先保存或撤销无线配置')
-      result={count=manager.hide_all(u,req.hidden)}
+      if req.action=='hide_one' then result=manager.hide_one(u,req.id,req.hidden) else result={count=manager.hide_all(u,req.hidden)} end
       assert(u:commit('wireless'),'保存无线隐藏状态失败')
-      assert(sys.call('wifi reload >/dev/null 2>&1')==0,'WiFi reload 失败')
+      result.apply=require('fastacl252_visibility').apply(u,req.action=='hide_one' and req.id or 'all')
     end)
-    if not ok then u:revert('wireless'); if original then fs.writefile('/etc/config/wireless',original) end end
+    if not ok then u:revert('wireless'); if original then fs.writefile('/etc/config/wireless',original);pcall(function() require('fastacl252_visibility').apply(require('uci').cursor(),req.action=='hide_one' and req.id or 'all') end) end end
     release_lock(fs)
     reply(ok and {ok=true,result=result,message='SSID 显示状态已更新；未重载 network / firewall / dae。'} or {ok=false,error=tostring(err)})
     return
@@ -247,24 +260,25 @@ function wifi_action()
     for _,n in ipairs(names) do local c=u:changes(n); assert(not c or not next(c),'请先保存或撤销 LuCI 中未提交的配置') end
     if req.action=='create' then result=manager.create(u,req)
     elseif req.action=='remove' then manager.remove(u,req.id); result={id=req.id}
+    elseif req.action=='remove_many' then result=manager.remove_many(u,req.ids)
+    elseif req.action=='remove_all' then result=manager.remove_all(u,req.ids)
     else error('不支持的 WiFi 操作') end
     require('fastacl252_env').read(u)
     committed=true
     for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
     assert(sys.call('/etc/init.d/network reload >/dev/null 2>&1')==0,'network reload 失败')
-    sys.call('wifi reload >/dev/null 2>&1')
     sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
     sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
     if u:get('fastacl252','main','enabled')=='1' then
-      local aok,d=apply_now('cold-apply'); detail=d; assert(aok,'拓扑应用失败：'..(d~='' and d or '未知错误'))
+      local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'拓扑应用失败：'..(d~='' and d or '未知错误'))
     end
   end)
   if not ok then
     for _,n in ipairs(names) do u:revert(n) end
     if committed then
       restore_files(fs,backup,names)
-      sys.call('/etc/init.d/network reload >/dev/null 2>&1'); sys.call('wifi reload >/dev/null 2>&1'); sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
-      if u:get('fastacl252','main','enabled')=='1' then apply_now('cold-apply') end
+      sys.call('/etc/init.d/network reload >/dev/null 2>&1'); sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
+      if u:get('fastacl252','main','enabled')=='1' then apply_now('hot-apply') end
     end
   end
   release_lock(fs)

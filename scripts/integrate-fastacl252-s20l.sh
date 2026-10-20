@@ -13,7 +13,7 @@ mkdir -p package/fastacl252 package/juliangtk-dae
 cp profiles/fastacl-v252/package-Makefile package/fastacl252/Makefile
 cp profiles/fastacl-v252/core-Makefile package/juliangtk-dae/Makefile
 cp -a profiles/fastacl-v252/root package/fastacl252/files
-(cd profiles/fastacl-v252/dns && go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../../package/fastacl252/files/usr/bin/fastacl252-dns .)
+(cd profiles/fastacl-v252/dns && go mod tidy && go mod vendor && python3 ../patch_outbound.py . && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -mod=vendor -trimpath -ldflags="-s -w" -o ../../../package/fastacl252/files/usr/bin/fastacl252-dns .)
 
 rm -f files/root/setup-20wifi-acl.sh files/root/add_ap20_wifi.sh
 rm -f files/root/ap20-wifi-config/passwall files/root/ap20-wifi-config/passwall2
@@ -45,12 +45,12 @@ find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d 
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.5.5" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.5.5" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.5.6" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.5.6" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
-cp "build-configs/JuLiangTK-${tag}-FastACL255.txt" .config
+cp "build-configs/JuLiangTK-${tag}-FastACL256.txt" .config
 sed -i "s/JuLiangTK-S20L/JuLiangTK-${tag}/g" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
 sh scripts/integrate-fastacl252-dependencies.sh
 for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
