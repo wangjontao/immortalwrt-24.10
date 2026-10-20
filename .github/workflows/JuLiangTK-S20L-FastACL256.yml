@@ -183,6 +183,11 @@ jobs:
           kernel=$(find build_dir/target-* -path '*/linux-mediatek_filogic/linux-6.6*/.config' | head -n1)
           test -n "$kernel"
           sh profiles/fastacl-v252/check-kernel.sh "$kernel"
+          # Standalone package/compile bypasses world/prepare build metadata.
+          make buildinfo
+          for metadata in config feeds version; do
+            test -s "bin/targets/mediatek/filogic/${metadata}.buildinfo"
+          done
           make package/compile -j"$(nproc)" || make package/compile -j1 V=s
           make -j1 V=s
           kernel=$(find build_dir/target-* -path '*/linux-mediatek_filogic/linux-6.6*/.config' | head -n1)
