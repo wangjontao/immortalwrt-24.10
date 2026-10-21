@@ -15,9 +15,9 @@ def between(text: str, start: str, end: str) -> str:
     return text[a:b]
 
 
-assert "version='2.5.7'" in controller
-assert "PKG_VERSION:=2.5.7" in pkg
-assert "fastacl252.main.version=2.5.7" in defaults
+assert "version='2.5.8'" in controller
+assert "PKG_VERSION:=2.5.8" in pkg
+assert "fastacl252.main.version=2.5.8" in defaults
 
 # Managed WiFi node/preproxy/DNS updates are pure application-layer switches.
 wifi_update = between(controller, "if req.action=='update' then", "if req.action=='hide_all'")
@@ -71,7 +71,7 @@ assert "/usr/bin/fastacl252 apply" not in guard
 assert "procd_add_reload_trigger fastacl252" in init
 assert "procd_add_reload_trigger fastacl252 firewall" not in init
 
-print("FastACL 2.5.7 hot-path architecture: OK")
+print("FastACL 2.5.8 hot-path architecture: OK")
 
 # DNS hot updates must acknowledge a live in-process reload, never stop listeners.
 dns_hot = between(runtime, "reload_dns_next(){", "# dae's own reload")
@@ -85,8 +85,8 @@ assert not (ROOT / 'root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch').ex
 assert '+libuci-lua' in pkg
 
 
-# 2.5.7 is the shared-core mechanism, with the live safety regressions retained.
-assert "main.fixed_exit=0" in defaults
+# 2.5.8 is the shared-core mechanism, with the live safety regressions retained.
+assert "main.fixed_exit=1" in defaults
 assert "open_flags('wronly','creat')+524288" in controller
 assert "edit_handle:lock('ulock')" in controller
 dae=(ROOT/'root/usr/lib/lua/fastacl252_dae.lua').read_text(encoding='utf-8')
