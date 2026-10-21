@@ -47,7 +47,7 @@ jobs:
           .venv/bin/playwright install --with-deps chromium
           curl -fL --retry 3 -o /tmp/dae-amd64.tar.xz \
             https://github.com/daeuniverse/dae/releases/download/v2.1.1/dae-linux-x86_64.tar.xz
-          echo 'c550af580dc97cc90986260da78c4bf72917f3213c2b5d8b79c45199d9c3dc90  /tmp/dae-amd64.tar.xz' | sha257sum -c -
+          echo 'c550af580dc97cc90986260da78c4bf72917f3213c2b5d8b79c45199d9c3dc90  /tmp/dae-amd64.tar.xz' | sha256sum -c -
           mkdir /tmp/dae-core
           tar -xJf /tmp/dae-amd64.tar.xz -C /tmp/dae-core
           install -m755 "$(find /tmp/dae-core -type f -name dae | head -n1)" /tmp/dae
@@ -213,7 +213,7 @@ jobs:
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
           cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.5.7.md upload/
           printf 'branch=%s\ncommit=%s\nversion=2.5.7\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
-          sha257sum upload/* | tee upload/SHA257SUMS
+          sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
