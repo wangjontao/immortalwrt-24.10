@@ -1,5 +1,5 @@
 name: JuLiangTK AX6000 FastACL 2.5.8 Testing
-run-name: 'FastACL 2.5.8 fixed-entry switching · ${{ github.ref_name }}'
+run-name: 'FastACL 2.5.8-r2 split data fix · ${{ github.ref_name }}'
 
 'on':
   workflow_dispatch: {}
@@ -55,6 +55,7 @@ jobs:
         run: |
           python3 scripts/tests/test_ci_update_feeds.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wireless.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_wifi_fw4.py
           .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
           python3 profiles/fastacl-v252/tests/test_runtime.py
@@ -63,6 +64,7 @@ jobs:
             if head -n1 "$file" | grep -q '^#!/bin/sh'; then sh -n "$file"; shfmt -ln posix "$file" >/dev/null; fi
           done
           .venv/bin/python profiles/fastacl-v252/tests/test_import.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_split_data.py
           .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
           .venv/bin/python profiles/fastacl-v252/tests/test_menu_cleanup.py
           .venv/bin/python profiles/fastacl-v252/tests/test_reboot.py

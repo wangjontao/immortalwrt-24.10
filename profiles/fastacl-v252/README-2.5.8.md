@@ -7,3 +7,7 @@ The real-router merge passed 90 compiler-invariance cases. A3 switching and rest
 Primary DNS, proxy DNS and YouTube platform DNS mappings were checked after the merge. These are focused tests, not a guarantee that every platform/stream or hardware model has been validated. Create/delete WiFi and routing-policy changes can still modify topology or core configuration. Site-specific CAKE shaping is not enabled by this package snapshot.
 
 No live nodes, subscriptions, WiFi passwords, device bindings, slot secrets or platform-map state are included in source. Firmware first boot enables fixed_exit=1 and reports version 2.5.8; secret material is generated locally.
+
+## Bundled split-data repair
+
+Ship both cn-ipv4.txt (5,498 APNIC-derived CN IPv4 ranges, 2026-10-20 snapshot) and cn-domains.txt (109,795 suffixes from the previously validated dnsmasq-china-list snapshot). The previous source checkpoint omitted these runtime data assets, causing smart IP routing to fail and preventing domestic DNS domain splitting. Pinned SHA-256 metadata, format/count and actual smart-policy compilation tests are included. Package installation rejects missing/empty data files. Live policy compilation and real dae/DNS validators passed after installing the files without changing saved settings or restarting services.
