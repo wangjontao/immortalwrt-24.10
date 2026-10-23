@@ -66,6 +66,11 @@ platform_do_upgrade() {
 	local board=$(board_name)
 
 	case "$board" in
+	xiaomi,redmi-router-ax6000)
+		CI_UBIPART="ubi"
+		CI_KERNPART="kernel"
+		nand_do_upgrade "$1"
+		;;
 	xiaomi,redmi-router-ax6000-ubootmod)
 		fit_do_upgrade "$1"
 		;;
@@ -109,7 +114,6 @@ platform_do_upgrade() {
 	tplink,tl-7dr7250-v1|\
 	tplink,tl-7dr7230-v1sp2|\
 	xiaomi,mi-router-ax3000t-ubootmod|\
-	xiaomi,redmi-router-ax6000|\
 	xiaomi,redmi-router-ax6000-512rom|\
 	xiaomi,mi-router-wr30u-ubootmod|\
 	zyxel,ex5601-t0-ubootmod)
