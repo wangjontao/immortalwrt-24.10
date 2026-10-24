@@ -1,0 +1,86 @@
+/dts-v1/;
+#include "mt7981b-clt-r30b1-base.dtsi"
+
+&spi_nand {
+	mediatek,nmbm;
+	mediatek,bmt-max-ratio = <1>;
+	mediatek,bmt-max-reserved-blocks = <64>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "BL2";
+			reg = <0x00000 0x100000>;
+			read-only;
+		};
+
+		partition@100000 {
+			label = "u-boot-env";
+			reg = <0x100000 0x80000>;
+		};
+
+		factory: partition@180000 {
+			label = "Factory";
+			reg = <0x180000 0x200000>;
+			read-only;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eeprom_factory: eeprom@0 {
+					reg = <0x0 0x1000>;
+				};
+
+				macaddr_factory_4: macaddr@4 {
+					compatible = "mac-base";
+					reg = <0x4 0x6>;
+					#nvmem-cell-cells = <1>;
+				};
+
+				macaddr_factory_a: macaddr@a {
+					compatible = "mac-base";
+					reg = <0xa 0x6>;
+					#nvmem-cell-cells = <1>;
+				};
+			};
+		};
+
+		partition@380000 {
+			label = "FIP";
+			reg = <0x380000 0x200000>;
+			read-only;
+		};
+
+		partition@580000 {
+			label = "ubi";
+			reg = <0x580000 0x4000000>;
+		};
+
+		partition@4580000 {
+			label = "data";
+			reg = <0x4580000 0x2000000>;
+		};
+	};
+};
+
+&wifi {
+	nvmem-cells = <&eeprom_factory>;
+	nvmem-cell-names = "eeprom";
+
+	band@0 {
+		reg = <0>;
+		nvmem-cells = <&macaddr_factory_4 0>;
+		nvmem-cell-names = "mac-address";
+	};
+
+	band@1 {
+		reg = <1>;
+		nvmem-cells = <&macaddr_factory_a 1>;
+		nvmem-cell-names = "mac-address";
+	};
+};

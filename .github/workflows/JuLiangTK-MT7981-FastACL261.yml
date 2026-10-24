@@ -92,30 +92,66 @@ jobs:
       max-parallel: 2
       matrix:
         include:
+          - device: philips_hy3000
+            tag: PHILIPS-HY3000
+            label: Philips HY3000
           - device: cmcc_rax3000m
             tag: RAX3000M-NAND
             label: CMCC RAX3000M NAND
           - device: cmcc_rax3000m-emmc
             tag: RAX3000M-EMMC
             label: CMCC RAX3000M eMMC
-          - device: cmcc_a10-stock
-            tag: CMCC-A10-Stock
-            label: CMCC A10 stock
+          - device: qihoo_360t7
+            tag: QIHOO-360T7
+            label: Qihoo 360T7
+          - device: aigo_ags21
+            tag: AIGO-AGS21
+            label: Aigo AGS21
           - device: cmcc_a10-ubootmod
             tag: CMCC-A10-Ubootmod
             label: CMCC A10 ubootmod
-          - device: qihoo_360t7
-            tag: Qihoo-360T7
-            label: Qihoo 360T7
+          - device: konka_komi-a31
+            tag: KONKA-KOMI-A31
+            label: Konka KOMI A31
+          - device: newland_nl-wr8103
+            tag: NEWLAND-NL-WR8103
+            label: Newland NL-WR8103
+          - device: newland_nl-wr9103
+            tag: NEWLAND-NL-WR9103
+            label: Newland NL-WR9103
+          - device: abt_asr3000
+            tag: ABT-ASR3000
+            label: ABT ASR3000
           - device: jcg_q30-pro
             tag: JCG-Q30-PRO
             label: JCG Q30 Pro
-          - device: konka_komi-a31
-            tag: Konka-KOMI-A31
-            label: Konka KOMI A31
-          - device: livinet_zr-3020
-            tag: Livinet-ZR-3020
-            label: Livinet ZR-3020
+          - device: xiaomi_mi-router-ax3000t
+            tag: Xiaomi-AX3000T
+            label: Xiaomi AX3000T
+          - device: xiaomi_mi-router-ax3000t-mtkuboot
+            tag: Xiaomi-AX3000T-MTK-UBoot
+            label: Xiaomi AX3000T MTK U-Boot
+          - device: xiaomi_mi-router-ax3000t-ubootmod
+            tag: Xiaomi-AX3000T-ubootmod
+            label: Xiaomi AX3000T ubootmod
+          - device: xiaomi_mi-router-wr30u-stock
+            tag: Xiaomi-WR30U-Stock
+            label: Xiaomi WR30U stock
+          - device: xiaomi_mi-router-wr30u-ubootmod
+            tag: Xiaomi-WR30U-ubootmod
+            label: Xiaomi WR30U ubootmod
+          - device: nokia_ea0326gmp
+            tag: NOKIA-EA0326GMP
+            label: Nokia EA0326GMP
+          - device: sl_3000-emmc
+            tag: SL-3000-EMMC
+            label: SL-3000 eMMC
+          - device: zbtlink_zbt-z8103ax-c
+            tag: ZBT-Z8103AX-C
+            label: ZBT Z8103AX-C
+          - device: clt_r30b1
+            tag: CLT-R30B1
+            label: Creatlentem CLT-R30B1
     env:
       DEVICE: ${{ matrix.device }}
       DEVICE_TAG: ${{ matrix.tag }}
