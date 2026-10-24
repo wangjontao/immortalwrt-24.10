@@ -46,6 +46,7 @@ jobs:
       - name: Prepare pinned feeds and target configuration
         working-directory: openwrt
         run: |
+          python3 ../ax3000t-three-proxy/test_customization.py
           python3 ../ax3000t-three-proxy/build.py prepare
           sh -n files/etc/uci-defaults/99-three-proxy-defaults
           luac5.1 -p feeds/helloworld/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_config.lua

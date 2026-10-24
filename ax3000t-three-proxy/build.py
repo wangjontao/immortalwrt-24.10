@@ -14,6 +14,12 @@ def prepare():
  run('./scripts/feeds','install','-a')
  for feed,pkg in [('passwall','luci-app-passwall'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
   run('./scripts/feeds','install','-f','-p',feed,pkg)
+ # Explicitly replace the old LuCI providers with pinned plugin sources.
+ for feed,pkg in [('passwall','luci-app-passwall'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
+  for item in Path('package/feeds').glob('*/'+pkg):
+   assert item.is_symlink(),item
+   item.unlink()
+  shutil.copytree(Path('feeds')/feed/pkg,Path('package/custom-proxy-ui')/pkg,dirs_exist_ok=True)
  # Remove installed feed providers of these exact names; use pinned official cores.
  for pkg in CORES:
   for item in Path('package/feeds').glob('*/'+pkg):
@@ -21,16 +27,17 @@ def prepare():
    item.unlink()
   shutil.copytree(P/'packages'/pkg,Path('package/custom-pinned-cores')/pkg,dirs_exist_ok=True)
  shutil.copytree(P/'files','files',dirs_exist_ok=True)
- Path('files/etc/uci-defaults/99-three-proxy-defaults').chmod(0o755)
+ for item in Path('files').rglob('*'):
+  if item.is_file() and item.read_bytes().startswith(b'#!/bin/sh'):item.chmod(0o755)
  shutil.copy2(P/'ax3000t-ubootmod.config','.config')
  run('make','defconfig')
- required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y']
+ required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y']
  config=Path('.config').read_text()
  for line in required:assert line in config,line
  assert 'CONFIG_PACKAGE_fastacl252=y' not in config
- pw=Path('package/feeds/passwall/luci-app-passwall/Makefile').read_text()
- ssr=Path('package/feeds/helloworld/luci-app-ssr-plus/Makefile').read_text()
- oc=Path('package/feeds/openclash/luci-app-openclash/Makefile').read_text()
+ pw=Path('package/custom-proxy-ui/luci-app-passwall/Makefile').read_text()
+ ssr=Path('package/custom-proxy-ui/luci-app-ssr-plus/Makefile').read_text()
+ oc=Path('package/custom-proxy-ui/luci-app-openclash/Makefile').read_text()
  assert '26.10.22' in pw and 'PKG_RELEASE:=2' in pw
  assert 'PKG_VERSION:=198' in ssr and 'PKG_RELEASE:=2' in ssr and 'AnyTLS' in ssr
  assert '0.48.002' in oc
@@ -66,7 +73,7 @@ def corecheck():
 def artifacts():
  src=Path('bin/targets/mediatek/filogic');out=Path('upload');out.mkdir(exist_ok=True)
  manifest=next(src.glob('*.manifest'));text=manifest.read_text()
- for pkg,version in [('luci-app-passwall','26.10.22'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),*[(k,v['version']) for k,v in CORES.items()]]:
+ for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall','26.10.22'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),*[(k,v['version']) for k,v in CORES.items()]]:
   assert any(l.startswith(pkg+' - ') and version in l for l in text.splitlines()),(pkg,version)
  images=list(src.glob('*xiaomi_mi-router-ax3000t-ubootmod*sysupgrade.itb'));assert len(images)==1,images
  assert images[0].read_bytes()[:4]==bytes.fromhex('d00dfeed')
