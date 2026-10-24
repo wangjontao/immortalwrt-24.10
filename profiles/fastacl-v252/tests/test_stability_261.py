@@ -11,6 +11,7 @@ init = (PROFILE / 'etc/init.d/wan-watchdog').read_text(encoding='utf-8')
 config = (PROFILE / 'etc/config/wan-watchdog').read_text(encoding='utf-8')
 defaults = (PROFILE / 'etc/uci-defaults/99-juliangtk-fastacl252').read_text(encoding='utf-8')
 migration = (PROFILE / 'etc/uci-defaults/98-juliang-wifi-stability').read_text(encoding='utf-8')
+wifi = (PROFILE / 'usr/lib/lua/fastacl252_wifi.lua').read_text(encoding='utf-8')
 
 for required in (
     'socks_backlog',
@@ -39,6 +40,9 @@ assert 'wireless.$radio.htmode=HE20' in defaults
 assert '/etc/init.d/wan-watchdog enable' in defaults
 assert 'case "$channel" in' in migration
 assert '|48)' in migration and '|9)' in migration
+assert 'SSID 已存在' in wifi
+assert 'planned_ssids' in wifi
+assert (ROOT / 'tests/test_wifi_creation.py').is_file()
 
 menu = json.loads((PROFILE / 'usr/share/luci/menu.d/luci-app-wan-watchdog.json').read_text(encoding='utf-8'))
 acl = json.loads((PROFILE / 'usr/share/rpcd/acl.d/luci-app-wan-watchdog.json').read_text(encoding='utf-8'))

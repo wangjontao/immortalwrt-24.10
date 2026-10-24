@@ -122,9 +122,19 @@ function M.create(u,req)
   local prefix=tostring(req.prefix or 'A'); assert(#prefix>0 and #prefix<=24 and not prefix:find('[%c]'),'WiFi 名称前缀无效')
   local start=int(req.start or 1,1,999,'WiFi 起始编号无效'); local mode,node,pre=validate_binding(u,req.node,req.preproxy)
   local hidden=req.hidden==true or tostring(req.hidden)=='1'; local used=used_subnets(u); local created={}; local seq=0
+  local used_ssids={}; local planned_ssids={}
+  u:foreach('wireless','wifi-iface',function(s)
+    local ssid=tostring(s.ssid or ''); if ssid~='' then used_ssids[ssid]=true end
+  end)
+  for i=1,n5+n2 do
+    local ssid=prefix..tostring(start+i-1)
+    assert(#ssid<=32,'SSID 超过 32 字节')
+    assert(not used_ssids[ssid],'SSID 已存在: '..ssid)
+    used_ssids[ssid]=true; planned_ssids[i]=ssid
+  end
   local function one(band,radio)
     local id=next_name(u); local sn=next_subnet(used); seq=seq+1
-    local ssid=prefix..tostring(start+seq-1); assert(#ssid<=32,'SSID 超过 32 字节')
+    local ssid=planned_ssids[seq]
     local ip='172.16.'..sn..'.1'; local cidr='172.16.'..sn..'.0/24'; local dev='br-'..id
     add(u,'network','device',id..'_dev',{name=dev,type='bridge',bridge_empty='1',ipv6='0'},id)
     add(u,'network','interface',id,{device=dev,proto='static',ipaddr=ip,netmask='255.255.255.0',delegate='0'},id)

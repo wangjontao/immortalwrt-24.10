@@ -48,6 +48,7 @@ jobs:
         run: |
           python3 profiles/fastacl-v252/tests/test_bbr.py
           .venv/bin/python profiles/fastacl-v252/tests/test_hardware_mac.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_wifi_creation.py
           python3 scripts/tests/test_ci_update_feeds.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wireless.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_fw4.py
