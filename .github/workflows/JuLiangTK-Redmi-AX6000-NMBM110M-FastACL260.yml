@@ -222,3 +222,5 @@ jobs:
           path: upload/*
           if-no-files-found: error
           retention-days: 30
+
+# Runs the layout validation after test changes.
