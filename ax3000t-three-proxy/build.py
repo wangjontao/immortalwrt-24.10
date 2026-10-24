@@ -5,6 +5,15 @@ ROOT=Path.cwd()
 LOCK=json.loads((P/'sources.lock.json').read_text())
 CORES=json.loads((P/'cores.lock.json').read_text())
 def run(*args,**kw):return subprocess.run(list(args),check=True,**kw)
+def patch_ssrplus_singbox():
+ patch=P/'patches'/'ssrplus-singbox.patch'
+ run('git','apply','--whitespace=nowarn',str(patch),cwd=Path('package/custom-proxy-ui'))
+ init=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/etc/init.d/shadowsocksr').read_text()
+ helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua')
+ server_helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua')
+ assert 'start_v2ray_with_singbox()' in init
+ assert 'gen_singbox_anytls.lua' in init and helper.is_file()
+ assert 'gen_singbox_anytls_server.lua' in init and server_helper.is_file()
 def prepare():
  lines=[]
  for name in ['packages','luci','routing','telephony','pwpackages','passwall','helloworld','openclash']:
@@ -20,6 +29,7 @@ def prepare():
    assert item.is_symlink(),item
    item.unlink()
   shutil.copytree(Path('feeds')/feed/pkg,Path('package/custom-proxy-ui')/pkg,dirs_exist_ok=True)
+ patch_ssrplus_singbox()
  # Remove installed feed providers of these exact names; use pinned official cores.
  for pkg in CORES:
   for item in Path('package/feeds').glob('*/'+pkg):
@@ -61,13 +71,16 @@ def corecheck():
   result=subprocess.run(['qemu-aarch64','-cpu','max',str(target),*args],check=True,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60)
   assert c['version'] in result.stdout,result.stdout
   (out/(pkg+'-version.txt')).write_text(result.stdout);print(result.stdout,flush=True)
- # Check actual config emitted by the pinned SSR Plus+ generator with the Xray binary.
- gen=Path('feeds/helloworld/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_config.lua')
- run(str(ROOT/'.venv/bin/python'),str(P/'test_ssr_anytls.py'),str(gen),str(out/'ssr-anytls.json'))
- run('qemu-aarch64','-cpu','max',str(out/'xray'),'run','-test','-config',str(out/'ssr-anytls.json'),timeout=60)
- sing={'log':{'level':'error'},'inbounds':[],'outbounds':[{'type':'anytls','tag':'test','server':'127.0.0.1','server_port':443,'password':'test-only-password','tls':{'enabled':True,'server_name':'example.com'}}]}
- (out/'sing-anytls.json').write_text(json.dumps(sing))
- run('qemu-aarch64','-cpu','max',str(out/'sing-box'),'check','-c',str(out/'sing-anytls.json'),timeout=60)
+ # Check the actual SSR Plus+ AnyTLS generator through the Sing-box binary.
+ gen=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua')
+ server_gen=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua')
+ for mode in ['redirect','tproxy']:
+  config=out/('ssr-anytls-'+mode+'.json')
+  run(str(ROOT/'.venv/bin/python'),str(P/'test_ssr_anytls.py'),str(gen),str(config),mode,str(P/'testdata'))
+  run('qemu-aarch64','-cpu','max',str(out/'sing-box'),'check','-c',str(config),timeout=60)
+ server_config=out/'ssr-anytls-server.json'
+ run(str(ROOT/'.venv/bin/python'),str(P/'test_ssr_anytls.py'),str(server_gen),str(server_config),'server',str(P/'testdata'))
+ run('qemu-aarch64','-cpu','max',str(out/'sing-box'),'check','-c',str(server_config),timeout=60)
  (out/'mihomo-anytls.yaml').write_text("mixed-port: 0\nproxies:\n  - name: test\n    type: anytls\n    server: 127.0.0.1\n    port: 443\n    password: test-only-password\n    sni: example.com\nrules:\n  - MATCH,DIRECT\n")
  run('qemu-aarch64','-cpu','max',str(out/'mihomo'),'-t','-d',str(out),'-f',str(out/'mihomo-anytls.yaml'),timeout=60)
 def artifacts():

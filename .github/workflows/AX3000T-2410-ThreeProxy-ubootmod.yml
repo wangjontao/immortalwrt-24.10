@@ -1,5 +1,5 @@
 name: AX3000T 24.10 Passwall SSR Plus OpenClash ubootmod
-run-name: 'AX3000T ubootmod - 24.10 - Passwall Sing-box 1.14 - SSR AnyTLS - OpenClash Meta'
+run-name: 'AX3000T ubootmod - 24.10 - Passwall - SSR AnyTLS via Sing-box - OpenClash Meta'
 'on':
   workflow_dispatch: {}
   push:
@@ -50,7 +50,9 @@ jobs:
           python3 ../ax3000t-three-proxy/build.py prepare
           sh -n files/etc/uci-defaults/99-three-proxy-defaults
           luac5.1 -p feeds/helloworld/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_config.lua
-      - name: Verify official cores and AnyTLS configuration
+          luac5.1 -p package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua
+          luac5.1 -p package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua
+      - name: Verify official cores and Sing-box AnyTLS configuration
         working-directory: openwrt
         run: python3 ../ax3000t-three-proxy/build.py corecheck
       - name: Download build sources

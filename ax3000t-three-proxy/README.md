@@ -9,7 +9,8 @@
 | Passwall | 26.10.22-2 |
 | Sing-box | 1.14.4 |
 | SSR Plus+ | 198-2 / v198.2 |
-| Xray（SSR Plus+ AnyTLS） | 26.10.21 |
+| Xray（SSR Plus+ 其他协议） | 26.10.21 |
+| Sing-box（SSR Plus+ AnyTLS） | 1.14.4 |
 | OpenClash | 0.48.002 |
 | Mihomo / Meta | 1.19.33 |
 
@@ -21,7 +22,7 @@
 
 预装 luci-app-nps 与 npc。每次开机读取 WAN 接口 MAC，去冒号并转换为大写后写入 vkey；服务器 47.83.9.208:8024/TCP，压缩和加密均启用。服务端需配置对应 vkey。
 
-编译前在 QEMU ARM64 下检查三个核心版本、Sing-box 与 Mihomo 的 AnyTLS 配置，并检查 SSR Plus+ 实际生成的 AnyTLS 配置能通过 Xray 校验。构建后检查固件清单与 FIT 格式。
+编译前在 QEMU ARM64 下检查三个核心版本，并使用 SSR Plus+ 实际使用的 AnyTLS 生成器分别产出 TCP redirect、UDP tproxy 和 AnyTLS 服务端配置，交由 Sing-box 校验；同时校验 Mihomo 的 AnyTLS 配置。构建后检查固件清单与 FIT 格式。
 这些是软件校验，并不替代实机刷机、射频或真实节点联通测试。
 
 下载包包含 sysupgrade.itb、插件清单、编译配置、版本锁定文件和 SHA256SUMS。
