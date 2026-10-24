@@ -72,7 +72,7 @@ logger() { return 0; }
                     self.skipTest('Directory symlinks unavailable on this host')
             try:
                 os.chdir(root)
-                with patch.object(module, 'run'):
+                with patch.object(module, 'run'), patch.object(module, 'patch_ssrplus_singbox'):
                     module.prepare()
                 self.assertIn('26.10.22', Path('package/custom-proxy-ui/luci-app-passwall/Makefile').read_text())
                 self.assertFalse(Path('package/feeds/luci/luci-app-passwall').exists())
