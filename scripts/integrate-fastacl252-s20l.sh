@@ -46,8 +46,8 @@ find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d 
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.5.8" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.5.8" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.6.0" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.6.0" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
@@ -68,3 +68,6 @@ find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name 
   sed -i -e 's/>{{ hostname }}<\/a>/>JuLiang 控制中心<\/a>/g' \
     -e 's/><%=hostname%><\/a>/>JuLiang 控制中心<\/a>/g' "$view"
 done
+
+# V2.6.0: use Factory radio identity in MTWiFi configuration generation.
+python3 scripts/patch-fastacl260-mtwifi.py
