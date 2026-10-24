@@ -7,8 +7,8 @@ CORES=json.loads((P/'cores.lock.json').read_text())
 def run(*args,**kw):return subprocess.run(list(args),check=True,**kw)
 def patch_ssrplus_singbox():
  patch=P/'patches'/'ssrplus-singbox.patch'
- run('git','apply','--whitespace=nowarn',str(patch),cwd=Path('package/custom-proxy-ui'))
- init=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/etc/init.d/shadowsocksr').read_text()
+ run('git','apply','--directory=package/custom-proxy-ui','--whitespace=nowarn',str(patch),cwd=ROOT)
+ init=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/etc/init.d/shadowsocksr').read_text(encoding='utf-8')
  helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua')
  server_helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua')
  assert 'start_v2ray_with_singbox()' in init
