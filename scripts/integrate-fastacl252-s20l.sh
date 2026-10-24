@@ -7,6 +7,14 @@ case "$device" in
   jdcloud_re-cp-03) tag=JDCloud-RE-CP-03; dts=mt7986a-jdcloud-re-cp-03; compatible=jdcloud,re-cp-03 ;;
   xiaomi_redmi-router-ax6000) tag=Redmi-AX6000-NMBM110M; dts=mt7986a-xiaomi-redmi-router-ax6000; compatible=xiaomi,redmi-router-ax6000 ;;
   xiaomi_redmi-router-ax6000-ubootmod) tag=Redmi-AX6000-ubootmod; dts=mt7986a-xiaomi-redmi-router-ax6000-ubootmod; compatible=xiaomi,redmi-router-ax6000-ubootmod ;;
+  cmcc_rax3000m) tag=RAX3000M-NAND; dts=mt7981b-cmcc-rax3000m; compatible=cmcc,rax3000m ;;
+  cmcc_rax3000m-emmc) tag=RAX3000M-EMMC; dts=mt7981b-cmcc-rax3000m-emmc; compatible=cmcc,rax3000m-emmc ;;
+  cmcc_a10-stock) tag=CMCC-A10-Stock; dts=mt7981b-cmcc-a10-stock; compatible=cmcc,a10-stock ;;
+  cmcc_a10-ubootmod) tag=CMCC-A10-Ubootmod; dts=mt7981b-cmcc-a10-ubootmod; compatible=cmcc,a10-ubootmod ;;
+  qihoo_360t7) tag=Qihoo-360T7; dts=mt7981b-qihoo-360t7; compatible=qihoo,360t7 ;;
+  jcg_q30-pro) tag=JCG-Q30-PRO; dts=mt7981b-jcg-q30-pro; compatible=jcg,q30-pro ;;
+  konka_komi-a31) tag=Konka-KOMI-A31; dts=mt7981b-konka-komi-a31; compatible=konka,komi-a31 ;;
+  livinet_zr-3020) tag=Livinet-ZR-3020; dts=mt7981b-livinet-zr-3020; compatible=livinet,zr-3020 ;;
   *) echo "Unsupported FastACL device: $device" >&2; exit 1 ;;
 esac
 test -f "target/linux/mediatek/dts/$dts.dts"
@@ -46,12 +54,19 @@ find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d 
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.6.0" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.6.0" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.6.1" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.6.1" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
-cp "build-configs/JuLiangTK-${tag}-FastACL258.txt" .config
+config="build-configs/JuLiangTK-${tag}-FastACL258.txt"
+if [ -f "$config" ]; then
+  cp "$config" .config
+else
+  sed "s/^CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_.*=y$/CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y/" \
+    build-configs/JuLiangTK-S20L-FastACL258.txt > .config
+fi
+make defconfig
 sed -i "s/JuLiangTK-S20L/JuLiangTK-${tag}/g" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
 sh scripts/integrate-fastacl252-dependencies.sh
 for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
@@ -69,5 +84,5 @@ find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name 
     -e 's/><%=hostname%><\/a>/>JuLiang 控制中心<\/a>/g' "$view"
 done
 
-# V2.6.0: use Factory radio identity in MTWiFi configuration generation.
+# V2.6.1: use Factory radio identity in MTWiFi configuration generation.
 python3 scripts/patch-fastacl260-mtwifi.py
