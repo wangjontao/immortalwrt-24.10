@@ -1,0 +1,12 @@
+#!/bin/sh
+uci -q set passwall.@global[0].enabled='0'
+uci -q set shadowsocksr.@global[0].global_server='nil'
+uci -q set shadowsocksr.@global[0].enabled='0'
+uci -q set openclash.config.enable='0'
+uci -q commit passwall
+uci -q commit shadowsocksr
+uci -q commit openclash
+for service in passwall shadowsocksr openclash; do
+ [ ! -x "/etc/init.d/$service" ] || "/etc/init.d/$service" disable
+done
+exit 0

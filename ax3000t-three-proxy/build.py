@@ -1,0 +1,80 @@
+from pathlib import Path
+import argparse,subprocess,json,shutil,hashlib,urllib.request,tarfile,zipfile,gzip,struct,re
+P=Path(__file__).resolve().parent
+ROOT=Path.cwd()
+LOCK=json.loads((P/'sources.lock.json').read_text())
+CORES=json.loads((P/'cores.lock.json').read_text())
+def run(*args,**kw):return subprocess.run(list(args),check=True,**kw)
+def prepare():
+ lines=[]
+ for name in ['packages','luci','routing','telephony','pwpackages','passwall','helloworld','openclash']:
+  item=LOCK[name];lines.append(f"src-git {name} https://github.com/{item['repo']}.git^{item['sha']}")
+ Path('feeds.conf.default').write_text('\n'.join(lines)+'\n')
+ run('./scripts/feeds','update','-a')
+ run('./scripts/feeds','install','-a')
+ for feed,pkg in [('passwall','luci-app-passwall'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
+  run('./scripts/feeds','install','-f','-p',feed,pkg)
+ # Remove installed feed providers of these exact names; use pinned official cores.
+ for pkg in CORES:
+  for item in Path('package/feeds').glob('*/'+pkg):
+   assert item.is_symlink(),item
+   item.unlink()
+  shutil.copytree(P/'packages'/pkg,Path('package/custom-pinned-cores')/pkg,dirs_exist_ok=True)
+ shutil.copytree(P/'files','files',dirs_exist_ok=True)
+ Path('files/etc/uci-defaults/99-three-proxy-defaults').chmod(0o755)
+ shutil.copy2(P/'ax3000t-ubootmod.config','.config')
+ run('make','defconfig')
+ required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y']
+ config=Path('.config').read_text()
+ for line in required:assert line in config,line
+ assert 'CONFIG_PACKAGE_fastacl252=y' not in config
+ pw=Path('package/feeds/passwall/luci-app-passwall/Makefile').read_text()
+ ssr=Path('package/feeds/helloworld/luci-app-ssr-plus/Makefile').read_text()
+ oc=Path('package/feeds/openclash/luci-app-openclash/Makefile').read_text()
+ assert '26.10.22' in pw and 'PKG_RELEASE:=2' in pw
+ assert 'PKG_VERSION:=198' in ssr and 'PKG_RELEASE:=2' in ssr and 'AnyTLS' in ssr
+ assert '0.48.002' in oc
+ print('Target, plugin versions and core selection verified.',flush=True)
+def corecheck():
+ out=Path('core-check');out.mkdir(exist_ok=True);Path('dl').mkdir(exist_ok=True)
+ for pkg,c in CORES.items():
+  archive=Path('dl')/c['source']
+  if not archive.exists():run('curl','-fL','--retry','4','--connect-timeout','30','--max-time','600',c['url'],'-o',str(archive))
+  assert hashlib.sha256(archive.read_bytes()).hexdigest()==c['sha256'],pkg+' checksum'
+  target=out/c['binary']
+  if pkg=='sing-box':
+   with tarfile.open(archive) as t:
+    m=next(m for m in t.getmembers() if m.isfile() and Path(m.name).name=='sing-box');target.write_bytes(t.extractfile(m).read())
+  elif pkg=='mihomo':target.write_bytes(gzip.decompress(archive.read_bytes()))
+  else:
+   with zipfile.ZipFile(archive) as z:target.write_bytes(z.read('xray'))
+  target.chmod(0o755);data=target.read_bytes();assert data[:4]==b'\x7fELF' and struct.unpack('<H',data[18:20])[0]==183,pkg+' architecture'
+  phoff=struct.unpack('<Q',data[32:40])[0];entsize,count=struct.unpack('<HH',data[54:58]);assert all(struct.unpack('<I',data[phoff+i*entsize:phoff+i*entsize+4])[0]!=3 for i in range(count)),pkg+' must be static'
+  args=['-v'] if pkg=='mihomo' else ['version']
+  result=subprocess.run(['qemu-aarch64','-cpu','max',str(target),*args],check=True,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60)
+  assert c['version'] in result.stdout,result.stdout
+  (out/(pkg+'-version.txt')).write_text(result.stdout);print(result.stdout,flush=True)
+ # Check actual config emitted by the pinned SSR Plus+ generator with the Xray binary.
+ gen=Path('feeds/helloworld/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_config.lua')
+ run(str(ROOT/'.venv/bin/python'),str(P/'test_ssr_anytls.py'),str(gen),str(out/'ssr-anytls.json'))
+ run('qemu-aarch64','-cpu','max',str(out/'xray'),'run','-test','-config',str(out/'ssr-anytls.json'),timeout=60)
+ sing={'log':{'level':'error'},'inbounds':[],'outbounds':[{'type':'anytls','tag':'test','server':'127.0.0.1','server_port':443,'password':'test-only-password','tls':{'enabled':True,'server_name':'example.com'}}]}
+ (out/'sing-anytls.json').write_text(json.dumps(sing))
+ run('qemu-aarch64','-cpu','max',str(out/'sing-box'),'check','-c',str(out/'sing-anytls.json'),timeout=60)
+ (out/'mihomo-anytls.yaml').write_text("mixed-port: 0\nproxies:\n  - name: test\n    type: anytls\n    server: 127.0.0.1\n    port: 443\n    password: test-only-password\n    sni: example.com\nrules:\n  - MATCH,DIRECT\n")
+ run('qemu-aarch64','-cpu','max',str(out/'mihomo'),'-t','-d',str(out),'-f',str(out/'mihomo-anytls.yaml'),timeout=60)
+def artifacts():
+ src=Path('bin/targets/mediatek/filogic');out=Path('upload');out.mkdir(exist_ok=True)
+ manifest=next(src.glob('*.manifest'));text=manifest.read_text()
+ for pkg,version in [('luci-app-passwall','26.10.22'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),*[(k,v['version']) for k,v in CORES.items()]]:
+  assert any(l.startswith(pkg+' - ') and version in l for l in text.splitlines()),(pkg,version)
+ images=list(src.glob('*xiaomi_mi-router-ax3000t-ubootmod*sysupgrade.itb'));assert len(images)==1,images
+ assert images[0].read_bytes()[:4]==bytes.fromhex('d00dfeed')
+ for p in images+[manifest]+list(src.glob('*.buildinfo')):
+  shutil.copy2(p,out/p.name)
+ for p in [P/'sources.lock.json',P/'cores.lock.json',P/'README.md',Path('.config')]:shutil.copy2(p,out/p.name)
+ for p in Path('core-check').glob('*-version.txt'):shutil.copy2(p,out/p.name)
+ (out/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in sorted(out.iterdir()) if p.is_file() and p.name!='SHA256SUMS'))
+ print('Image format and installed plugin/core manifest verified.',flush=True)
+if __name__=='__main__':
+ phase=argparse.ArgumentParser();phase.add_argument('stage',choices=['prepare','corecheck','artifacts']);args=phase.parse_args();globals()[args.stage]()
