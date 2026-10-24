@@ -1,0 +1,14 @@
+{
+	"luci-app-wan-watchdog": {
+		"description": "Grant access to the WAN watchdog switch and status",
+		"read": {
+			"file": {
+				"/tmp/wan-watchdog.status": [ "read" ]
+			},
+			"uci": [ "wan-watchdog" ]
+		},
+		"write": {
+			"uci": [ "wan-watchdog" ]
+		}
+	}
+}

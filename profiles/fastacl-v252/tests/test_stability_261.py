@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+PROFILE = ROOT / 'root'
+
+runtime = (PROFILE / 'usr/bin/fastacl252').read_text(encoding='utf-8')
+watchdog = (PROFILE / 'usr/bin/wan-watchdog').read_text(encoding='utf-8')
+init = (PROFILE / 'etc/init.d/wan-watchdog').read_text(encoding='utf-8')
+config = (PROFILE / 'etc/config/wan-watchdog').read_text(encoding='utf-8')
+defaults = (PROFILE / 'etc/uci-defaults/99-juliangtk-fastacl252').read_text(encoding='utf-8')
+migration = (PROFILE / 'etc/uci-defaults/98-juliang-wifi-stability').read_text(encoding='utf-8')
+
+for required in (
+    'socks_backlog',
+    'dns_guard_ready',
+    'runtime_failure',
+    'health_snapshot',
+    'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s',
+    'DAE_TCP_RELAY_IDLE_TIMEOUT=120s',
+):
+    assert required in runtime, required
+
+assert "option enabled '1'" in config
+assert "option interval '10'" in config
+assert 'wan-watchdog.main.enabled' in init
+assert 'procd_add_reload_trigger wan-watchdog' in init
+assert 'ubus call network.interface.wan renew' in watchdog
+assert 'ubus call network.interface.wan down' in watchdog
+assert 'ubus call network.interface.wan up' in watchdog
+assert 'state=carrier-down' in watchdog
+assert 'state=no-lease' in watchdog
+
+assert 'wireless.$radio.channel=36' in defaults
+assert 'wireless.$radio.htmode=HE80' in defaults
+assert 'wireless.$radio.channel=1' in defaults
+assert 'wireless.$radio.htmode=HE20' in defaults
+assert '/etc/init.d/wan-watchdog enable' in defaults
+assert 'case "$channel" in' in migration
+assert '|48)' in migration and '|9)' in migration
+
+menu = json.loads((PROFILE / 'usr/share/luci/menu.d/luci-app-wan-watchdog.json').read_text(encoding='utf-8'))
+acl = json.loads((PROFILE / 'usr/share/rpcd/acl.d/luci-app-wan-watchdog.json').read_text(encoding='utf-8'))
+assert 'admin/system/wan-watchdog' in menu
+assert 'luci-app-wan-watchdog' in acl
+assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
+
+pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
+assert 'PKG_VERSION:=2.6.1' in pkg
+assert '/usr/bin/wan-watchdog' in pkg
+assert '/etc/init.d/wan-watchdog' in pkg
+assert '/etc/config/wan-watchdog' in pkg
+
+print('FastACL 2.6.1 stability, DNS guard and WAN watchdog: OK')

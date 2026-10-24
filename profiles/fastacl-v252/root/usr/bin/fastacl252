@@ -3,8 +3,18 @@ set -eu
 umask 077
 
 R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
+HEALTH_LOG=${FASTACL_HEALTH_LOG:-/root/fastacl252-health.log}
 LOCK="${R}-apply.lock"
+SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
+DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-6144}
+DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-2048}
+RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 mkdir -p "$R"
+
+raise_nofile(){
+  ulimit -Hn 16384 2>/dev/null || true
+  ulimit -Sn 8192 2>/dev/null || true
+}
 
 pause_fast(){
   sleep 0.1 2>/dev/null && return 0
@@ -64,13 +74,87 @@ listener(){
   (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$1 "
 }
 
+socks_backlog(){
+  (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) |
+    awk '$4 == "127.0.0.1:15443" { print $2; exit }'
+}
+
+socks_connections(){
+  netstat -ant 2>/dev/null |
+    awk '$4 == "127.0.0.1:15443" && $6 == "ESTABLISHED" { count++ } END { print count+0 }'
+}
+
+socks_ready(){
+  local backlog
+  backlog=$(socks_backlog)
+  [ -n "$backlog" ] && [ "$backlog" -le "$SOCKS_BACKLOG_LIMIT" ]
+}
+
 dae_ready(){
   alive || return 1
   local port; port=$(uci -q get fastacl252.main.port 2>/dev/null || echo 12345)
   (ip netns exec daens ss -lntu 2>/dev/null || ip netns exec daens netstat -lntu 2>/dev/null) | grep -q ":$port "
 }
 
-dns_ready(){ dns_alive && listener 12553; }
+dns_guard_ready(){
+  nft list chain inet fastacl252 dns_redirect 2>/dev/null |
+    grep -Fq 'redirect to :12553' &&
+  nft list chain inet fastacl252 forward 2>/dev/null |
+    grep -Fq 'th dport 53 drop'
+}
+
+dns_ready(){ dns_alive && listener 12553 && socks_ready && dns_guard_ready; }
+
+pid_fd_count(){
+  [ -d "/proc/$1/fd" ] && ls "/proc/$1/fd" 2>/dev/null | wc -l
+}
+
+runtime_failure(){
+  local pid
+  alive || { echo dae-process; return; }
+  dns_alive || { echo dns-process; return; }
+  listener 12553 || { echo dns-listener; return; }
+  dns_guard_ready || { echo dns-guard; return; }
+  socks_ready || { echo "socks-backlog:$(socks_backlog)"; return; }
+  dae_ready || { echo dae-listener; return; }
+  nft list table inet fastacl252 >/dev/null 2>&1 || { echo nft-table; return; }
+
+  pid=$(cat "$R/router.pid" 2>/dev/null || true)
+  [ "$(pid_fd_count "$pid")" -lt "$DAE_FD_LIMIT" ] ||
+    { echo "dae-fd:$(pid_fd_count "$pid")"; return; }
+  pid=$(cat "$R/dns.pid" 2>/dev/null || true)
+  [ "$(pid_fd_count "$pid")" -lt "$DNS_FD_LIMIT" ] ||
+    { echo "dns-fd:$(pid_fd_count "$pid")"; return; }
+}
+
+health_log(){
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$HEALTH_LOG"
+  if [ "$(wc -c < "$HEALTH_LOG")" -gt 65536 ]; then
+    tail -n 400 "$HEALTH_LOG" > "$HEALTH_LOG.next"
+    mv "$HEALTH_LOG.next" "$HEALTH_LOG"
+  fi
+}
+
+socks_probe(){
+  local url
+  command -v curl >/dev/null 2>&1 || return 0
+  url=$(grep -m1 -oE "socks5://[^']*@127\.0\.0\.1:15443" "$R/router.dae" 2>/dev/null || true)
+  [ -n "$url" ] || return 0
+  curl -x "$url" -sS -o /dev/null --connect-timeout 3 --max-time 8 \
+    https://1.1.1.1/ >/dev/null 2>&1
+}
+
+health_snapshot(){
+  local dae_pid dns_pid dae_fd dns_fd backlog connections stats
+  dae_pid=$(cat "$R/router.pid" 2>/dev/null || true)
+  dns_pid=$(cat "$R/dns.pid" 2>/dev/null || true)
+  dae_fd=$(pid_fd_count "$dae_pid")
+  dns_fd=$(pid_fd_count "$dns_pid")
+  backlog=$(socks_backlog)
+  connections=$(socks_connections)
+  stats=$(fastacl252-dns -stats -config "$R/dns.json" 2>/dev/null | head -n 1 || true)
+  health_log "healthy=yes socks_backlog=${backlog:-none} socks_connections=${connections:-none} dae_fd=${dae_fd:-none} dns_fd=${dns_fd:-none} stats=${stats:-none}"
+}
 
 wait_dae(){
   local i=0
@@ -147,7 +231,9 @@ start_dns_next(){
 
 start_dae_next(){
   cp "$R/router.next.dae" "$R/router.dae"
-  dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
+  DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s \
+  DAE_TCP_RELAY_IDLE_TIMEOUT=120s \
+    dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
   echo $! > "$R/router.pid"
   wait_dae || { cat "$R/router.log" 2>/dev/null || true; return 1; }
 }
@@ -227,6 +313,7 @@ reload_dae_next(){
 }
 
 hot_apply(){
+  raise_nofile
   acquire_lock
   generate_guards
   generate_next
@@ -238,6 +325,7 @@ hot_apply(){
 }
 
 cold_apply(){
+  raise_nofile
   acquire_lock
   # Install fail-close guards even if a saved proxy configuration is invalid.
   generate_guards
@@ -274,19 +362,64 @@ case "${1:-status}" in
   cold-apply) cold_apply;;
   ensure) ensure_runtime;;
   status) status;;
+  health)
+    reason=$(runtime_failure 2>/dev/null || true)
+    if [ -n "$reason" ]; then
+      echo "unhealthy: $reason"
+    else
+      health_snapshot
+      echo healthy
+    fi;;
   stop)
     dns_stop
     dae_stop
     echo 'Core stopped; protection rules retained';;
   guard)
+    raise_nofile
+    failures=0
+    probe_failures=0
+    last_probe=0
+    last_snapshot=0
     while [ "$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 0)" = 1 ]; do
-      if ! dae_ready || ! dns_ready || ! nft list table inet fastacl252 >/dev/null 2>&1; then
-        /usr/bin/fastacl252 ensure >"$R/guard.log" 2>&1 || true
+      reason=$(runtime_failure 2>/dev/null || true)
+      if [ -n "$reason" ]; then
+        failures=$((failures+1))
+        health_log "failure=$reason consecutive=$failures"
+        if [ "$failures" -ge 2 ]; then
+          now=$(date +%s)
+          last=$(cat "$R/health.last-recovery" 2>/dev/null || echo 0)
+          if [ $((now-last)) -ge "$RECOVERY_COOLDOWN" ]; then
+            health_log "recovering runtime after $failures failures"
+            echo "$now" > "$R/health.last-recovery"
+            /usr/bin/fastacl252 hot-apply >"$R/health.recovery.log" 2>&1 || true
+            failures=0
+            probe_failures=0
+            pause_fast
+            sleep 10
+          fi
+        fi
+      else
+        [ "$failures" -eq 0 ] || health_log "runtime recovered"
+        failures=0
+        now=$(date +%s)
+        if [ $((now-last_probe)) -ge 60 ]; then
+          last_probe=$now
+          if socks_probe; then
+            probe_failures=0
+          else
+            probe_failures=$((probe_failures+1))
+            health_log "proxy-probe-failed consecutive=$probe_failures"
+          fi
+        fi
+        if [ $((now-last_snapshot)) -ge 300 ]; then
+          health_snapshot
+          last_snapshot=$now
+        fi
       fi
       if [ ! -d /tmp/fastacl252-subscribe.lock ]; then
         lua /usr/libexec/fastacl252-subscribe.lua due >"$R/subscribe.log" 2>&1 &
       fi
-      sleep 15
+      sleep 10
     done;;
   cleanup)
     dns_stop
@@ -294,6 +427,6 @@ case "${1:-status}" in
     nft delete table inet fastacl252 2>/dev/null || true
     rm -f "$R/nft.loaded.rules";;
   *)
-    echo 'Usage: fastacl252 hot-apply|cold-apply|ensure|status|stop|guard|cleanup' >&2
+    echo 'Usage: fastacl252 hot-apply|cold-apply|ensure|status|health|stop|guard|cleanup' >&2
     exit 2;;
 esac

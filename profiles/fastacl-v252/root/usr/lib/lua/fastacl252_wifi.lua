@@ -110,7 +110,7 @@ function M.status(u)
 end
 
 function M.create(u,req)
-  require("juliang_wifi_hardware").preflight() -- V2.6.0 hardware identity gate
+  require("juliang_wifi_hardware").preflight() -- Hardware identity gate
   req=req or {}; local st=M.status(u)
   local n5=int(req.count5 or 0,0,st.max5,'5GHz 新增数量超限'); local n2=int(req.count2 or 0,0,st.max2,'2.4GHz 新增数量超限')
   assert(n5+n2>0,'请至少新增一个 WiFi')

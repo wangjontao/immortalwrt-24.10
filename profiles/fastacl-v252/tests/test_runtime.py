@@ -34,11 +34,19 @@ elif name=='lua':
   (r/'router.next.dae').write_text(state.get('core','first'))
   (r/'dns.next.json').write_text(state.get('dns','first'))
 elif name=='nft':
- if args[0]=='list':sys.exit(0 if (r/'firewall-loaded').exists() else 1)
+ if args[0]=='list':
+  if len(args)>2 and args[-1]=='dns_redirect':
+   print('iifname @lan_ifaces meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553')
+   sys.exit(0)
+  if len(args)>2 and args[-1]=='forward':
+   print('iifname @lan_ifaces meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop')
+   sys.exit(0)
+  sys.exit(0 if (r/'firewall-loaded').exists() else 1)
  if args[0]=='-f':(r/'firewall-loaded').touch()
 elif name in ['ss','netstat','ip']:
- print('tcp LISTEN 0 128 0.0.0.0:12553 0.0.0.0:*')
- print('tcp LISTEN 0 128 0.0.0.0:12525 0.0.0.0:*')
+ print('tcp 0 0 0.0.0.0:12553 0.0.0.0:* LISTEN')
+ print('tcp 0 0 0.0.0.0:12525 0.0.0.0:* LISTEN')
+ print('tcp 0 0 127.0.0.1:15443 0.0.0.0:* LISTEN')
 elif name=='dae':
  if args[0]=='validate':sys.exit(1 if state.get('invalid') else 0)
  if args[0]=='reload':sys.exit(1 if state.get('dae_reload_failure') else 0)
@@ -47,6 +55,9 @@ elif name=='dae':
 elif name=='fastacl252-dns':
  if '-check' in args:sys.exit(1 if state.get('invalid') else 0)
  if '-reload' in args:sys.exit(1 if state.get('dns_reload_failure') else 0)
+ if '-stats' in args:
+  print('{"blocked":0,"direct":0,"errors":0,"proxy":0,"queries":0}')
+  sys.exit(0)
  while True:time.sleep(1)
 '''
 

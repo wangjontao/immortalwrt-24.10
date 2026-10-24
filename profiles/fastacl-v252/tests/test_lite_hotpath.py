@@ -64,10 +64,13 @@ for forbidden in ("/etc/init.d/network", "wifi reload", "/etc/init.d/firewall"):
 assert 'dae reload "$pid"' in runtime
 assert "app-restart" in runtime
 
-# Guardian is health-driven, not a 15-second unconditional apply loop.
+# Guardian is health-driven, with bounded recovery and persistent metrics.
 guard = between(runtime, "guard)", "cleanup)")
-assert "if ! dae_ready || ! dns_ready" in guard
-assert "/usr/bin/fastacl252 ensure" in guard
+assert "runtime_failure" in guard
+assert "/usr/bin/fastacl252 hot-apply" in guard
+assert '[ "$failures" -ge 2 ]' in guard
+assert "RECOVERY_COOLDOWN" in guard
+assert "health_snapshot" in guard
 assert "/usr/bin/fastacl252 apply" not in guard
 
 # fw4 changes must not be a procd trigger that races node switches.
@@ -88,7 +91,7 @@ assert not (ROOT / 'root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch').ex
 assert '+libuci-lua' in pkg
 
 
-# 2.5.8 is the shared-core mechanism, with the live safety regressions retained.
+# 2.6.1 keeps the shared-core safety regressions and adds reconnect tuning.
 assert "main.fixed_exit=1" in defaults
 assert "open_flags('wronly','creat')+524288" in controller
 assert "edit_handle:lock('ulock')" in controller
@@ -97,3 +100,5 @@ assert "if c.platform_secret then" in dae
 assert "rules[#rules+1]='sip('..policy.cidr(c.router_ip,c.netmask)..') && '..mac" in dae
 console=(ROOT/'root/usr/lib/lua/luci/view/fastacl252/console.htm').read_text(encoding='utf-8')
 assert 'wifiProgress=setInterval' in console and 'e.busy' in console
+assert 'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s' in runtime
+assert 'DAE_TCP_RELAY_IDLE_TIMEOUT=120s' in runtime

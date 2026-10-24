@@ -1,17 +1,17 @@
-name: Redmi AX6000 NMBM 110MiB FastACL 2.6.0
-run-name: 'FastACL 2.6.0 - BBR and unlimited connections - Redmi NMBM110 BIN'
+name: S20L S20P JDCloud FastACL 2.6.1 Unlimited
+run-name: 'FastACL 2.6.1 - BBR and unlimited connections - S20L S20P JDCloud'
 
 'on':
   workflow_dispatch: {}
   push:
-    branches: ['codex/fastacl260-hardware-mac']
-    paths: ['.github/workflows/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL260.yml']
+    branches: ['2.6.1']
+    paths: ['.github/workflows/JuLiangTK-AX6000-FastACL261.yml']
 
 permissions:
   contents: read
 
 concurrency:
-  group: fastacl260-JuLiangTK-Redmi-AX6000-NMBM110M-FastACL260-${{ github.ref }}
+  group: fastacl261-JuLiangTK-AX6000-FastACL261-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -54,6 +54,8 @@ jobs:
           .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
           python3 profiles/fastacl-v252/tests/test_runtime.py
+          python3 profiles/fastacl-v252/tests/test_stability_261.py
+          node --check profiles/fastacl-v252/root/www/luci-static/resources/view/wan-watchdog.js
           find profiles/fastacl-v252/root -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
           find profiles/fastacl-v252/root -type f | while read -r file; do
             if head -n1 "$file" | grep -q '^#!/bin/sh'; then sh -n "$file"; shfmt -ln posix "$file" >/dev/null; fi
@@ -76,20 +78,26 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: FastACL260-Redmi110M-preflight-evidence
+          name: FastACL261-preflight-evidence
           path: profiles/fastacl-v252/test-results/*
           if-no-files-found: warn
           retention-days: 14
 
   build:
-    name: Build ${{ matrix.label }} FastACL 2.6.0
+    name: Build ${{ matrix.label }} FastACL 2.6.1
     strategy:
       fail-fast: false
       matrix:
         include:
-          - device: xiaomi_redmi-router-ax6000
-            tag: Redmi-AX6000-NMBM110M
-            label: Redmi AX6000 NMBM 110MiB
+          - device: clx_s20l
+            tag: S20L
+            label: CLX S20L AX6000
+          - device: clx_s20p
+            tag: S20P
+            label: CLX S20P AX6000 2.5G
+          - device: jdcloud_re-cp-03
+            tag: JDCloud-RE-CP-03
+            label: JDCloud Baili RE-CP-03 AX6000
     env:
       DEVICE: ${{ matrix.device }}
       DEVICE_TAG: ${{ matrix.tag }}
@@ -104,12 +112,8 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          . /etc/os-release
-          printf 'deb https://archive.ubuntu.com/ubuntu %s main universe multiverse restricted\ndeb https://archive.ubuntu.com/ubuntu %s-updates main universe multiverse restricted\ndeb https://security.ubuntu.com/ubuntu %s-security main universe multiverse restricted\n' "$VERSION_CODENAME" "$VERSION_CODENAME" "$VERSION_CODENAME" > /tmp/redmi-ubuntu.list
-          sudo mkdir -p /tmp/redmi-apt-lists/partial
-          apt_options=(-o Dir::Etc::sourcelist=/tmp/redmi-ubuntu.list -o Dir::Etc::sourceparts=- -o Dir::State::lists=/tmp/redmi-apt-lists -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
-          sudo timeout 300 apt-get "${apt_options[@]}" update
-          sudo timeout 600 apt-get "${apt_options[@]}" install -y --no-install-recommends ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm nano ninja-build p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm nano ninja-build p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
           sudo timedatectl set-timezone Asia/Shanghai
           echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
           echo "WRT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
@@ -125,10 +129,9 @@ jobs:
           path: |
             dl
             .ccache
-          key: fastacl260r2-nmbm110m-${{ matrix.device }}-${{ hashFiles('build-configs/*FastACL258.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/core-Makefile', 'profiles/fastacl-v252/dns/go.mod') }}
+          key: fastacl261-${{ matrix.device }}-${{ hashFiles('build-configs/*FastACL258.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/core-Makefile', 'profiles/fastacl-v252/dns/go.mod') }}
           restore-keys: |
-            fastacl260r2-nmbm110m-${{ matrix.device }}-
-            fastacl260-xiaomi_redmi-router-ax6000-ubootmod-
+            fastacl261-${{ matrix.device }}-
       - name: Update feeds
         run: |
           sh scripts/ci-update-feeds.sh
@@ -156,18 +159,16 @@ jobs:
           fi
       - name: Integrate FastACL Lite
         run: |
-          python3 scripts/tests/test_redmi_110m_layout.py
           sh scripts/integrate-fastacl252-s20l.sh "$DEVICE"
-          grep -q "PKG_RELEASE:=2" package/fastacl252/Makefile
-          grep -q 'PKG_VERSION:=2.6.0' package/fastacl252/Makefile
-          grep -q "version='2.6.0'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q 'PKG_VERSION:=2.6.1' package/fastacl252/Makefile
+          grep -q "version='2.6.1'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
           grep -q "dae reload" package/fastacl252/files/usr/bin/fastacl252
           python3 scripts/tests/test_ci_update_feeds.py
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
           python3 profiles/fastacl-v252/tests/test_runtime.py
       - name: Download sources
         run: |
-          make download -j"$(nproc)" || make download -j1 V=s
+          make download -j"$(nproc)"
           find dl -type f -size -1024c -print -delete
       - name: Compile device firmware
         run: |
@@ -192,13 +193,9 @@ jobs:
       - name: Verify and collect firmware
         run: |
           mkdir -p upload
-          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname "*${DEVICE}-squashfs-*.bin" -size +5M)
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname "*${DEVICE}*sysupgrade*" -size +5M)
           [ "${#images[@]}" -gt 0 ] || { echo 'ERROR: selected device sysupgrade image missing'; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort; exit 1; }
-          factory="bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic-${DEVICE}-squashfs-factory.bin"
-          sysupgrade="bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic-${DEVICE}-squashfs-sysupgrade.bin"
-          python3 scripts/tests/test_redmi_110m_layout.py --factory "$factory" --sysupgrade "$sysupgrade"
           cp -a "${images[@]}" upload/
-          cp profiles/fastacl-v252/README-REDMI-110M-2.6.0-r2.md upload/
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name "*${DEVICE}*.manifest")
           [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: selected device manifest missing'; exit 1; }
           for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
@@ -206,21 +203,30 @@ jobs:
           done
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "${manifests[0]}"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
           if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "${manifests[0]}"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
-          grep -q '2.6.0' package/fastacl252/Makefile
+          grep -q '2.6.1' package/fastacl252/Makefile
           grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
           cp -a "${manifests[@]}" upload/
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.6.0.md upload/
-          printf 'branch=%s\ncommit=%s\nversion=2.6.0-r2\nlayout=NMBM-110MiB\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
+          cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.6.1.md upload/
+          printf 'branch=%s\ncommit=%s\nversion=2.6.1\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiangTK-${{ matrix.tag }}-FastACL2.6.0-r2-${{ env.BUILD_DATE }}
+          name: JuLiangTK-${{ matrix.tag }}-FastACL2.6.1-Unlimited-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
-
-# Runs the layout validation after test changes.
+      - name: Upload build failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastACL261-build-failure-${{ matrix.device }}-${{ github.run_id }}
+          path: |
+            logs/
+            .config
+            JuLiangTK-*-final.config
+          if-no-files-found: ignore
+          retention-days: 14
