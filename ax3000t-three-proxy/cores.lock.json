@@ -1,9 +1,9 @@
 {
   "sing-box": {
     "version": "1.14.4",
-    "source": "sing-box-1.14.4-linux-arm64.tar.gz",
-    "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64.tar.gz",
-    "sha256": "436441f76ee2f7fe21b5b2d426d3cb261a480455a704865789ad533e4273ec26",
+    "source": "sing-box-1.14.4-linux-arm64-musl.tar.gz",
+    "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64-musl.tar.gz",
+    "sha256": "b95e25f921dc5e17a4cf13327243d1177642c7e35425bf5372862c477c359f56",
     "binary": "sing-box"
   },
   "mihomo": {
