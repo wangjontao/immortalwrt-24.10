@@ -1,5 +1,5 @@
 name: Redmi AX6000 NMBM 110MiB FastACL 2.5.8 r2
-run-name: 'FastACL 2.5.8 r2 · Redmi AX6000 · D-U-Boot NMBM 110MiB BIN'
+run-name: 'FastACL 2.5.8 - BBR and unlimited connections - Redmi NMBM110 BIN'
 
 'on':
   workflow_dispatch: {}
@@ -57,6 +57,7 @@ jobs:
           install -m755 "$(find /tmp/dae-core -type f -name dae | head -n1)" /tmp/dae
       - name: Validate Lite hot path and syntax
         run: |
+          python3 profiles/fastacl-v252/tests/test_bbr.py
           python3 scripts/tests/test_ci_update_feeds.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wireless.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_fw4.py
