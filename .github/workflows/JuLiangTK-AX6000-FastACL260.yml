@@ -3,6 +3,9 @@ run-name: 'FastACL 2.6.0 - BBR and unlimited connections - S20L S20P JDCloud'
 
 'on':
   workflow_dispatch: {}
+  push:
+    branches: ['codex/fastacl260-hardware-mac']
+    paths: ['.github/workflows/JuLiangTK-AX6000-FastACL260.yml']
 
 permissions:
   contents: read

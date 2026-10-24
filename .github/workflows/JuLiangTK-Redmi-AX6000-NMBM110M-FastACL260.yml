@@ -3,6 +3,9 @@ run-name: 'FastACL 2.6.0 - BBR and unlimited connections - Redmi NMBM110 BIN'
 
 'on':
   workflow_dispatch: {}
+  push:
+    branches: ['codex/fastacl260-hardware-mac']
+    paths: ['.github/workflows/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL260.yml']
 
 permissions:
   contents: read
