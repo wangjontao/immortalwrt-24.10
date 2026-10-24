@@ -9,11 +9,15 @@ def patch_ssrplus_singbox():
  patch=P/'patches'/'ssrplus-singbox.patch'
  run('git','apply','--directory=package/custom-proxy-ui','--whitespace=nowarn',str(patch),cwd=ROOT)
  init=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/etc/init.d/shadowsocksr').read_text(encoding='utf-8')
+ monitor=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/bin/ssr-monitor').read_text(encoding='utf-8')
+ switcher=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/bin/ssr-switch').read_text(encoding='utf-8')
  helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua')
  server_helper=Path('package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua')
  assert 'start_v2ray_with_singbox()' in init
  assert 'gen_singbox_anytls.lua' in init and helper.is_file()
  assert 'gen_singbox_anytls_server.lua' in init and server_helper.is_file()
+ assert 'sing-box-server-' in monitor
+ assert '${PROBE_INSTANCE_KEY}-sing-box' in switcher
 def prepare():
  lines=[]
  for name in ['packages','luci','routing','telephony','pwpackages','passwall','helloworld','openclash']:

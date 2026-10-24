@@ -1,3 +1,18 @@
+diff --git a/luci-app-ssr-plus/luasrc/controller/shadowsocksr.lua b/luci-app-ssr-plus/luasrc/controller/shadowsocksr.lua
+index 1869b48a49f47c603384209a520e156662a209ef..fd5a6af18711cd5f471b670c7e77a82d3ed04ff7 100644
+--- a/luci-app-ssr-plus/luasrc/controller/shadowsocksr.lua
++++ b/luci-app-ssr-plus/luasrc/controller/shadowsocksr.lua
+@@ -401,7 +401,9 @@ local function get_active_node_runtime(sid)
+ 			shadowsocks = "Shadowsocks",
+ 			http = "HTTP"
+ 		}
+-		if is_mihomo_running then
++		if proto == "anytls" then
++			backend = translate("Sing-box")
++		elseif is_mihomo_running then
+ 			backend = translate("Mihomo")
+ 		else
+ 			backend = translate("Xray")
 diff --git a/luci-app-ssr-plus/luasrc/model/cbi/shadowsocksr/client-config.lua b/luci-app-ssr-plus/luasrc/model/cbi/shadowsocksr/client-config.lua
 index 0938753a6893b10e5bd93fb5d72ed47898c39fc6..93fc40f060cbd8fa987945801bbd4dbd2a870001 100644
 --- a/luci-app-ssr-plus/luasrc/model/cbi/shadowsocksr/client-config.lua
@@ -67,7 +82,7 @@ index 762a4d0c3a69ffcc3943733fd75d826642585321..56fdbf5531a70a844d29d01795bdda59
  			}
  			function setAnytlsField(name, value) {
 diff --git a/luci-app-ssr-plus/root/etc/init.d/shadowsocksr b/luci-app-ssr-plus/root/etc/init.d/shadowsocksr
-index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347ca279db8 100755
+index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..3e5c88d9d7cdc9580cf9e44e1fe2febf8e066cb6 100755
 --- a/luci-app-ssr-plus/root/etc/init.d/shadowsocksr
 +++ b/luci-app-ssr-plus/root/etc/init.d/shadowsocksr
 @@ -995,7 +995,7 @@ start_v2ray_with_mihomo() {
@@ -114,7 +129,7 @@ index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347
  	v2ray)
 +		if [ "$(uci_get_by_name "$UDP_RELAY_SERVER" v2ray_protocol)" = "anytls" ]; then
 +			if start_v2ray_with_singbox "$UDP_RELAY_SERVER" "$tmp_udp_port" "0" \
-+				"${UDP_RELAY_SERVER}-udp" "tproxy" "sing-box-udp" "UDP TPROXY Relay"; then
++				"${UDP_RELAY_SERVER}-udp" "tproxy" "ssr-reudp" "UDP TPROXY Relay"; then
 +				return 0
 +			fi
 +			echolog "UDP TPROXY Relay:AnyTLS 需要 Sing-box 内核，启动终止。"
@@ -123,7 +138,59 @@ index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347
  		enable_mihomo=$(uci_get_by_type server_subscribe enable_mihomo "")
  		if [ "$(uci_get_by_name "$UDP_RELAY_SERVER" v2ray_protocol)" != "naive" ] && [ "$(uci_get_by_name "$UDP_RELAY_SERVER" v2ray_protocol)" != "shadowsocksr" ] && [ "$(uci_get_by_name "$UDP_RELAY_SERVER" v2ray_protocol)" != "tuic" ] && [ "$enable_mihomo" = "1" ] && has_mihomo_binary; then
  			redir_udp=0
-@@ -2254,6 +2284,9 @@ get_udp_relay_mode() {
+@@ -1962,26 +1992,34 @@ start_local() {
+ 		enable_mihomo=$(uci_get_by_type server_subscribe enable_mihomo "")
+ 		instance_key="${LOCAL_SERVER}-local"
+ 		[ -n "$probe_instance_key" ] && instance_key="$probe_instance_key"
+-		if [ "$enable_mihomo" = "1" ] && start_v2ray_with_mihomo "$LOCAL_SERVER" "$local_port" "$local_port" "$instance_key" "socks" "v2ray-local" "Global_Socks5"; then
+-			:
+-		elif [ "$_local" = "2" ]; then
+-			# 尝试 Xray
+-			xray_bin="$(first_type xray)"
+-			if [ -n "$xray_bin" ]; then
+-				gen_config_file "$LOCAL_SERVER" "$type" 4 0 "$local_port"
+-				ln_start_bin "$(first_type xray)" v2ray run -c "$local_config_file"
+-				echolog "Global_Socks5:$($(first_type xray) version | head -1) Started!"
+-			else
+-				# Xray 不存在但 Mihomo 存在，回退到 Mihomo（当 enable_mihomo=0 时）
+-				if start_v2ray_with_mihomo "$LOCAL_SERVER" "$local_port" "$local_port" "$instance_key" "socks" "v2ray-local" "Global_Socks5"; then
+-					echolog "Global_Socks5:Xray 内核不存在，已回退到 Mihomo 内核启动。"
++		if [ "$(uci_get_by_name "$LOCAL_SERVER" v2ray_protocol)" = "anytls" ]; then
++			start_v2ray_with_singbox "$LOCAL_SERVER" "$local_port" "$local_port" \
++				"$instance_key" "socks" "ssr-local" "Global_Socks5" || {
++				echolog "Global_Socks5:AnyTLS 需要 Sing-box 内核，启动终止。"
++				return 1
++			}
++		else
++			if [ "$enable_mihomo" = "1" ] && start_v2ray_with_mihomo "$LOCAL_SERVER" "$local_port" "$local_port" "$instance_key" "socks" "v2ray-local" "Global_Socks5"; then
++				:
++			elif [ "$_local" = "2" ]; then
++				# 尝试 Xray
++				xray_bin="$(first_type xray)"
++				if [ -n "$xray_bin" ]; then
++					gen_config_file "$LOCAL_SERVER" "$type" 4 0 "$local_port"
++					ln_start_bin "$(first_type xray)" v2ray run -c "$local_config_file"
++					echolog "Global_Socks5:$($(first_type xray) version | head -1) Started!"
+ 				else
+-					echolog "Global_Socks5:Xray 和 Mihomo 内核均不存在，无法启动。"
+-					return 1
++					# Xray 不存在但 Mihomo 存在，回退到 Mihomo（当 enable_mihomo=0 时）
++					if start_v2ray_with_mihomo "$LOCAL_SERVER" "$local_port" "$local_port" "$instance_key" "socks" "v2ray-local" "Global_Socks5"; then
++						echolog "Global_Socks5:Xray 内核不存在，已回退到 Mihomo 内核启动。"
++					else
++						echolog "Global_Socks5:Xray 和 Mihomo 内核均不存在，无法启动。"
++						return 1
++					fi
+ 				fi
++			else
++				return 1
+ 			fi
+-		else
+-			return 1
+ 		fi
+ 		;;
+ 	trojan) #client
+@@ -2254,6 +2292,9 @@ get_udp_relay_mode() {
  			return
  		fi
  		case "$proto" in
@@ -133,7 +200,7 @@ index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347
  		snell)
  			case "$(uci_get_by_name "$node" snell_version 4)" in 1|2) echo "disabled" ;; *) echo "native" ;; esac
  			;;
-@@ -2389,23 +2422,31 @@ Start_Run() {
+@@ -2389,23 +2430,31 @@ Start_Run() {
  		fi
  		;;
  	v2ray)
@@ -179,7 +246,7 @@ index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347
  				fi
  			fi
  		fi
-@@ -2766,13 +2807,13 @@ start_server() {
+@@ -2766,13 +2815,13 @@ start_server() {
  			;;
  
  		anytls)
@@ -200,6 +267,40 @@ index bc43b4ce60049911afd34d3c9e1a37170cb0cabd..2c8ad8ddab7074c48ea7830d7133e347
  			;;
  
  		snell)
+diff --git a/luci-app-ssr-plus/root/usr/bin/ssr-monitor b/luci-app-ssr-plus/root/usr/bin/ssr-monitor
+index 3d22988ad4f691849305dfa0365107ae830f9f53..93b573eb47675c4f8610edcf2fab4df8a17c7a0e 100755
+--- a/luci-app-ssr-plus/root/usr/bin/ssr-monitor
++++ b/luci-app-ssr-plus/root/usr/bin/ssr-monitor
+@@ -114,11 +114,11 @@ while [ "1" == "1" ]; do #死循环
+ 	fi
+ 	#server
+ 	if [ "$server_process_count" -gt 0 ]; then
+-		icount=$(match_proc_count 'ssr-server|ss-server-|xray-server-')
++		icount=$(match_proc_count 'ssr-server|ss-server-|xray-server-|sing-box-server-')
+ 		if [ "$icount" -lt "$server_process_count" ]; then #如果进程挂掉就重启它
+ 			logger -t "$NAME" "ssrplus server error.restart!"
+ 			echolog "ssrplus server error.restart!"
+-			kill_matched_procs 'ssr-server|ss-server-'
++			kill_matched_procs 'ssr-server|ss-server-|sing-box-server-'
+ 			/etc/init.d/shadowsocksr restart
+ 			exit 0
+ 		fi
+diff --git a/luci-app-ssr-plus/root/usr/bin/ssr-switch b/luci-app-ssr-plus/root/usr/bin/ssr-switch
+index 27a36220296a6f8e227b851e9e558a29dd12d181..0e932f31f953e5fe4790f65865dfc08f2556acb0 100755
+--- a/luci-app-ssr-plus/root/usr/bin/ssr-switch
++++ b/luci-app-ssr-plus/root/usr/bin/ssr-switch
+@@ -29,9 +29,9 @@ CURRENT_SERVER="$DEFAULT_SERVER"
+ ENABLE_SERVER="nil"
+ 
+ cleanup_probe_socks() {
+-	ps_list | grep -v "grep" | grep -E "tcp-http-ssr-switch-local\\.json|ss-${PROBE_INSTANCE_KEY}/config\\.yaml|tuic-${PROBE_INSTANCE_KEY}/config\\.yaml|v2ray-${PROBE_INSTANCE_KEY}/config\\.yaml" | awk '{print $1}' | xargs kill >/dev/null 2>&1
++	ps_list | grep -v "grep" | grep -E "tcp-http-ssr-switch-local\\.json|${PROBE_INSTANCE_KEY}-sing-box\\.json|ss-${PROBE_INSTANCE_KEY}/config\\.yaml|tuic-${PROBE_INSTANCE_KEY}/config\\.yaml|v2ray-${PROBE_INSTANCE_KEY}/config\\.yaml" | awk '{print $1}' | xargs kill >/dev/null 2>&1
+ 	sleep 1
+-	ps_list | grep -v "grep" | grep -E "tcp-http-ssr-switch-local\\.json|ss-${PROBE_INSTANCE_KEY}/config\\.yaml|tuic-${PROBE_INSTANCE_KEY}/config\\.yaml|v2ray-${PROBE_INSTANCE_KEY}/config\\.yaml" | awk '{print $1}' | xargs kill -9 >/dev/null 2>&1
++	ps_list | grep -v "grep" | grep -E "tcp-http-ssr-switch-local\\.json|${PROBE_INSTANCE_KEY}-sing-box\\.json|ss-${PROBE_INSTANCE_KEY}/config\\.yaml|tuic-${PROBE_INSTANCE_KEY}/config\\.yaml|v2ray-${PROBE_INSTANCE_KEY}/config\\.yaml" | awk '{print $1}' | xargs kill -9 >/dev/null 2>&1
+ 	rm -f "$TMP_PATH/tcp-http-ssr-switch-local.json" 2>/dev/null
+ 	rm -rf "$TMP_PATH/ss-${PROBE_INSTANCE_KEY}" "$TMP_PATH/tuic-${PROBE_INSTANCE_KEY}" "$TMP_PATH/v2ray-${PROBE_INSTANCE_KEY}" 2>/dev/null
+ 	rm -f /tmp/ssr-switch-probe.log 2>/dev/null
 diff --git a/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua b/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua
 new file mode 100644
 index 0000000000000000000000000000000000000000..f41159008ba6fda78bb6dd7bc23f9702207c8690
