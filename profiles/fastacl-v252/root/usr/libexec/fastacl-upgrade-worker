@@ -1,0 +1,289 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR=/tmp/fastacl-upgrade
+STATUS_FILE="$STATE_DIR/status"
+LOCK_DIR="$STATE_DIR/lock"
+MANIFEST="$STATE_DIR/manifest.json"
+SIGNATURE="$STATE_DIR/manifest.json.sig"
+CANDIDATE="$STATE_DIR/candidate.txt"
+IMAGE="$STATE_DIR/firmware.bin"
+LOG_FILE="$STATE_DIR/worker.log"
+PUBLIC_KEY=/etc/fastacl-upgrade/update.pub
+CHANNEL=stable
+BASE_URL=https://up.juliangtk.top
+UPGRADE_ENABLED=1
+
+mkdir -p "$STATE_DIR"
+
+write_status() {
+	local state="$1"
+	shift
+	{
+		printf 'state=%s\n' "$state"
+		printf 'updated=%s\n' "$(date +%s)"
+		while [ "$#" -gt 0 ]; do
+			printf '%s=%s\n' "$1" "$2"
+			shift 2
+		done
+	} > "$STATUS_FILE.tmp"
+	mv "$STATUS_FILE.tmp" "$STATUS_FILE"
+}
+
+load_config() {
+	. /lib/functions.sh
+	config_load fastacl-upgrade
+	config_get UPGRADE_ENABLED settings enabled 1
+	config_get BASE_URL settings base_url https://up.juliangtk.top
+	config_get CHANNEL settings channel stable
+
+	case "$CHANNEL" in
+		stable|beta) ;;
+		*) CHANNEL=stable ;;
+	esac
+
+	case "$BASE_URL" in
+		https://*) ;;
+		*) BASE_URL=https://up.juliangtk.top ;;
+	esac
+	BASE_URL="${BASE_URL%/}"
+}
+
+current_version() {
+	uci -q get fastacl252.main.version 2>/dev/null || true
+}
+
+current_board() {
+	ubus call system board 2>/dev/null |
+		jsonfilter -e '@.board_name' 2>/dev/null |
+		head -n 1
+}
+
+confirm_pending_upgrade() {
+	local pending target previous version
+	pending="$(uci -q get fastacl-upgrade.settings.upgrade_pending 2>/dev/null || echo 0)"
+	[ "$pending" = 1 ] || return 0
+
+	target="$(uci -q get fastacl-upgrade.settings.target_version 2>/dev/null || true)"
+	previous="$(uci -q get fastacl-upgrade.settings.previous_version 2>/dev/null || true)"
+	version="$(current_version)"
+	[ -n "$target" ] && [ "$version" = "$target" ] || return 0
+
+	uci -q set fastacl-upgrade.settings.upgrade_pending='0'
+	uci -q commit fastacl-upgrade
+	write_status success version="$version" previous_version="$previous"
+}
+
+acquire_lock() {
+	if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+		return 1
+	fi
+	printf '%s\n' "$$" > "$LOCK_DIR/pid"
+	trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM HUP
+	return 0
+}
+
+verify_manifest() {
+	[ -s "$MANIFEST" ] && [ -s "$SIGNATURE" ] && [ -s "$PUBLIC_KEY" ] || return 1
+	usign -V -m "$MANIFEST" -x "$SIGNATURE" -p "$PUBLIC_KEY" >/dev/null 2>&1
+}
+
+download_manifest() {
+	local url="$BASE_URL/$CHANNEL.json"
+	rm -f "$MANIFEST.tmp" "$SIGNATURE.tmp"
+	curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+		-o "$MANIFEST.tmp" "$url" || return 1
+	curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+		-o "$SIGNATURE.tmp" "$url.sig" || return 1
+	mv "$MANIFEST.tmp" "$MANIFEST"
+	mv "$SIGNATURE.tmp" "$SIGNATURE"
+	verify_manifest
+}
+
+find_model_entry() {
+	local board="$1" boards index=0 item
+	boards="$(jsonfilter -i "$MANIFEST" -e '@.models[*].board' 2>/dev/null || true)"
+	for item in $boards; do
+		if [ "$item" = "$board" ]; then
+			MODEL_INDEX="$index"
+			MODEL_IMAGE="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].image")"
+			MODEL_SHA256="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].sha256")"
+			MODEL_SIZE="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].size")"
+			return 0
+		fi
+		index=$((index + 1))
+	done
+	return 1
+}
+
+check_update() {
+	local board version latest schema channel model_count
+	load_config
+	[ "$UPGRADE_ENABLED" = 1 ] || {
+		write_status disabled
+		return 1
+	}
+	[ -s "$PUBLIC_KEY" ] || {
+		write_status failed message='missing-public-key'
+		return 1
+	}
+
+	board="$(current_board)"
+	version="$(current_version)"
+	[ -n "$board" ] && [ -n "$version" ] || {
+		write_status failed message='missing-device-identity'
+		return 1
+	}
+
+	write_status checking board="$board" current_version="$version" channel="$CHANNEL"
+	if ! download_manifest; then
+		write_status failed message='manifest-download-or-signature-failed'
+		return 1
+	fi
+
+	schema="$(jsonfilter -i "$MANIFEST" -e '@.schema' 2>/dev/null || true)"
+	channel="$(jsonfilter -i "$MANIFEST" -e '@.channel' 2>/dev/null || true)"
+	latest="$(jsonfilter -i "$MANIFEST" -e '@.version' 2>/dev/null || true)"
+	model_count="$(jsonfilter -i "$MANIFEST" -e '@.models[*].board' 2>/dev/null | wc -w)"
+
+	[ "$schema" = 1 ] && [ "$channel" = "$CHANNEL" ] && [ -n "$latest" ] || {
+		write_status failed message='invalid-manifest'
+		return 1
+	}
+	[ "$model_count" -gt 0 ] || {
+		write_status failed message='empty-model-list'
+		return 1
+	}
+	if ! find_model_entry "$board"; then
+		write_status unavailable board="$board" current_version="$version" channel="$CHANNEL" message='model-not-supported'
+		return 0
+	fi
+
+	case "$MODEL_IMAGE" in
+		releases/*) ;;
+		*) write_status failed message='invalid-image-path'; return 1 ;;
+	esac
+	case "$MODEL_IMAGE" in
+		*..*) write_status failed message='invalid-image-path'; return 1 ;;
+	esac
+	printf 'board=%s\nchannel=%s\nversion=%s\nimage=%s\nsha256=%s\nsize=%s\n' \
+		"$board" "$CHANNEL" "$latest" "$MODEL_IMAGE" "$MODEL_SHA256" "$MODEL_SIZE" > "$CANDIDATE"
+
+	if [ "$latest" = "$version" ]; then
+		write_status uptodate board="$board" current_version="$version" latest_version="$latest" channel="$CHANNEL"
+	else
+		write_status available board="$board" current_version="$version" latest_version="$latest" channel="$CHANNEL" image_size="$MODEL_SIZE" sha256="$MODEL_SHA256"
+	fi
+}
+
+candidate_value() {
+	sed -n "s/^$1=//p" "$CANDIDATE" | head -n 1
+}
+
+install_update() {
+	local board candidate_channel version latest manifest_channel board_now image_rel sha256 size free_kb url actual
+	load_config
+	[ -s "$CANDIDATE" ] || {
+		write_status failed message='candidate-missing'
+		return 1
+	}
+	verify_manifest || {
+		write_status failed message='manifest-signature-failed'
+		return 1
+	}
+
+	board="$(candidate_value board)"
+	candidate_channel="$(candidate_value channel)"
+	version="$(candidate_value version)"
+	image_rel="$(candidate_value image)"
+	sha256="$(candidate_value sha256)"
+	size="$(candidate_value size)"
+	latest="$(jsonfilter -i "$MANIFEST" -e '@.version')"
+	manifest_channel="$(jsonfilter -i "$MANIFEST" -e '@.channel')"
+	board_now="$(current_board)"
+
+	[ "$board" = "$board_now" ] && [ "$candidate_channel" = "$CHANNEL" ] &&
+		[ "$manifest_channel" = "$CHANNEL" ] && [ "$version" = "$latest" ] || {
+		write_status failed message='candidate-identity-changed'
+		return 1
+	}
+	case "$sha256" in
+		????????????????????????????????????????????????????????????????) ;;
+		*) write_status failed message='invalid-sha256'; return 1 ;;
+	esac
+
+	free_kb="$(df -k "$STATE_DIR" | awk 'NR==2 {print $4}')"
+	if [ -n "$size" ] && [ "$free_kb" -lt $((size / 1024 + 32768)) ]; then
+		write_status failed message='insufficient-free-space'
+		return 1
+	fi
+
+	url="$BASE_URL/$image_rel"
+	write_status downloading board="$board" current_version="$(current_version)" latest_version="$version" channel="$CHANNEL" image_size="$size"
+	rm -f "$IMAGE"
+	curl -fL --retry 3 --connect-timeout 15 --max-time 1800 \
+		-o "$IMAGE" "$url" || {
+		write_status failed message='firmware-download-failed'
+		return 1
+	}
+
+	write_status verifying board="$board" latest_version="$version" channel="$CHANNEL"
+	actual="$(sha256sum "$IMAGE" | awk '{print $1}')"
+	[ "$actual" = "$sha256" ] || {
+		rm -f "$IMAGE"
+		write_status failed message='firmware-checksum-failed'
+		return 1
+	}
+	sysupgrade -T "$IMAGE" >/dev/null 2>&1 || {
+		rm -f "$IMAGE"
+		write_status failed message='sysupgrade-image-check-failed'
+		return 1
+	}
+
+	uci -q set fastacl-upgrade.settings.previous_version="$(current_version)"
+	uci -q set fastacl-upgrade.settings.target_version="$version"
+	uci -q set fastacl-upgrade.settings.upgrade_pending='1'
+	uci -q commit fastacl-upgrade
+	sync
+
+	write_status installing board="$board" current_version="$(current_version)" latest_version="$version" channel="$CHANNEL"
+	sysupgrade -v "$IMAGE"
+	write_status failed message='sysupgrade-did-not-reboot'
+	return 1
+}
+
+launch_worker() {
+	local action="$1" daemon
+	daemon="$(command -v start-stop-daemon 2>/dev/null || true)"
+	[ -n "$daemon" ] || {
+		write_status failed message='start-stop-daemon-missing'
+		return 1
+	}
+	"$daemon" -S -q -b -x "$0" -- "$action"
+}
+
+case "${1:-status}" in
+	launch)
+		launch_worker "${2:-check}"
+		;;
+	check)
+		acquire_lock || exit 0
+		check_update
+		;;
+	install)
+		acquire_lock || exit 0
+		install_update
+		;;
+	confirm)
+		acquire_lock || exit 0
+		confirm_pending_upgrade
+		;;
+	status)
+		confirm_pending_upgrade
+		[ -s "$STATUS_FILE" ] && cat "$STATUS_FILE"
+		;;
+	*)
+		echo "Usage: $0 {launch check|launch install|check|install|confirm|status}" >&2
+		exit 2
+		;;
+esac
