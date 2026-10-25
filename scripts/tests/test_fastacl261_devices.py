@@ -57,6 +57,10 @@ for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
     )
     assert f'CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y' in rewritten
 
+for device in ('cmcc_a10-ubootmod', 'jcg_q30-pro'):
+    block = image_makefile.split(f'define Device/{device}', 1)[1].split('endef', 1)[0]
+    assert 'kmod-mt7915e' in block
+
 clt_text = (ROOT / 'target/linux/mediatek/dts/mt7981b-clt-r30b1.dts').read_text(encoding='utf-8')
 clt_base = (ROOT / 'target/linux/mediatek/dts/mt7981b-clt-r30b1-base.dtsi').read_text(encoding='utf-8')
 assert 'mediatek,nmbm;' in clt_text

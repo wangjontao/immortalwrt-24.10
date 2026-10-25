@@ -5,7 +5,9 @@ run-name: 'FastACL 2.6.1 - 4 grouped jobs for the 20-device MT7981 matrix'
   workflow_dispatch: {}
   push:
     branches: ['2.6.1']
-    paths: ['.github/workflows/JuLiangTK-MT7981-FastACL261-Grouped.yml']
+    paths:
+      - '.github/workflows/JuLiangTK-MT7981-FastACL261-Grouped.yml'
+      - 'target/linux/mediatek/image/filogic.mk'
 
 permissions:
   contents: read
