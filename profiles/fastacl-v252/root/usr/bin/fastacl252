@@ -9,6 +9,17 @@ SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
 DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-6144}
 DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-2048}
 RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
+PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
+DAE_TCP_RELAY_IDLE_TIMEOUT=$(uci -q get fastacl252.main.tcp_idle_timeout 2>/dev/null || true)
+case "$DAE_TCP_RELAY_IDLE_TIMEOUT" in
+  [0-9]s|[0-9][0-9]s|[0-9][0-9][0-9]s) ;;
+  *) DAE_TCP_RELAY_IDLE_TIMEOUT=300s ;;
+esac
+DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=$(uci -q get fastacl252.main.tcp_half_close_timeout 2>/dev/null || true)
+case "$DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT" in
+  [0-9]s|[0-9][0-9]s|[0-9][0-9][0-9]s) ;;
+  *) DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=30s ;;
+esac
 mkdir -p "$R"
 
 raise_nofile(){
@@ -231,8 +242,8 @@ start_dns_next(){
 
 start_dae_next(){
   cp "$R/router.next.dae" "$R/router.dae"
-  DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s \
-  DAE_TCP_RELAY_IDLE_TIMEOUT=120s \
+  DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT="$DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT" \
+  DAE_TCP_RELAY_IDLE_TIMEOUT="$DAE_TCP_RELAY_IDLE_TIMEOUT" \
     dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
   echo $! > "$R/router.pid"
   wait_dae || { cat "$R/router.log" 2>/dev/null || true; return 1; }
@@ -409,6 +420,23 @@ case "${1:-status}" in
           else
             probe_failures=$((probe_failures+1))
             health_log "proxy-probe-failed consecutive=$probe_failures"
+            if [ "$probe_failures" -ge "$PROBE_FAILURE_LIMIT" ] &&
+               ! edit_busy && [ ! -d "$LOCK" ]; then
+              recovery_now=$(date +%s)
+              probe_recovery_last=$(cat "$R/probe.last-recovery" 2>/dev/null || echo 0)
+              if [ $((recovery_now-probe_recovery_last)) -ge "$RECOVERY_COOLDOWN" ]; then
+                health_log "recovering DNS proxy after $probe_failures failed probes"
+                echo "$recovery_now" > "$R/probe.last-recovery"
+                (
+                  acquire_lock
+                  dns_stop
+                  start_dns_next
+                ) >"$R/proxy.recovery.log" 2>&1 || true
+                probe_failures=0
+                pause_fast
+                sleep 10
+              fi
+            fi
           fi
         fi
         if [ $((now-last_snapshot)) -ge 300 ]; then

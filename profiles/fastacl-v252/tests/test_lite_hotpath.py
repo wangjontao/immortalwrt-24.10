@@ -100,5 +100,5 @@ assert "if c.platform_secret then" in dae
 assert "rules[#rules+1]='sip('..policy.cidr(c.router_ip,c.netmask)..') && '..mac" in dae
 console=(ROOT/'root/usr/lib/lua/luci/view/fastacl252/console.htm').read_text(encoding='utf-8')
 assert 'wifiProgress=setInterval' in console and 'e.busy' in console
-assert 'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s' in runtime
-assert 'DAE_TCP_RELAY_IDLE_TIMEOUT=120s' in runtime
+assert 'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=30s' in runtime
+assert 'DAE_TCP_RELAY_IDLE_TIMEOUT=300s' in runtime

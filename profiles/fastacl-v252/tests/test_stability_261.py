@@ -9,6 +9,7 @@ runtime = (PROFILE / 'usr/bin/fastacl252').read_text(encoding='utf-8')
 watchdog = (PROFILE / 'usr/bin/wan-watchdog').read_text(encoding='utf-8')
 init = (PROFILE / 'etc/init.d/wan-watchdog').read_text(encoding='utf-8')
 config = (PROFILE / 'etc/config/wan-watchdog').read_text(encoding='utf-8')
+fastacl_config = (PROFILE / 'etc/config/fastacl252').read_text(encoding='utf-8')
 defaults = (PROFILE / 'etc/uci-defaults/99-juliangtk-fastacl252').read_text(encoding='utf-8')
 migration = (PROFILE / 'etc/uci-defaults/98-juliang-wifi-stability').read_text(encoding='utf-8')
 wifi = (PROFILE / 'usr/lib/lua/fastacl252_wifi.lua').read_text(encoding='utf-8')
@@ -21,8 +22,8 @@ for required in (
     'dns_guard_ready',
     'runtime_failure',
     'health_snapshot',
-    'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=5s',
-    'DAE_TCP_RELAY_IDLE_TIMEOUT=120s',
+    'DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT=30s',
+    'DAE_TCP_RELAY_IDLE_TIMEOUT=300s',
 ):
     assert required in runtime, required
 
@@ -35,6 +36,11 @@ assert 'ubus call network.interface.wan down' in watchdog
 assert 'ubus call network.interface.wan up' in watchdog
 assert 'state=carrier-down' in watchdog
 assert 'state=no-lease' in watchdog
+assert 'PROBE_FAILURE_LIMIT' in runtime
+assert 'recovering DNS proxy' in runtime
+assert 'start_dns_next' in runtime
+assert 'tcp_idle_timeout' in fastacl_config and "'300s'" in fastacl_config
+assert 'tcp_half_close_timeout' in fastacl_config and "'30s'" in fastacl_config
 assert 'ip -4 route show default' in nps
 assert 'mkdir "$LOCK"' in nps
 assert 'NPS restarted after WAN ready' in nps
@@ -64,7 +70,7 @@ assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
 
 pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
 assert 'PKG_VERSION:=2.6.1' in pkg
-assert 'PKG_RELEASE:=2' in pkg
+assert 'PKG_RELEASE:=3' in pkg
 assert '/usr/bin/wan-watchdog' in pkg
 assert '/etc/init.d/wan-watchdog' in pkg
 assert '/etc/config/wan-watchdog' in pkg
