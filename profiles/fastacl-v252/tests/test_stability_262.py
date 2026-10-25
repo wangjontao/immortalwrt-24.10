@@ -82,10 +82,10 @@ assert 'luci-app-wan-watchdog' in acl
 assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
 
 pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
-assert 'PKG_VERSION:=2.6.3' in pkg
+assert 'PKG_VERSION:=2.6.4' in pkg
 assert 'PKG_RELEASE:=1' in pkg
 assert '/usr/bin/wan-watchdog' in pkg
 assert '/etc/init.d/wan-watchdog' in pkg
 assert '/etc/config/wan-watchdog' in pkg
 
-print('FastACL 2.6.3 stability, DNS guard and WAN watchdog: OK')
+print('FastACL 2.6.4 stability, DNS guard and WAN watchdog: OK')
