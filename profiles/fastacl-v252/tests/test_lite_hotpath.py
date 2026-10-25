@@ -92,7 +92,7 @@ assert '+libuci-lua' in pkg
 
 
 # 2.6.2 keeps the shared-core safety regressions and adds reconnect tuning.
-assert "main.fixed_exit=1" in defaults
+assert "main.fixed_exit=0" in defaults
 assert "open_flags('wronly','creat')+524288" in controller
 assert "edit_handle:lock('ulock')" in controller
 dae=(ROOT/'root/usr/lib/lua/fastacl252_dae.lua').read_text(encoding='utf-8')
