@@ -87,7 +87,7 @@ assert 'integrate-fastacl262-grouped.sh' in grouped_workflow
 assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_263
 assert '${{ github.run_id }}' in grouped_workflow_263
 assert 'immortalwrt-mediatek-filogic-${DEVICE}.manifest' in grouped_workflow_264
-assert 'manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest' not in grouped_workflow_264
+assert "find bin/targets/mediatek/filogic -maxdepth 1 -type f -name 'immortalwrt-mediatek-filogic*.manifest'" in grouped_workflow_264
 assert '${{ github.run_id }}' in grouped_workflow_264
 assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
 assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
