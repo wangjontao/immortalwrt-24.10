@@ -12,6 +12,9 @@ config = (PROFILE / 'etc/config/wan-watchdog').read_text(encoding='utf-8')
 defaults = (PROFILE / 'etc/uci-defaults/99-juliangtk-fastacl252').read_text(encoding='utf-8')
 migration = (PROFILE / 'etc/uci-defaults/98-juliang-wifi-stability').read_text(encoding='utf-8')
 wifi = (PROFILE / 'usr/lib/lua/fastacl252_wifi.lua').read_text(encoding='utf-8')
+nps = (PROFILE / 'usr/libexec/nps-wan-mac').read_text(encoding='utf-8')
+nps_init = (PROFILE / 'etc/init.d/nps-wan-mac').read_text(encoding='utf-8')
+nps_hotplug = (PROFILE / 'etc/hotplug.d/iface/99-nps-wan-mac').read_text(encoding='utf-8')
 
 for required in (
     'socks_backlog',
@@ -32,6 +35,15 @@ assert 'ubus call network.interface.wan down' in watchdog
 assert 'ubus call network.interface.wan up' in watchdog
 assert 'state=carrier-down' in watchdog
 assert 'state=no-lease' in watchdog
+assert 'ip -4 route show default' in nps
+assert 'mkdir "$LOCK"' in nps
+assert 'NPS restarted after WAN ready' in nps
+assert 'touch /tmp/nps-wan-mac.ready' in nps
+assert 'sleep 40' in nps_init
+assert '/tmp/nps-wan-mac.ready' in nps_init
+assert '[ -e /etc/nps-wan-mac.done ] ||' not in nps_init
+assert 'ifup|ifupdate' in nps_hotplug
+assert '/usr/libexec/nps-wan-mac' in nps_hotplug
 
 assert 'wireless.$radio.channel=36' in defaults
 assert 'wireless.$radio.htmode=HE80' in defaults
@@ -52,6 +64,7 @@ assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
 
 pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
 assert 'PKG_VERSION:=2.6.1' in pkg
+assert 'PKG_RELEASE:=2' in pkg
 assert '/usr/bin/wan-watchdog' in pkg
 assert '/etc/init.d/wan-watchdog' in pkg
 assert '/etc/config/wan-watchdog' in pkg

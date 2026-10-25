@@ -1,8 +1,16 @@
 #!/bin/sh
 set -u
 DONE=/etc/nps-wan-mac.done
-[ -e "$DONE" ] && exit 0
+LOCK=/tmp/nps-wan-mac.lock
 [ -f /etc/config/nps ] && [ -x /etc/init.d/nps ] || exit 1
+if ! mkdir "$LOCK" 2>/dev/null; then
+  owner="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null && exit 0
+  rm -rf "$LOCK"
+  mkdir "$LOCK" 2>/dev/null || exit 0
+fi
+printf '%s\n' "$$" > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT INT TERM
 
 valid_mac(){
   case "$1" in
@@ -29,23 +37,30 @@ get_wan_mac(){
 }
 
 tries=0
+ready=0
 while [ "$tries" -lt 60 ]; do
-  get_wan_mac && break
+  if get_wan_mac && ip -4 route show default 2>/dev/null | grep -q '^default'; then
+    ready=1
+    break
+  fi
   tries=$((tries+1))
   sleep 2
 done
-valid_mac "$WAN_MAC" || { logger -t nps-wan-mac 'ERROR: physical WAN MAC not found'; exit 1; }
+[ "$ready" = 1 ] || { logger -t nps-wan-mac 'ERROR: WAN route or physical MAC not found'; exit 1; }
 
-NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+if [ ! -e "$DONE" ]; then
+  NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+  uci -q set nps.@nps[0].server_addr='nps.jontao.top'
+  uci -q set nps.@nps[0].server_port='8024'
+  uci -q set nps.@nps[0].protocol='tcp'
+  uci -q set nps.@nps[0].compress='1'
+  uci -q set nps.@nps[0].crypt='1'
+  uci -q set nps.@nps[0].vkey="$NPS_KEY"
+fi
 uci -q set nps.@nps[0].enabled='1'
-uci -q set nps.@nps[0].server_addr='nps.jontao.top'
-uci -q set nps.@nps[0].server_port='8024'
-uci -q set nps.@nps[0].protocol='tcp'
-uci -q set nps.@nps[0].compress='1'
-uci -q set nps.@nps[0].crypt='1'
-uci -q set nps.@nps[0].vkey="$NPS_KEY"
 uci -q commit nps
 /etc/init.d/nps enable
 /etc/init.d/nps restart
 touch "$DONE"
-logger -t nps-wan-mac "NPS configured from physical WAN MAC $WAN_DEV"
+touch /tmp/nps-wan-mac.ready
+logger -t nps-wan-mac "NPS restarted after WAN ready device=$WAN_DEV"

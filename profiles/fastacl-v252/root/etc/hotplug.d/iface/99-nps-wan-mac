@@ -1,3 +1,5 @@
 #!/bin/sh
-[ -e /etc/nps-wan-mac.done ] && exit 0
-[ "$INTERFACE" = 'wan' ] && [ "$ACTION" = 'ifup' ] && /usr/libexec/nps-wan-mac >/dev/null 2>&1 &
+[ "$INTERFACE" = 'wan' ] || exit 0
+case "$ACTION" in
+  ifup|ifupdate) /usr/libexec/nps-wan-mac >/dev/null 2>&1 & ;;
+esac
