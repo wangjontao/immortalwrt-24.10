@@ -1,6 +1,6 @@
 name: Redmi AX6000 NMBM 110MiB FastACL 2.6.3
 run-name: 'FastACL 2.6.3 - BBR and unlimited connections - Redmi NMBM110 BIN'
-# 2.6.3 release build trigger.
+# 2.6.3 final release build trigger.
 
 'on':
   workflow_dispatch: {}

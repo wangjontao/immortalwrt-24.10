@@ -97,9 +97,9 @@ verify_manifest() {
 download_manifest() {
 	local url="$BASE_URL/$CHANNEL.json"
 	rm -f "$MANIFEST.tmp" "$SIGNATURE.tmp"
-	curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+	curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 --connect-timeout 15 --max-time 120 \
 		-o "$MANIFEST.tmp" "$url" || return 1
-	curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+	curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 --connect-timeout 15 --max-time 120 \
 		-o "$SIGNATURE.tmp" "$url.sig" || return 1
 	mv "$MANIFEST.tmp" "$MANIFEST"
 	mv "$SIGNATURE.tmp" "$SIGNATURE"
@@ -231,7 +231,7 @@ install_update() {
 	url="$BASE_URL/$image_rel"
 	write_status downloading board="$board" current_version="$(current_version)" latest_version="$version" channel="$CHANNEL" image_size="$size"
 	rm -f "$IMAGE"
-	curl -fL --retry 3 --connect-timeout 15 --max-time 1800 \
+	curl -fL --proto '=https' --proto-redir '=https' --retry 3 --connect-timeout 15 --max-time 1800 \
 		-o "$IMAGE" "$url" || {
 		write_status failed message='firmware-download-failed'
 		return 1

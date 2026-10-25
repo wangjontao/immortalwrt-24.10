@@ -1,5 +1,16 @@
 #!/bin/sh
 set -eu
+
+provisioned="$(uci -q get fastacl252.main.provisioned || true)"
+if [ "$provisioned" != 0 ]; then
+	uci set 'fastacl252.main.version=2.6.3'
+	uci set 'fastacl252.main.provisioned=1'
+	uci commit fastacl252
+	/etc/init.d/fastacl252 enable
+	/etc/init.d/wan-watchdog enable
+	exit 0
+fi
+
 uci set 'system.@system[0].hostname=JuLiangTK-S20L'
 uci set 'network.lan.ipaddr=192.168.7.1'
 uci set 'network.lan.netmask=255.255.255.0'
@@ -30,7 +41,8 @@ done
 uci commit wireless
 uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
 uci set 'fastacl252.main.fixed_exit=1'
-uci set 'fastacl252.main.version=2.6.3'; uci commit fastacl252
+uci set 'fastacl252.main.version=2.6.3'
+uci set 'fastacl252.main.provisioned=1'; uci commit fastacl252
 /usr/libexec/fastacl252-enable.sh --config-only
 /etc/init.d/fastacl252 enable
 /etc/init.d/wan-watchdog enable

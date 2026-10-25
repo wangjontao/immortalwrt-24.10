@@ -40,6 +40,7 @@ def main() -> None:
     parser.add_argument('--channel', required=True, choices=('stable', 'beta'))
     parser.add_argument('--base-url', default='https://up.juliangtk.top')
     parser.add_argument('--notes-url', default='')
+    parser.add_argument('--source-runs', default='')
     parser.add_argument('--usign', type=Path)
     parser.add_argument('--signing-key', type=Path)
     args = parser.parse_args()
@@ -80,6 +81,7 @@ def main() -> None:
         'published_at': datetime.now(timezone.utc).isoformat(),
         'base_url': args.base_url.rstrip('/'),
         'notes_url': args.notes_url,
+        'source_runs': [item for item in args.source_runs.split(',') if item],
         'models': sorted(entries, key=lambda item: item['board']),
     }
 
