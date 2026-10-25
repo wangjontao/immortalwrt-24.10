@@ -34,7 +34,7 @@ DEVICES = {
 assert len(DEVICES) == 20
 
 for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
-    assert f'{device}) tag={tag}; dts={dts}; compatible={compatible} ;;' in script
+    assert f'{device}) tag={tag}; dts={dts}; compatible={compatible}' in script
     assert f'- device: {device}' in workflow
     assert f'tag: {tag}' in workflow
     assert f'label: {label}' in workflow
@@ -45,6 +45,8 @@ for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
     identity_path = ROOT / 'target/linux/mediatek/dts' / (identity_dts or f'{dts}.dts')
     assert identity_path.is_file(), identity_path
     assert f'compatible = "{compatible}", "mediatek,mt7981";' in identity_path.read_text(encoding='utf-8')
+    if identity_dts:
+        assert f'dts_identity={identity_dts}' in script
     rewritten = re.sub(
         r'^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$',
         f'CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y',

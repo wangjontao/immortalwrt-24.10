@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 device=${1:-clx_s20l}
+dts_identity=
 case "$device" in
   clx_s20l) tag=S20L; dts=mt7986a-clx-s20l; compatible=clx,s20l ;;
   clx_s20p) tag=S20P; dts=mt7986a-clx-s20p; compatible=clx,s20p ;;
@@ -26,11 +27,14 @@ case "$device" in
   nokia_ea0326gmp) tag=NOKIA-EA0326GMP; dts=mt7981b-nokia-ea0326gmp; compatible=nokia,ea0326gmp ;;
   sl_3000-emmc) tag=SL-3000-EMMC; dts=mt7981b-sl-3000-emmc; compatible=sl,3000-emmc ;;
   zbtlink_zbt-z8103ax-c) tag=ZBT-Z8103AX-C; dts=mt7981b-zbtlink-zbt-z8103ax-c; compatible=zbtlink,zbt-z8103ax-c ;;
-  clt_r30b1) tag=CLT-R30B1; dts=mt7981b-clt-r30b1; compatible=clt,r30b1 ;;
+  clt_r30b1) tag=CLT-R30B1; dts=mt7981b-clt-r30b1; compatible=clt,r30b1; dts_identity=mt7981b-clt-r30b1-base.dtsi ;;
   cmcc_a10-stock) tag=CMCC-A10-Stock; dts=mt7981b-cmcc-a10-stock; compatible=cmcc,a10-stock ;;
   livinet_zr-3020) tag=Livinet-ZR-3020; dts=mt7981b-livinet-zr-3020; compatible=livinet,zr-3020 ;;
   *) echo "Unsupported FastACL device: $device" >&2; exit 1 ;;
 esac
+if [ -z "$dts_identity" ]; then
+  dts_identity=${dts}.dts
+fi
 test -f "target/linux/mediatek/dts/$dts.dts"
 mkdir -p package/fastacl252 package/juliangtk-dae
 cp profiles/fastacl-v252/package-Makefile package/fastacl252/Makefile
@@ -92,7 +96,7 @@ grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" .config || {
   echo "Required target missing from .config: $device" >&2
   exit 1
 }
-grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts.dts" || {
+grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts_identity" || {
   echo "Required compatible missing from DTS: $compatible" >&2
   exit 1
 }
