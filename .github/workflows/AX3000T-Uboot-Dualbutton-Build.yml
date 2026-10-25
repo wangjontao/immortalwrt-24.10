@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     name: AX3000T ${{ matrix.label }} U-Boot
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -38,7 +38,10 @@ jobs:
         working-directory: uboot-src
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends $(cat depends/ubuntu-22.04) rename tar
+          sudo apt-get install -y --no-install-recommends \
+            build-essential flex bison libssl-dev device-tree-compiler \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            qemu-user-static nodejs npm python3 rename tar
 
       - name: Build FIP and BL2
         working-directory: uboot-src
