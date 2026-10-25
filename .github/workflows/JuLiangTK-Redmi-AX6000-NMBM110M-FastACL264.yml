@@ -206,7 +206,7 @@ jobs:
           python3 scripts/tests/test_redmi_110m_layout.py --factory "$factory" --sysupgrade "$sysupgrade"
           cp -a "${images[@]}" upload/
           cp profiles/fastacl-v252/README-REDMI-110M-2.6.4.md upload/
-          manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest
+          manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic-${DEVICE}.manifest
           [ -s "$manifest" ] || { echo 'ERROR: shared package manifest missing'; exit 1; }
           for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
             grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
