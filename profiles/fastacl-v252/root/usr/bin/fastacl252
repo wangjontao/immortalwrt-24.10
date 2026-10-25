@@ -25,6 +25,12 @@ case "$DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT" in
 esac
 mkdir -p "$R"
 
+dataplane_now(){
+  local value
+  value=$(uci -q get fastacl252.main.dataplane 2>/dev/null || true)
+  case "$value" in tun) echo tun ;; *) echo ebpf ;; esac
+}
+
 detect_capacity(){
   local mem_kb cpus profile identity
   mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
@@ -140,6 +146,14 @@ alive(){
   tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq "$R/router.dae"
 }
 
+tun_alive(){
+  [ -s "$R/tun.pid" ] || return 1
+  local pid; pid=$(cat "$R/tun.pid" 2>/dev/null || true)
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq "$R/singbox.json"
+}
+
 dns_alive(){
   [ -s "$R/dns.pid" ] || return 1
   local pid; pid=$(cat "$R/dns.pid" 2>/dev/null || true)
@@ -174,6 +188,21 @@ dae_ready(){
   (ip netns exec daens ss -lntu 2>/dev/null || ip netns exec daens netstat -lntu 2>/dev/null) | grep -q ":$port "
 }
 
+tun_ready(){
+  tun_alive || return 1
+  local iface
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  ip link show "$iface" 2>/dev/null | grep -q 'state UP\|state UNKNOWN\|POINTOPOINT'
+}
+
+core_alive(){
+  case "$(dataplane_now)" in tun) tun_alive ;; *) alive ;; esac
+}
+
+core_ready(){
+  case "$(dataplane_now)" in tun) tun_ready ;; *) dae_ready ;; esac
+}
+
 dns_guard_ready(){
   nft list chain inet fastacl252 dns_redirect 2>/dev/null |
     grep -Fq 'redirect to :12553' &&
@@ -188,18 +217,25 @@ pid_fd_count(){
 }
 
 runtime_failure(){
-  local pid
-  alive || { echo dae-process; return; }
+  local pid plane
+  plane=$(dataplane_now)
+  core_alive || { echo "$plane-process"; return; }
   dns_alive || { echo dns-process; return; }
   listener 12553 || { echo dns-listener; return; }
   dns_guard_ready || { echo dns-guard; return; }
   socks_ready || { echo "socks-backlog:$(socks_backlog)"; return; }
-  dae_ready || { echo dae-listener; return; }
+  core_ready || { echo "$plane-ready"; return; }
   nft list table inet fastacl252 >/dev/null 2>&1 || { echo nft-table; return; }
 
-  pid=$(cat "$R/router.pid" 2>/dev/null || true)
-  [ "$(pid_fd_count "$pid")" -lt "$DAE_FD_LIMIT" ] ||
-    { echo "dae-fd:$(pid_fd_count "$pid")"; return; }
+  if [ "$plane" = ebpf ]; then
+    pid=$(cat "$R/router.pid" 2>/dev/null || true)
+    [ "$(pid_fd_count "$pid")" -lt "$DAE_FD_LIMIT" ] ||
+      { echo "dae-fd:$(pid_fd_count "$pid")"; return; }
+  else
+    pid=$(cat "$R/tun.pid" 2>/dev/null || true)
+    [ "$(pid_fd_count "$pid")" -lt "$DAE_FD_LIMIT" ] ||
+      { echo "tun-fd:$(pid_fd_count "$pid")"; return; }
+  fi
   pid=$(cat "$R/dns.pid" 2>/dev/null || true)
   [ "$(pid_fd_count "$pid")" -lt "$DNS_FD_LIMIT" ] ||
     { echo "dns-fd:$(pid_fd_count "$pid")"; return; }
@@ -223,15 +259,16 @@ socks_probe(){
 }
 
 health_snapshot(){
-  local dae_pid dns_pid dae_fd dns_fd backlog connections stats
-  dae_pid=$(cat "$R/router.pid" 2>/dev/null || true)
+  local core_pid dns_pid core_fd dns_fd backlog connections stats plane
+  plane=$(dataplane_now)
+  if [ "$plane" = tun ]; then core_pid=$(cat "$R/tun.pid" 2>/dev/null || true); else core_pid=$(cat "$R/router.pid" 2>/dev/null || true); fi
   dns_pid=$(cat "$R/dns.pid" 2>/dev/null || true)
-  dae_fd=$(pid_fd_count "$dae_pid")
+  core_fd=$(pid_fd_count "$core_pid")
   dns_fd=$(pid_fd_count "$dns_pid")
   backlog=$(socks_backlog)
   connections=$(socks_connections)
   stats=$(fastacl252-dns -stats -config "$R/dns.json" 2>/dev/null | head -n 1 || true)
-  health_log "healthy=yes socks_backlog=${backlog:-none} socks_connections=${connections:-none} dae_fd=${dae_fd:-none} dns_fd=${dns_fd:-none} stats=${stats:-none}"
+  health_log "healthy=yes dataplane=$plane socks_backlog=${backlog:-none} socks_connections=${connections:-none} core_fd=${core_fd:-none} dns_fd=${dns_fd:-none} stats=${stats:-none}"
 }
 
 wait_dae(){
@@ -272,6 +309,19 @@ dae_stop(){
     done
   fi
   rm -f "$R/router.pid"
+  ip netns del daens 2>/dev/null || true
+}
+
+tun_stop(){
+  if tun_alive; then
+    kill "$(cat "$R/tun.pid")" 2>/dev/null || true
+    local i=0
+    while tun_alive; do
+      i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$(cat "$R/tun.pid")" 2>/dev/null || true; break; }
+      pause_fast
+    done
+  fi
+  rm -f "$R/tun.pid"
 }
 
 generate_guards(){
@@ -281,11 +331,18 @@ generate_guards(){
 
 generate_next(){
   lua /usr/libexec/fastacl252-generate.lua nft
+  if [ "$(dataplane_now)" = tun ]; then
+    lua /usr/libexec/fastacl252-singbox-generate.lua
+  fi
 }
 
 validate_next(){
-  dae validate -c "$R/router.next.dae" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
   fastacl252-dns -check -config "$R/dns.next.json" >"$R/dns-check.log" 2>&1 || { cat "$R/dns-check.log"; return 1; }
+  if [ "$(dataplane_now)" = tun ]; then
+    sing-box check -c "$R/singbox.next.json" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
+  else
+    dae validate -c "$R/router.next.dae" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
+  fi
 }
 
 firewall_apply(){
@@ -314,6 +371,22 @@ start_dae_next(){
     dae run --disable-pidfile --disable-sudo -c "$R/router.dae" >"$R/router.log" 2>&1 &
   echo $! > "$R/router.pid"
   wait_dae || { cat "$R/router.log" 2>/dev/null || true; return 1; }
+}
+
+wait_tun(){
+  local i=0
+  while ! tun_ready; do
+    i=$((i+1)); [ "$i" -lt 60 ] || return 1
+    pause_fast
+  done
+}
+
+start_tun_next(){
+  command -v sing-box >/dev/null 2>&1 || { echo '[FastACL] sing-box is not installed' >&2; return 1; }
+  cp "$R/singbox.next.json" "$R/singbox.json"
+  sing-box run -c "$R/singbox.json" >"$R/singbox.log" 2>&1 &
+  echo $! > "$R/tun.pid"
+  wait_tun || { cat "$R/singbox.log" 2>/dev/null || true; return 1; }
 }
 
 reload_dns_next(){
@@ -390,6 +463,12 @@ reload_dae_next(){
   return 1
 }
 
+reload_tun_next(){
+  if tun_ready && cmp -s "$R/singbox.next.json" "$R/singbox.json"; then return 0; fi
+  tun_stop
+  start_tun_next
+}
+
 hot_apply(){
   raise_nofile
   acquire_lock
@@ -398,7 +477,13 @@ hot_apply(){
   validate_next
   firewall_apply
   reload_dns_next
-  reload_dae_next
+  if [ "$(dataplane_now)" = tun ]; then
+    dae_stop
+    reload_tun_next
+  else
+    tun_stop
+    reload_dae_next
+  fi
   echo 'hot' > "$R/last-request-mode"
 }
 
@@ -411,28 +496,30 @@ cold_apply(){
   validate_next
   firewall_apply
   dae_stop
+  tun_stop
   dns_stop
   start_dns_next
-  start_dae_next
+  if [ "$(dataplane_now)" = tun ]; then start_tun_next; else start_dae_next; fi
   echo 'cold' > "$R/last-request-mode"
   echo 'app-restart' > "$R/last-apply-mode"
 }
 
 ensure_runtime(){
-  if dae_ready && dns_ready && nft list table inet fastacl252 >/dev/null 2>&1; then return 0; fi
+  if core_ready && dns_ready && nft list table inet fastacl252 >/dev/null 2>&1; then return 0; fi
   echo '[FastACL] runtime unhealthy; recovering only failed components' >&2
   hot_apply
 }
 
 status(){
-  local engine=stopped fw=false mode=none request=none
-  alive && engine=running
+  local engine=stopped fw=false mode=none request=none plane
+  plane=$(dataplane_now)
+  core_alive && engine=running
   [ "$engine" != running ] || dns_ready || engine=broken
-  [ "$engine" != running ] || dae_ready || engine=broken
+  [ "$engine" != running ] || core_ready || engine=broken
   nft list table inet fastacl252 >/dev/null 2>&1 && fw=true
   [ ! -s "$R/last-apply-mode" ] || mode=$(cat "$R/last-apply-mode")
   [ ! -s "$R/last-request-mode" ] || request=$(cat "$R/last-request-mode")
-  printf '{"engine":"%s","firewall":%s,"backend":"nft","switch":"%s","request":"%s"}\n' "$engine" "$fw" "$mode" "$request"
+  printf '{"engine":"%s","firewall":%s,"backend":"nft","dataplane":"%s","switch":"%s","request":"%s"}\n' "$engine" "$fw" "$plane" "$mode" "$request"
 }
 
 case "${1:-status}" in
@@ -451,6 +538,7 @@ case "${1:-status}" in
   stop)
     dns_stop
     dae_stop
+    tun_stop
     echo 'Core stopped; protection rules retained';;
   guard)
     raise_nofile

@@ -152,7 +152,7 @@
 </style>
 <div class="f252">
   <div class="f25-sticky" aria-label="FastACL 状态与操作提示">
-  <h2><span class="f25-brand-text">JuLiangTK · FastACL V2.6.4</span></h2>
+  <h2><span class="f25-brand-text">JuLiangTK · FastACL V2.7.1</span></h2>
   <div class="bar"><span id="f25-health">读取状态…</span><button class="cbi-button" id="f25-refresh">刷新</button><input id="f25-search" placeholder="搜索设备 / MAC / IP"></div>
   <div id="f25-msg" class="msg" role="status" aria-live="polite" aria-atomic="true"></div>
   </div>
@@ -209,6 +209,18 @@
     <div class="bar"><button class="cbi-button cbi-button-apply" id="f25-dns-save">保存 DNS</button></div>
   </div>
 
+  <div class="card">
+    <h3>数据面</h3>
+    <div class="fields">
+      <div class="field"><label>模式</label><select id="f25-dataplane"><option value="ebpf">eBPF / TPROXY（默认）</option><option value="tun">sing-box TUN</option></select></div>
+      <div class="field"><label>接口名</label><input id="f25-tun-interface" maxlength="15" value="fastacl-tun0"></div>
+      <div class="field"><label>地址</label><input id="f25-tun-address" value="172.19.0.1/30"></div>
+      <div class="field"><label>MTU</label><input id="f25-tun-mtu" type="number" min="1280" max="9000" value="9000"></div>
+      <div class="field"><label>栈</label><select id="f25-tun-stack"><option value="mixed">Mixed</option><option value="system">System</option><option value="gvisor">gVisor</option></select></div>
+    </div>
+    <div class="bar"><button class="cbi-button cbi-button-apply" id="f25-dataplane-save">应用数据面</button><span class="note" id="f25-dataplane-state"></span></div>
+  </div>
+
   <div class="card"><details><summary>机场订阅</summary><div class="subscription-section-body">
     <div class="subscription-create"><div class="subscription-create-title">新增订阅</div><div class="subscription-create-fields">
       <div class="field"><label for="f25-sub-name">订阅名称</label><input id="f25-sub-name" placeholder="例如：机场 1 / 备用线路"></div>
@@ -238,7 +250,7 @@ function dnsSel(mode,v,custom){if(v==='follow_exit')v='cloudflare';const s=docum
 function dnsPath(mode){const s=document.createElement('select');setDnsPath(s,mode);s.disabled=true;s.title='查询路径由出口节点决定，代理 DNS 不允许回落直连';return s}
 function setDnsPath(s,mode){s.replaceChildren();opt(s,mode,mode==='split'?'国内域名直连 DNS · 其余跟随代理':mode==='proxy'?'跟随代理出口（节点 + 前置）':'本地直连出口');s.value=mode}
 function field(name,c,wide){const d=el('div','field'+(wide?' wide':''));d.append(el('label','',name),c);return d}
-function health(){const r=state.runtime||{};$('health').textContent=(state.enabled?'已启用':'未启用')+' · 核心 '+(r.engine||'stopped')+' · 防火墙 '+(r.firewall?'正常':'未加载')+(r.switch&&r.switch!=='none'?' · '+r.switch:'')+' · '+state.version}
+function health(){const r=state.runtime||{};$('health').textContent=(state.enabled?'已启用':'未启用')+' · '+(r.dataplane||state.dataplane||'ebpf')+' · 核心 '+(r.engine||'stopped')+' · 防火墙 '+(r.firewall?'正常':'未加载')+(r.switch&&r.switch!=='none'?' · '+r.switch:'')+' · '+state.version}
 function renderBatch(){const a=nodeSel('',false),b=nodeSel('',true);$('batch-node').replaceChildren(...a.childNodes);$('batch-pre').replaceChildren(...b.childNodes);$('batch-node').value='';$('batch-pre').value=''}
 let nodeSource='all',nodeRegion='all',nodeQuery='',nodePage=0,visibleNodes=[];const pageSize=20;
 function region(n){const name=String(n.name||'');const regions=[['香港',/香港|Hong.?Kong|🇭🇰|\bHK\b/i],['台湾',/台湾|台灣|Taiwan|🇹🇼|\bTW\b/i],['日本',/日本|Japan|东京|大阪|🇯🇵|\bJP\b/i],['新加坡',/新加坡|Singapore|狮城|🇸🇬|\bSG\b/i],['美国',/美国|美國|United.?States|洛杉矶|🇺🇸|\bUS\b/i],['韩国',/韩国|韓國|Korea|🇰🇷|\bKR\b/i],['英国',/英国|英國|Britain|London|🇬🇧|\bUK\b/i],['德国',/德国|德國|Germany|🇩🇪|\bDE\b/i]];return (regions.find(x=>x[1].test(name))||['其他 / 未识别'])[0]}
@@ -304,9 +316,10 @@ function renderWifis(){
 }
 
 function renderDns(){for(const [id,scope,val] of [['direct-dns','direct',state.direct_dns],['proxy-dns','proxy',state.proxy_dns]]){const s=$(id);s.replaceChildren();dnsFill(s,scope);s.value=val==='follow_exit'?'cloudflare':val||''}}
+function renderDataplane(){const plan=state.dataplane==='tun'?'tun':'ebpf';$('dataplane').value=plan;$('tun-interface').value=state.tun_interface||'fastacl-tun0';$('tun-address').value=state.tun_address||'172.19.0.1/30';$('tun-mtu').value=state.tun_mtu||9000;$('tun-stack').value=state.tun_stack||'mixed';$('dataplane-state').textContent=(state.runtime&&state.runtime.dataplane)==='tun'?'TUN':'eBPF';for(const id of ['tun-interface','tun-address','tun-mtu','tun-stack'])$(id).disabled=plan!=='tun'}
 function renderSubLogs(){const root=$('sub-logs');root.replaceChildren();const names=new Map((state.subscriptions||[]).map(s=>[s.id,s.name]));for(const log of (Array.isArray(state.subscription_history)?state.subscription_history:[])){const row=el('div','item'),title=el('div',log.ok?'good':'bad',new Date(log.attempt*1000).toLocaleString()+' · '+(names.get(log.id)||'已删除订阅')+' · '+(log.ok?'成功':'失败'));row.append(title,el('div','note',log.ok?'导入 '+log.count+' 个节点 · 耗时 '+Math.max(0,(log.finished||log.attempt)-log.attempt)+' 秒':log.error||'更新失败'));root.append(row)}if(!root.childNodes.length)root.append(el('p','note','暂无更新记录；下次更新订阅后显示。'))}
 function renderSubs(){renderSubLogs();const list=state.subscriptions||[],root=$('sub-list');root.replaceChildren();$('sub-count').textContent=list.length+' 个';$('sub-update').disabled=state.subscription_running===true;$('sub-update').textContent=state.subscription_running?'更新中…':'更新全部';list.forEach((s,i)=>{const row=el('div','subscription-row'),number=el('span','subscription-number',String(i+1).padStart(2,'0')),identity=el('div','subscription-identity'),period=el('div','subscription-period','每 '+s.interval_hours+' 小时'),last=el('div','subscription-result'),actions=el('div','subscription-actions'),update=el('button','cbi-button subscription-update','更新'),remove=el('button','cbi-button danger','删除'),st=s.status||{};identity.append(el('div','title',s.name||s.id),el('div','meta',s.enabled===false?'已停用':'自动更新已启用'));const when=Number(st.finished||st.attempt||0);if(when>0&&Number.isFinite(when)){last.append(el('div','subscription-result-state '+(st.ok?'good':'bad'),st.ok?'成功 · '+Number(st.count||0)+' 个节点':'更新失败'),el('div','meta',new Date(when*1000).toLocaleString()));if(st.ok===false&&st.error)last.append(el('div','meta',st.error))}else last.append(el('div','meta','尚未更新'));update.type=remove.type='button';update.disabled=state.subscription_running===true;update.onclick=async()=>{update.disabled=true;try{await sub({action:'update',id:s.id})}finally{update.disabled=state.subscription_running===true}};remove.onclick=()=>confirm('删除订阅“'+(s.name||s.id)+'”？')&&sub({action:'remove',id:s.id});actions.append(update,remove);row.append(number,identity,period,last,actions);root.append(row)});if(!list.length)root.append(el('div','subscription-empty','暂无订阅，在上方添加 HTTPS 订阅地址。'))}
-function render(){health();renderNodes();renderBatch();renderDevices();renderWifis();renderDns();renderSubs()}
+function render(){health();renderNodes();renderBatch();renderDevices();renderWifis();renderDns();renderDataplane();renderSubs()}
 async function load(){try{state=await api('status');render()}catch(e){msg(e.message,true)}}
 async function store(data){if(busy)return false;busy=true;const t=performance.now();try{const j=await api('save',{data:JSON.stringify(data)});await load();msg((j.message||'完成')+' · '+((performance.now()-t)/1000).toFixed(2)+'s');return true}catch(e){msg(e.message,true);return false}finally{busy=false}}
 let wifiProgress=null;
@@ -322,7 +335,7 @@ $('import').onclick=async()=>{const links=$('links').value;if(!links.trim())retu
 
 $('select-all').onclick=()=>{visibleNodes.forEach(n=>selected.add(n.id));renderNodes()};$('clear-selected').onclick=()=>{selected.clear();renderNodes()};$('delete-selected').onclick=async()=>{if(!selected.size)return msg('请先选择节点',true);if(!confirm('删除所选未绑定节点？正在使用的会自动跳过。'))return;try{const j=await api('delete_nodes',{data:JSON.stringify({ids:[...selected]})});selected.clear();await load();const x=(j.skipped||[]).map(v=>v.id+'：'+v.reason).join('\n');msg(j.message+(x?'\n'+x:''),(j.skipped||[]).length>0)}catch(e){msg(e.message,true)}};
 $('batch').onclick=()=>{const a=rows.filter(r=>r.ck.checked);if(!a.length)return msg('请先勾选设备',true);a.forEach(r=>{r.node.value=$('batch-node').value;r.pre.value=$('batch-pre').value});store({devices:a.map(devicePayload)})};$('unbind').onclick=()=>{const a=rows.filter(r=>r.ck.checked);if(!a.length)return msg('请先勾选设备',true);store({devices:a.map(r=>({mac:r.d.mac,remove:true}))})};
-$('dns-save').onclick=()=>store({direct_dns:$('direct-dns').value,proxy_dns:$('proxy-dns').value});$('wcreate').onclick=()=>wifi({action:'create',count5:Number($('w5').value||0),count2:Number($('w2').value||0),prefix:$('wprefix').value,start:Number($('wstart').value||1),key:$('wkey').value,node:$('wnode').value,preproxy:$('wnode').value?$('wpre').value:'',dns:$('wdns').value,hidden:$('whidden').value==='1'});$('hide-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:true});$('show-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:false});
+$('dns-save').onclick=()=>store({direct_dns:$('direct-dns').value,proxy_dns:$('proxy-dns').value});$('dataplane').onchange=()=>renderDataplane();$('dataplane-save').onclick=()=>store({dataplane:$('dataplane').value,tun_interface:$('tun-interface').value,tun_address:$('tun-address').value,tun_mtu:Number($('tun-mtu').value),tun_stack:$('tun-stack').value});$('wcreate').onclick=()=>wifi({action:'create',count5:Number($('w5').value||0),count2:Number($('w2').value||0),prefix:$('wprefix').value,start:Number($('wstart').value||1),key:$('wkey').value,node:$('wnode').value,preproxy:$('wnode').value?$('wpre').value:'',dns:$('wdns').value,hidden:$('whidden').value==='1'});$('hide-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:true});$('show-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:false});
 $('sub-add').onclick=()=>sub({action:'save',name:$('sub-name').value,url:$('sub-url').value,interval_hours:Number($('sub-hours').value),enabled:true});$('sub-update').onclick=()=>sub({action:'update',id:'all'});$('assign-type').onchange=assignTargets;$('assign-go').onclick=()=>doAssign(false);$('assign-unbind').onclick=()=>doAssign(true);$('assign-close').onclick=closeAssign;$('assign-modal').onclick=e=>{if(e.target===$('assign-modal'))closeAssign()};
 
 $('wifi-select-all').onchange=()=>{wifiSelected=$('wifi-select-all').checked?new Set((state.wifi.managed||[]).map(w=>w.id)):new Set();renderWifis()};

@@ -36,9 +36,10 @@ if [ -z "$dts_identity" ]; then
   dts_identity=${dts}.dts
 fi
 test -f "target/linux/mediatek/dts/$dts.dts"
-mkdir -p package/fastacl252 package/juliangtk-dae
+mkdir -p package/fastacl252 package/juliangtk-dae package/juliangtk-sing-box
 cp profiles/fastacl-v252/package-Makefile package/fastacl252/Makefile
 cp profiles/fastacl-v252/core-Makefile package/juliangtk-dae/Makefile
+cp profiles/fastacl-v252/singbox-Makefile package/juliangtk-sing-box/Makefile
 cp -a profiles/fastacl-v252/root package/fastacl252/files
 (cd profiles/fastacl-v252/dns && go mod tidy && go mod vendor && python3 ../patch_outbound.py . && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -mod=vendor -trimpath -ldflags="-s -w" -o ../../../package/fastacl252/files/usr/bin/fastacl252-dns .)
 
@@ -69,11 +70,11 @@ sed -i "s/hostname='.*'/hostname='JuLiangTK-${tag}'/g" package/base-files/files/
 ROOT_HASH=$(openssl passwd -1 '@password@')
 sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d package/fastacl252/files/etc/uci-defaults -type f -exec chmod 755 {} \;
-chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
+chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh package/fastacl252/files/usr/libexec/fastacl252-singbox-generate.lua
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.6.4" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.6.4" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.7.1" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.7.1" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
@@ -87,7 +88,7 @@ fi
 make defconfig
 sed -i "s/JuLiangTK-S20L/JuLiangTK-${tag}/g" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
 sh scripts/integrate-fastacl252-dependencies.sh
-for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
+for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae juliangtk-sing-box firewall4; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
 if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in Lite'; exit 1; fi

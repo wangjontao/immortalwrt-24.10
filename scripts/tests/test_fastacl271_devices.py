@@ -4,13 +4,10 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 script = (ROOT / 'scripts/integrate-fastacl252-s20l.sh').read_text(encoding='utf-8')
-workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262.yml').read_text(encoding='utf-8')
-grouped_workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262-Grouped.yml').read_text(encoding='utf-8')
-grouped_workflow_263 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL263-Grouped.yml').read_text(encoding='utf-8')
-grouped_workflow_264 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL264-Grouped.yml').read_text(encoding='utf-8')
+grouped_workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL271-Grouped.yml').read_text(encoding='utf-8')
 image_makefile = (ROOT / 'target/linux/mediatek/image/filogic.mk').read_text(encoding='utf-8')
 base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL258.txt').read_text(encoding='utf-8')
-grouped_script = (ROOT / 'scripts/integrate-fastacl262-grouped.sh').read_text(encoding='utf-8')
+grouped_script = (ROOT / 'scripts/integrate-fastacl271-grouped.sh').read_text(encoding='utf-8')
 
 DEVICES = {
     'philips_hy3000': ('PHILIPS-HY3000', 'mt7981b-philips-hy3000', 'philips,hy3000', 'Philips HY3000', None),
@@ -39,9 +36,7 @@ assert len(DEVICES) == 20
 
 for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
     assert f'{device}) tag={tag}; dts={dts}; compatible={compatible}' in script
-    assert f'- device: {device}' in workflow
-    assert f'tag: {tag}' in workflow
-    assert f'label: {label}' in workflow
+    assert f'{device}' in grouped_workflow
     assert f'define Device/{device}' in image_makefile
     assert f'TARGET_DEVICES += {device}' in image_makefile
     dts_path = ROOT / 'target/linux/mediatek/dts' / f'{dts}.dts'
@@ -83,21 +78,21 @@ assert len(grouped_devices) == 4
 assert all(len(devices) == 5 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == set(DEVICES)
 assert 'max-parallel: 4' in grouped_workflow
-assert 'integrate-fastacl262-grouped.sh' in grouped_workflow
-assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_263
-assert '${{ github.run_id }}' in grouped_workflow_263
-assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_264
-assert '${{ github.run_id }}' in grouped_workflow_264
+assert 'integrate-fastacl271-grouped.sh' in grouped_workflow
+assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow
+assert '${{ github.run_id }}' in grouped_workflow
 assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
 assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
 
 assert "make defconfig" in script
+assert 'juliangtk-sing-box' in script
+assert 'singbox-Makefile' in script
 assert "CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" in script
 assert "CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y" not in script
-assert "max-parallel: 20" in workflow
-assert "cancel-in-progress: false" in workflow
-assert "branches: ['2.6.2']" in workflow
-for path in (ROOT / '.github/workflows').glob('*FastACL262*.yml'):
+assert "max-parallel: 4" in grouped_workflow
+assert "cancel-in-progress: false" in grouped_workflow
+assert "branches: ['2.7.1']" in grouped_workflow
+for path in (ROOT / '.github/workflows').glob('*FastACL271*.yml'):
     assert 'cancel-in-progress: false' in path.read_text(encoding='utf-8'), path
 
-print('FastACL 2.6.2 MT7981 device matrix and DTS identities: OK')
+print('FastACL 2.7.1 MT7981 device matrix and DTS identities: OK')

@@ -31,6 +31,9 @@ assert "option enabled '1'" in config
 assert "option interval '10'" in config
 assert 'wan-watchdog.main.enabled' in init
 assert 'procd_add_reload_trigger wan-watchdog' in init
+assert 'dataplane_now' in runtime
+assert 'start_tun_next' in runtime
+assert 'sing-box check' in runtime
 assert 'ubus call network.interface.wan renew' in watchdog
 assert 'ubus call network.interface.wan down' in watchdog
 assert 'ubus call network.interface.wan up' in watchdog
@@ -54,6 +57,9 @@ assert 'tcp_half_close_timeout' in fastacl_config and "'30s'" in fastacl_config
 assert "capacity_profile 'auto'" in fastacl_config
 assert "data_max_connections 'auto'" in fastacl_config
 assert "data_max_connections_per_session 'auto'" in fastacl_config
+assert "dataplane 'ebpf'" in fastacl_config
+assert "tun_interface 'fastacl-tun0'" in fastacl_config
+assert "tun_address '172.19.0.1/30'" in fastacl_config
 assert 'ip -4 route show default' in nps
 assert 'mkdir "$LOCK"' in nps
 assert 'NPS restarted after WAN ready' in nps
@@ -82,10 +88,11 @@ assert 'luci-app-wan-watchdog' in acl
 assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
 
 pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
-assert 'PKG_VERSION:=2.6.4' in pkg
+assert 'PKG_VERSION:=2.7.1' in pkg
 assert 'PKG_RELEASE:=1' in pkg
+assert '+juliangtk-sing-box' in pkg
 assert '/usr/bin/wan-watchdog' in pkg
 assert '/etc/init.d/wan-watchdog' in pkg
 assert '/etc/config/wan-watchdog' in pkg
 
-print('FastACL 2.6.4 stability, DNS guard and WAN watchdog: OK')
+print('FastACL 2.7.1 stability, dual dataplane and WAN watchdog: OK')

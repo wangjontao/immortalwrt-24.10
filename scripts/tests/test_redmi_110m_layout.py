@@ -18,8 +18,8 @@ def source_checks():
  assert 'CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_redmi-router-ax6000=y' in config
  assert 'CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_redmi-router-ax6000-ubootmod=y' not in config
  package=(ROOT/'profiles/fastacl-v252/package-Makefile').read_text()
- assert 'PKG_VERSION:=2.6.4' in package and 'PKG_RELEASE:=1' in package
- print('PASS source: NMBM, 110MiB UBI, factory/sysupgrade BIN, upgrade label, FastACL r2')
+ assert 'PKG_VERSION:=2.7.1' in package and 'PKG_RELEASE:=1' in package
+ print('PASS source: NMBM, 110MiB UBI, factory/sysupgrade BIN, upgrade label, FastACL 2.7.1')
 
 def fdt(blob):
  h=struct.unpack_from('>10I',blob);assert h[0]==0xd00dfeed

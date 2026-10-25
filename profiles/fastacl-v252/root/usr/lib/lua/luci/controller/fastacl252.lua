@@ -88,7 +88,7 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.6.4',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({dns_stats=dns_stats,ok=true,version='2.7.1',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -110,6 +110,11 @@ function save()
     local c=env.read(u); enabled=c.enabled
     if request.direct_dns then assert(provider_ok(request.direct_dns,'direct'),'国内直连 DNS 选择无效'); c.direct_dns=request.direct_dns end
     if request.proxy_dns then assert(provider_ok(request.proxy_dns,'proxy'),'代理出口 DNS 选择无效'); c.proxy_dns=request.proxy_dns end
+    if request.dataplane then c.dataplane=tostring(request.dataplane) end
+    if request.tun_interface then c.tun_interface=tostring(request.tun_interface) end
+    if request.tun_address then c.tun_address=tostring(request.tun_address) end
+    if request.tun_mtu then c.tun_mtu=tonumber(request.tun_mtu) end
+    if request.tun_stack then c.tun_stack=tostring(request.tun_stack) end
 
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'设备数量过多')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
@@ -144,6 +149,11 @@ function save()
 
     if request.direct_dns then u:set('fastacl252','main','direct_dns',c.direct_dns) end
     if request.proxy_dns then u:set('fastacl252','main','proxy_dns',c.proxy_dns) end
+    if request.dataplane then u:set('fastacl252','main','dataplane',c.dataplane) end
+    if request.tun_interface then u:set('fastacl252','main','tun_interface',c.tun_interface) end
+    if request.tun_address then u:set('fastacl252','main','tun_address',c.tun_address) end
+    if request.tun_mtu then u:set('fastacl252','main','tun_mtu',tostring(c.tun_mtu)) end
+    if request.tun_stack then u:set('fastacl252','main','tun_stack',c.tun_stack) end
 
     for mac in pairs(changed) do
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id; local old=before[mac]; local d=existing[mac]

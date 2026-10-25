@@ -65,6 +65,15 @@ function M.validate(c,guards_only)
   assert(M.dev(c.interface),'LAN interface unavailable')
   assert(M.ipnum(c.router_ip) and M.prefix(c.netmask),'Static IPv4 LAN required')
   assert(tonumber(c.port) and c.port>=1024 and c.port<=65535 and c.port%1==0,'Invalid port')
+  c.dataplane=c.dataplane or 'ebpf'
+  assert(c.dataplane=='ebpf' or c.dataplane=='tun','Invalid dataplane')
+  if c.dataplane=='tun' then
+    assert(type(c.tun_interface)=='string' and c.tun_interface:match('^[%w_.:-]+$') and #c.tun_interface<=15,'Invalid TUN interface')
+    local ip,pfx=assert(c.tun_address,'Missing TUN address'):match('^(%d+%.%d+%.%d+%.%d+)/(%d+)$')
+    assert(M.ipnum(ip) and tonumber(pfx) and tonumber(pfx)>=29 and tonumber(pfx)<=30,'Invalid TUN address')
+    assert(tonumber(c.tun_mtu) and c.tun_mtu>=1280 and c.tun_mtu<=9000,'Invalid TUN MTU')
+    assert(c.tun_stack=='mixed' or c.tun_stack=='system' or c.tun_stack=='gvisor','Invalid TUN stack')
+  end
   assert(c.port~=12553 and (c.port<12600 or c.port>=14000),'Port reserved for encrypted DNS')
   assert(c.default_mode=='direct','Default mode must be direct')
   assert(c.dns_policy=='direct' or c.dns_policy=='private','Invalid legacy DNS policy')
