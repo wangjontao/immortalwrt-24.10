@@ -68,7 +68,8 @@ assert 'band@0' in zbt_text and 'band@1' in zbt_text
 assert "make defconfig" in script
 assert "CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" in script
 assert "CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y" not in script
-assert "max-parallel: 2" in workflow
+assert "max-parallel: 20" in workflow
+assert "cancel-in-progress: true" in workflow
 assert "branches: ['2.6.1']" in workflow
 
 print('FastACL 2.6.1 MT7981 device matrix and DTS identities: OK')

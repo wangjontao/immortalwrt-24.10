@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: fastacl261-JuLiangTK-MT7981-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   preflight:
@@ -89,7 +89,7 @@ jobs:
     name: Build ${{ matrix.label }} FastACL 2.6.1
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 20
       matrix:
         include:
           - device: philips_hy3000
