@@ -6,10 +6,13 @@ R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
 HEALTH_LOG=${FASTACL_HEALTH_LOG:-/root/fastacl252-health.log}
 LOCK="${R}-apply.lock"
 SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
-DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-36000}
-DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-36000}
+DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-}
+DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-}
 RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
+FD_HARD_LIMIT=
+FD_SOFT_LIMIT=
+CAPACITY_PROFILE=
 DAE_TCP_RELAY_IDLE_TIMEOUT=$(uci -q get fastacl252.main.tcp_idle_timeout 2>/dev/null || true)
 case "$DAE_TCP_RELAY_IDLE_TIMEOUT" in
   [0-9]s|[0-9][0-9]s|[0-9][0-9][0-9]s) ;;
@@ -22,9 +25,63 @@ case "$DAE_TCP_RELAY_HALF_CLOSE_TIMEOUT" in
 esac
 mkdir -p "$R"
 
+detect_capacity(){
+  local mem_kb cpus profile
+  mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
+  cpus=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 1)
+  profile=${FASTACL_CAPACITY_PROFILE:-$(uci -q get fastacl252.main.capacity_profile 2>/dev/null || true)}
+  if [ "$profile" = auto ] || [ -z "$profile" ]; then
+    if [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 1800000 ]; then
+      profile=high
+    elif [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 900000 ]; then
+      profile=quad
+    elif [ "$cpus" -ge 2 ] && [ "$mem_kb" -ge 900000 ]; then
+      profile=balanced
+    else
+      profile=compact
+    fi
+  fi
+  case "$profile" in
+    high)
+      FD_HARD_LIMIT=65536; FD_SOFT_LIMIT=61440
+      [ -n "$DAE_FD_LIMIT" ] || DAE_FD_LIMIT=57344
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=57344
+      ;;
+    quad)
+      FD_HARD_LIMIT=49152; FD_SOFT_LIMIT=45056
+      [ -n "$DAE_FD_LIMIT" ] || DAE_FD_LIMIT=43008
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=43008
+      ;;
+    balanced)
+      FD_HARD_LIMIT=40960; FD_SOFT_LIMIT=38912
+      [ -n "$DAE_FD_LIMIT" ] || DAE_FD_LIMIT=36000
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=36000
+      ;;
+    *)
+      profile=compact
+      FD_HARD_LIMIT=24576; FD_SOFT_LIMIT=22528
+      [ -n "$DAE_FD_LIMIT" ] || DAE_FD_LIMIT=20480
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=20480
+      ;;
+  esac
+  CAPACITY_PROFILE=$profile
+}
+
+detect_capacity
+
 raise_nofile(){
-  ulimit -Hn 40960 2>/dev/null || true
-  ulimit -Sn 38912 2>/dev/null || true
+  case "$CAPACITY_PROFILE" in
+    high)
+      [ "$(cat /proc/sys/fs/file-max 2>/dev/null || echo 0)" -ge 200000 ] ||
+        sysctl -w fs.file-max=200000 >/dev/null 2>&1 || true
+      ;;
+    quad)
+      [ "$(cat /proc/sys/fs/file-max 2>/dev/null || echo 0)" -ge 150000 ] ||
+        sysctl -w fs.file-max=150000 >/dev/null 2>&1 || true
+      ;;
+  esac
+  ulimit -Hn "$FD_HARD_LIMIT" 2>/dev/null || true
+  ulimit -Sn "$FD_SOFT_LIMIT" 2>/dev/null || true
 }
 
 pause_fast(){
