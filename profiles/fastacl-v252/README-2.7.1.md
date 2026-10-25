@@ -10,6 +10,7 @@ sing-box TUN backend.
 - Only one dataplane may own TCP/UDP forwarding at a time.
 - DNS interception, DNS leak protection, device/WiFi bindings and WAN watchdog remain FastACL-owned.
 - Switching dataplane uses the normal guarded apply path and preserves configuration.
+- Six consecutive TUN runtime failures automatically restore the last FastACL config with `dataplane=ebpf`.
 
 ## TUN backend
 

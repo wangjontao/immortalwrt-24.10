@@ -10,6 +10,7 @@ DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-}
 DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-}
 RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
+TUN_FALLBACK_AFTER=${FASTACL_TUN_FALLBACK_AFTER:-6}
 FD_HARD_LIMIT=
 FD_SOFT_LIMIT=
 CAPACITY_PROFILE=
@@ -510,6 +511,23 @@ ensure_runtime(){
   hot_apply
 }
 
+fallback_to_ebpf(){
+  local backup="$R/dataplane.fallback.conf"
+  [ "$(dataplane_now)" = tun ] || return 0
+  cp /etc/config/fastacl252 "$backup"
+  chmod 600 "$backup"
+  uci set fastacl252.main.dataplane='ebpf'
+  uci commit fastacl252
+  if /usr/bin/fastacl252 hot-apply >"$R/tun-fallback.log" 2>&1; then
+    health_log 'TUN unavailable; automatically fell back to eBPF'
+    return 0
+  fi
+  cp "$backup" /etc/config/fastacl252
+  chmod 600 /etc/config/fastacl252
+  /usr/bin/fastacl252 hot-apply >"$R/tun-fallback-restore.log" 2>&1 || true
+  return 1
+}
+
 status(){
   local engine=stopped fw=false mode=none request=none plane
   plane=$(dataplane_now)
@@ -543,6 +561,7 @@ case "${1:-status}" in
   guard)
     raise_nofile
     failures=0
+    tun_failures=0
     probe_failures=0
     last_probe=0
     last_snapshot=0
@@ -550,7 +569,18 @@ case "${1:-status}" in
       reason=$(runtime_failure 2>/dev/null || true)
       if [ -n "$reason" ]; then
         failures=$((failures+1))
+        [ "$(dataplane_now)" != tun ] || tun_failures=$((tun_failures+1))
         health_log "failure=$reason consecutive=$failures"
+        if [ "$(dataplane_now)" = tun ] && [ "$tun_failures" -ge "$TUN_FALLBACK_AFTER" ] &&
+           ! edit_busy && [ ! -d "$LOCK" ]; then
+          health_log "TUN failed $tun_failures times; falling back to eBPF"
+          if fallback_to_ebpf; then
+            failures=0
+            tun_failures=0
+            pause_fast
+            sleep 10
+          fi
+        fi
         if [ "$failures" -ge 2 ]; then
           now=$(date +%s)
           last=$(cat "$R/health.last-recovery" 2>/dev/null || echo 0)
@@ -567,6 +597,7 @@ case "${1:-status}" in
       else
         [ "$failures" -eq 0 ] || health_log "runtime recovered"
         failures=0
+        tun_failures=0
         now=$(date +%s)
         if [ $((now-last_probe)) -ge 60 ]; then
           last_probe=$now

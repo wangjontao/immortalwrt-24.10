@@ -156,6 +156,9 @@ class TunDataplaneTests(unittest.TestCase):
         package = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
         for required in ('dataplane_now', 'tun_alive', 'tun_ready', 'start_tun_next', 'tun_stop'):
             self.assertIn(required, runtime)
+        self.assertIn('TUN_FALLBACK_AFTER', runtime)
+        self.assertIn('fallback_to_ebpf', runtime)
+        self.assertIn('automatically fell back to eBPF', runtime)
         self.assertIn('reload_tun_next', runtime)
         self.assertIn('dae_stop', runtime)
         self.assertIn('dataplane', controller)
