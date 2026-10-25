@@ -21,6 +21,8 @@ assert "--proto '=https' --proto-redir '=https'" in worker
 assert 'upgrade_pending' in worker
 assert "{'admin', 'juliang', 'upgrade'}" in controller
 assert "post('upgrade_action')" in controller
+assert 'page.leaf = true' not in controller
+assert "status.channel = cursor:get('fastacl-upgrade', 'settings', 'channel')" in controller
 assert '确认下载并升级到最新版本' in view
 assert 'RWRX1735Din4LflnzgONFibY5aDNvwcnbtf8dKfdkq2HfqGZ5t++qEaH' in public_key
 assert "https://up.juliangtk.top:8443" in upgrade_config

@@ -7,7 +7,6 @@ function index()
 		_('在线升级'),
 		9
 	)
-	page.leaf = true
 	page.acl_depends = {'juliang-center'}
 
 	local status = entry(
@@ -86,9 +85,11 @@ end
 
 function upgrade_status()
 	local status = pending_status() or read_status()
+	local cursor = require('uci').cursor()
 	status.ok = true
 	status.current_version = current_version()
 	status.board = current_board()
+	status.channel = cursor:get('fastacl-upgrade', 'settings', 'channel') or 'stable'
 	reply(status)
 end
 
