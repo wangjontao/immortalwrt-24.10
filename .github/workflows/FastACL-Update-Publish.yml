@@ -119,6 +119,7 @@ jobs:
             --base-url "https://$RELEASE_DOMAIN" \
             --notes-url "${{ inputs.notes_url }}" \
             --source-runs "${{ inputs.run_ids }}" \
+            --require-all \
             --usign /tmp/usign \
             --signing-key /tmp/update-signing.key
           /tmp/usign -V -m "publish/$channel.json" \

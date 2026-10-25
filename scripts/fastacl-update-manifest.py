@@ -41,6 +41,7 @@ def main() -> None:
     parser.add_argument('--base-url', default='https://up.juliangtk.top')
     parser.add_argument('--notes-url', default='')
     parser.add_argument('--source-runs', default='')
+    parser.add_argument('--require-all', action='store_true')
     parser.add_argument('--usign', type=Path)
     parser.add_argument('--signing-key', type=Path)
     args = parser.parse_args()
@@ -51,6 +52,7 @@ def main() -> None:
 
     entries = []
     seen_boards = set()
+    missing = []
     for model in models:
         device = model['device']
         board = model['board']
@@ -59,6 +61,7 @@ def main() -> None:
         seen_boards.add(board)
         image = find_image(args.artifacts, device)
         if image is None:
+            missing.append(device)
             continue
         relative = f'releases/{args.version}/{image.name}'
         entries.append({
@@ -73,6 +76,8 @@ def main() -> None:
 
     if not entries:
         raise SystemExit('No matching sysupgrade images were found.')
+    if args.require_all and missing:
+        raise SystemExit(f'Missing sysupgrade images: {", ".join(missing)}')
 
     manifest = {
         'schema': 1,
