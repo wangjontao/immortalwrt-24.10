@@ -84,8 +84,8 @@ function M.compile(c)
   for _,d in ipairs(c.devices) do
     d.platform_scope="device_"..d.mac:gsub(":","")
     local port=0; local name
-    if d.mode=='proxy' or c.fixed_exit then
-      if d.mode=='proxy' then name,port=ensure_exit(d) end
+    if d.mode=='proxy' then
+      name,port=ensure_exit(d)
       if c.fixed_exit then name=fixed_target('device_'..d.mac:gsub(':',''),port) end
       local mac='mac('..quote(d.mac)..')'; local ip='sip('..d.ip..'/32)'
       rules[#rules+1]='sip('..policy.cidr(c.router_ip,c.netmask)..') && '..mac..' && !'..ip..' -> block'
@@ -105,12 +105,14 @@ function M.compile(c)
   for _,w in ipairs(c.wifis or {}) do
     w.platform_scope="wifi_"..id(w.id)
     local port=0
-    if c.fixed_exit then
-      if w.mode=='proxy' then local unused;unused,port=ensure_exit(w) end
-      local name=fixed_target('wifi_'..id(w.id),port)
-      if w.mode=='proxy' then platform_target(w,'sip('..w.subnet..')',port);require('fastacl252_split').dae(w,'sip('..w.subnet..')',name,rules) end
+    if w.mode=='proxy' then
+      local name
+      name,port=ensure_exit(w)
+      if c.fixed_exit then name=fixed_target('wifi_'..id(w.id),port) end
+      platform_target(w,'sip('..w.subnet..')',port)
+      require('fastacl252_split').dae(w,'sip('..w.subnet..')',name,rules)
       rules[#rules+1]='sip('..w.subnet..') -> must_'..name
-    elseif w.mode=='proxy' then local name;name,port=ensure_exit(w);platform_target(w,'sip('..w.subnet..')',port);require('fastacl252_split').dae(w,'sip('..w.subnet..')',name,rules);rules[#rules+1]='sip('..w.subnet..') -> must_'..name end
+    end
     local resolver=dns.resolve(w,w.mode,c,resolvers,'wifi_'..w.id)
     relay.network_policies[w.subnet]=require('fastacl252_split').dns(w,{resolver=resolver,exit=port},c,resolvers)
   end
