@@ -224,3 +224,5 @@ jobs:
           retention-days: 30
 
 # Runs the layout validation after test changes.
+
+# Package the Redmi 2.6.0 README with the generated firmware.
