@@ -16,7 +16,7 @@ function M.read(u,guards_only)
   local main=u:get_all('fastacl252','main') or {}
   local net=main.network or 'lan'; assert(policy.id(net),'Invalid network')
   local iface,addr,mask=status_for(net,u)
-  local c={network=net,interface=iface,interfaces={},router_ip=addr,netmask=mask,port=tonumber(main.port or 12525),enabled=main.enabled=='1',default_mode=main.default_mode or 'direct',dns_policy=main.dns_policy or 'private',dns_server=main.dns_server or '223.5.5.5',dns_name=main.dns_name or 'dns.alidns.com',private_dns_server=main.private_dns_server or '1.1.1.1',private_dns_name=main.private_dns_name or 'cloudflare-dns.com',direct_dns=main.direct_dns or 'alidns',proxy_dns=main.proxy_dns or 'cloudflare',devices={},wifis={},nodes={}}
+  local c={network=net,interface=iface,interfaces={},router_ip=addr,netmask=mask,port=tonumber(main.port or 12525),data_max_connections=tonumber(main.data_max_connections or 8192),data_max_connections_per_session=tonumber(main.data_max_connections_per_session or 96),enabled=main.enabled=='1',default_mode=main.default_mode or 'direct',dns_policy=main.dns_policy or 'private',dns_server=main.dns_server or '223.5.5.5',dns_name=main.dns_name or 'dns.alidns.com',private_dns_server=main.private_dns_server or '1.1.1.1',private_dns_name=main.private_dns_name or 'cloudflare-dns.com',direct_dns=main.direct_dns or 'alidns',proxy_dns=main.proxy_dns or 'cloudflare',devices={},wifis={},nodes={}}
   if iface and iface~='' then c.interfaces[#c.interfaces+1]=iface end
   u:foreach('fastacl252','node',function(n)
     n.outbound=json.parse(n.outbound or '')

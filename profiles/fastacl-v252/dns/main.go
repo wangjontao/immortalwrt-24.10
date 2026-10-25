@@ -36,26 +36,27 @@ type PolicyConfig struct {
 }
 type Config struct {
 	// Zero means no application-level concurrency cap; positive limits require restart.
-	DataMaxConnections        int                       `json:"data_max_connections,omitempty"`
-	DataMaxUDPFlows           int                       `json:"data_max_udp_flows,omitempty"`
-	DataMaxUDPFlowsPerSession int                       `json:"data_max_udp_flows_per_session,omitempty"`
-	DomesticDomainsFile       string                    `json:"domestic_domains_file,omitempty"`
-	PlatformRulesFile         string                    `json:"platform_rules_file,omitempty"`
-	PlatformStateFile         string                    `json:"platform_state_file,omitempty"`
-	DataListen                string                    `json:"data_listen"`
-	DataSecret                string                    `json:"data_secret"`
-	DataSlots                 map[string]int            `json:"data_slots"`
-	Listen                    string                    `json:"listen"`
-	DirectIP                  string                    `json:"direct_ip"`
-	DirectName                string                    `json:"direct_name"`
-	PrivateIP                 string                    `json:"private_ip"`
-	PrivateName               string                    `json:"private_name"`
-	Devices                   map[string]int            `json:"devices"`
-	Exits                     map[string]string         `json:"exits"`
-	Resolvers                 map[string]ResolverConfig `json:"resolvers"`
-	DevicePolicies            map[string]PolicyConfig   `json:"device_policies"`
-	NetworkPolicies           map[string]PolicyConfig   `json:"network_policies"`
-	DefaultPolicy             PolicyConfig              `json:"default_policy"`
+	DataMaxConnections           int                       `json:"data_max_connections,omitempty"`
+	DataMaxConnectionsPerSession int                       `json:"data_max_connections_per_session,omitempty"`
+	DataMaxUDPFlows              int                       `json:"data_max_udp_flows,omitempty"`
+	DataMaxUDPFlowsPerSession    int                       `json:"data_max_udp_flows_per_session,omitempty"`
+	DomesticDomainsFile          string                    `json:"domestic_domains_file,omitempty"`
+	PlatformRulesFile            string                    `json:"platform_rules_file,omitempty"`
+	PlatformStateFile            string                    `json:"platform_state_file,omitempty"`
+	DataListen                   string                    `json:"data_listen"`
+	DataSecret                   string                    `json:"data_secret"`
+	DataSlots                    map[string]int            `json:"data_slots"`
+	Listen                       string                    `json:"listen"`
+	DirectIP                     string                    `json:"direct_ip"`
+	DirectName                   string                    `json:"direct_name"`
+	PrivateIP                    string                    `json:"private_ip"`
+	PrivateName                  string                    `json:"private_name"`
+	Devices                      map[string]int            `json:"devices"`
+	Exits                        map[string]string         `json:"exits"`
+	Resolvers                    map[string]ResolverConfig `json:"resolvers"`
+	DevicePolicies               map[string]PolicyConfig   `json:"device_policies"`
+	NetworkPolicies              map[string]PolicyConfig   `json:"network_policies"`
+	DefaultPolicy                PolicyConfig              `json:"default_policy"`
 }
 type entry struct {
 	data    []byte

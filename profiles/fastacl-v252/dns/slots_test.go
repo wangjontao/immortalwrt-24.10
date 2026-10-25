@@ -199,6 +199,24 @@ func TestOptionalSlotLimit(t *testing.T) {
 		t.Fatal("released capacity not reusable")
 	}
 }
+func TestPerSessionSlotLimit(t *testing.T) {
+	m := &relayManager{}
+	m.data.sessionCounts = map[string]int{}
+	m.data.perSessionLimit = 2
+	if !m.acquireSessionLocked("wifi_a1") || !m.acquireSessionLocked("wifi_a1") {
+		t.Fatal("per-session capacity was rejected early")
+	}
+	if m.acquireSessionLocked("wifi_a1") {
+		t.Fatal("per-session cap not enforced")
+	}
+	if !m.acquireSessionLocked("wifi_a2") {
+		t.Fatal("unrelated session was incorrectly limited")
+	}
+	m.releaseSessionLocked("wifi_a1")
+	if !m.acquireSessionLocked("wifi_a1") {
+		t.Fatal("released per-session capacity not reusable")
+	}
+}
 
 func TestUDPFlowsBeyondOldGlobalLimit(t *testing.T) {
 	_, address, r := slotFixture(t)

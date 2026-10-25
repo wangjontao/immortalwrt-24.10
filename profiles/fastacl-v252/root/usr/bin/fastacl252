@@ -6,8 +6,8 @@ R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
 HEALTH_LOG=${FASTACL_HEALTH_LOG:-/root/fastacl252-health.log}
 LOCK="${R}-apply.lock"
 SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
-DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-12000}
-DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-12000}
+DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-36000}
+DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-36000}
 RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
 DAE_TCP_RELAY_IDLE_TIMEOUT=$(uci -q get fastacl252.main.tcp_idle_timeout 2>/dev/null || true)
@@ -23,8 +23,8 @@ esac
 mkdir -p "$R"
 
 raise_nofile(){
-  ulimit -Hn 16384 2>/dev/null || true
-  ulimit -Sn 8192 2>/dev/null || true
+  ulimit -Hn 40960 2>/dev/null || true
+  ulimit -Sn 38912 2>/dev/null || true
 }
 
 pause_fast(){

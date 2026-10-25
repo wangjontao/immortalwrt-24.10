@@ -24,10 +24,12 @@ type slotSession struct {
 	cancel context.CancelFunc
 }
 type slotTracker struct {
-	mu       sync.Mutex
-	sessions map[*slotSession]struct{}
-	limit    chan struct{}
-	udpLimit chan struct{}
+	mu              sync.Mutex
+	sessions        map[*slotSession]struct{}
+	sessionCounts   map[string]int
+	perSessionLimit int
+	limit           chan struct{}
+	udpLimit        chan struct{}
 }
 
 // A nil limiter accepts connections without an application-level cap.
@@ -51,6 +53,20 @@ func acquireSlot(limit chan struct{}) bool {
 func releaseSlot(limit chan struct{}) {
 	if limit != nil {
 		<-limit
+	}
+}
+func (m *relayManager) acquireSessionLocked(key string) bool {
+	limit := m.data.perSessionLimit
+	if limit > 0 && m.data.sessionCounts[key] >= limit {
+		return false
+	}
+	m.data.sessionCounts[key]++
+	return true
+}
+func (m *relayManager) releaseSessionLocked(key string) {
+	m.data.sessionCounts[key]--
+	if m.data.sessionCounts[key] <= 0 {
+		delete(m.data.sessionCounts, key)
 	}
 }
 
@@ -91,6 +107,8 @@ func (m *relayManager) serveSlots() (net.Listener, error) {
 		return nil, e
 	}
 	m.data.sessions = map[*slotSession]struct{}{}
+	m.data.sessionCounts = map[string]int{}
+	m.data.perSessionLimit = r.config.DataMaxConnectionsPerSession
 	m.data.limit = newSlotLimit(r.config.DataMaxConnections)
 	m.data.udpLimit = newSlotLimit(r.config.DataMaxUDPFlows)
 	go func() {
@@ -230,6 +248,9 @@ func (m *relayManager) slot(c net.Conn) {
 		valid = d != nil
 	}
 	if valid {
+		valid = m.acquireSessionLocked(key)
+	}
+	if valid {
 		m.data.sessions[s] = struct{}{}
 	}
 	m.data.mu.Unlock()
@@ -237,7 +258,12 @@ func (m *relayManager) slot(c net.Conn) {
 		c.Write([]byte{1, 1})
 		return
 	}
-	defer func() { m.data.mu.Lock(); delete(m.data.sessions, s); m.data.mu.Unlock() }()
+	defer func() {
+		m.data.mu.Lock()
+		delete(m.data.sessions, s)
+		m.releaseSessionLocked(key)
+		m.data.mu.Unlock()
+	}()
 	if _, e = c.Write([]byte{1, 0}); e != nil {
 		return
 	}

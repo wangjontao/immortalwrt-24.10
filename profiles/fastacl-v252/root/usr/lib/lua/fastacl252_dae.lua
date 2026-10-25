@@ -21,10 +21,14 @@ end
 
 function M.compile(c)
   local policy=require 'fastacl252'; policy.validate(c)
+  local data_max_connections=tonumber(c.data_max_connections) or 8192
+  local data_max_connections_per_session=tonumber(c.data_max_connections_per_session) or 96
+  assert(data_max_connections>=1 and data_max_connections<=16384,'Invalid global connection cap')
+  assert(data_max_connections_per_session>=1 and data_max_connections_per_session<=512,'Invalid per-session connection cap')
   local dns=require 'fastacl252_dns'
   local nodes,groups,rules,used={},{},{},{}
   local resolvers={}
-  local relay={domestic_domains_file='/usr/share/fastacl252/cn-domains.txt',listen='0.0.0.0:12553',direct_ip=c.dns_server,direct_name=c.dns_name,private_ip=c.private_dns_server,private_name=c.private_dns_name,devices={},exits={},resolvers=resolvers,device_policies={},network_policies={}}
+  local relay={data_max_connections=data_max_connections,data_max_connections_per_session=data_max_connections_per_session,domestic_domains_file='/usr/share/fastacl252/cn-domains.txt',listen='0.0.0.0:12553',direct_ip=c.dns_server,direct_name=c.dns_name,private_ip=c.private_dns_server,private_name=c.private_dns_name,devices={},exits={},resolvers=resolvers,device_policies={},network_policies={}}
   relay.data_slots={}
   -- Node-only validation has no platform listener/key. Do not synthesize one.
   if c.platform_secret then

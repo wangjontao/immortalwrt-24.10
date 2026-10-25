@@ -36,5 +36,7 @@ for mutate in [lambda x:x['wifis'][0].update(node='jp'),lambda x:x['devices'][0]
  assert isinstance(next_relay['data_slots'],dict)
  assert next_relay!=relay,'Exit selection was not recorded'
 assert relay['data_slots']['wifi_jfa25w02']==0
+assert relay['data_max_connections']==8192
+assert relay['data_max_connections_per_session']==96
 assert '203.0.113.' not in original,'Real node credentials leaked into fixed datapath'
 print('PASS: WiFi/device node and DNS changes preserve dae and nft configurations byte for byte')

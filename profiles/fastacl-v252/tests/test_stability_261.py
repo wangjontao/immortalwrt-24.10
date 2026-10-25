@@ -39,10 +39,13 @@ assert 'state=no-lease' in watchdog
 assert 'PROBE_FAILURE_LIMIT' in runtime
 assert 'recovering DNS proxy' in runtime
 assert 'start_dns_next' in runtime
-assert 'FASTACL_DAE_FD_LIMIT:-12000' in runtime
-assert 'FASTACL_DNS_FD_LIMIT:-12000' in runtime
+assert 'FASTACL_DAE_FD_LIMIT:-36000' in runtime
+assert 'FASTACL_DNS_FD_LIMIT:-36000' in runtime
+assert 'ulimit -Hn 40960' in runtime
 assert 'tcp_idle_timeout' in fastacl_config and "'300s'" in fastacl_config
 assert 'tcp_half_close_timeout' in fastacl_config and "'30s'" in fastacl_config
+assert 'data_max_connections' in fastacl_config and "'8192'" in fastacl_config
+assert 'data_max_connections_per_session' in fastacl_config and "'96'" in fastacl_config
 assert 'ip -4 route show default' in nps
 assert 'mkdir "$LOCK"' in nps
 assert 'NPS restarted after WAN ready' in nps
