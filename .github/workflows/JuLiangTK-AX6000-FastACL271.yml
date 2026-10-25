@@ -6,7 +6,12 @@ run-name: 'FastACL 2.7.1 - BBR and unlimited connections - S20L S20P JDCloud'
   workflow_dispatch: {}
   push:
     branches: ['2.7.1']
-    paths: ['.github/workflows/JuLiangTK-AX6000-FastACL271.yml']
+    paths:
+      - '.github/workflows/JuLiangTK-AX6000-FastACL271.yml'
+      - 'profiles/fastacl-v252/**'
+      - 'scripts/integrate-fastacl252-s20l.sh'
+      - 'scripts/integrate-fastacl271-grouped.sh'
+      - 'build-configs/*FastACL258.txt'
 
 permissions:
   contents: read

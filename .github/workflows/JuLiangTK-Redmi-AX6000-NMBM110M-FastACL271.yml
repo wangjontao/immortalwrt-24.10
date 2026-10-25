@@ -6,7 +6,13 @@ run-name: 'FastACL 2.7.1 - BBR and unlimited connections - Redmi NMBM110 BIN'
   workflow_dispatch: {}
   push:
     branches: ['2.7.1']
-    paths: ['.github/workflows/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL271.yml']
+    paths:
+      - '.github/workflows/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL271.yml'
+      - 'profiles/fastacl-v252/**'
+      - 'scripts/integrate-fastacl252-s20l.sh'
+      - 'scripts/integrate-fastacl271-grouped.sh'
+      - 'scripts/tests/test_redmi_110m_layout.py'
+      - 'build-configs/*FastACL258.txt'
 
 permissions:
   contents: read

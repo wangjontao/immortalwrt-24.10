@@ -8,6 +8,10 @@ run-name: 'FastACL 2.7.1 - 4 grouped jobs for the 20-device MT7981 matrix'
     branches: ['2.7.1']
     paths:
       - '.github/workflows/JuLiangTK-MT7981-FastACL271-Grouped.yml'
+      - 'profiles/fastacl-v252/**'
+      - 'scripts/integrate-fastacl252-s20l.sh'
+      - 'scripts/integrate-fastacl271-grouped.sh'
+      - 'build-configs/*FastACL258.txt'
       - 'target/linux/mediatek/image/filogic.mk'
 
 permissions:
