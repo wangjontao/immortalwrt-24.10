@@ -77,7 +77,7 @@ config="build-configs/JuLiangTK-${tag}-FastACL258.txt"
 if [ -f "$config" ]; then
   cp "$config" .config
 else
-  sed "s/^CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_.*=y$/CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y/" \
+  sed "s/^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$/CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y/" \
     build-configs/JuLiangTK-S20L-FastACL258.txt > .config
 fi
 make defconfig
@@ -88,8 +88,14 @@ for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreb
 done
 if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in Lite'; exit 1; fi
 if grep -E '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-[^=]+)=(y|m)$' .config; then echo 'Forbidden proxy plugin selected'; exit 1; fi
-grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" .config
-grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts.dts"
+grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" .config || {
+  echo "Required target missing from .config: $device" >&2
+  exit 1
+}
+grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts.dts" || {
+  echo "Required compatible missing from DTS: $compatible" >&2
+  exit 1
+}
 ./scripts/diffconfig.sh > "JuLiangTK-${tag}-final.config"
 
 # Use the control-center name for Argon brand links without changing hardware identity.

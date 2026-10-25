@@ -1,5 +1,5 @@
 name: MT7981 Series FastACL 2.6.1 Unlimited
-run-name: 'FastACL 2.6.1 - BBR and unlimited connections - MT7981 series'
+run-name: 'FastACL 2.6.1 - BBR, unlimited connections and 20-device MT7981 matrix'
 
 'on':
   workflow_dispatch: {}

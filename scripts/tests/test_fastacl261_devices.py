@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[2]
 script = (ROOT / 'scripts/integrate-fastacl252-s20l.sh').read_text(encoding='utf-8')
 workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL261.yml').read_text(encoding='utf-8')
 image_makefile = (ROOT / 'target/linux/mediatek/image/filogic.mk').read_text(encoding='utf-8')
+base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL258.txt').read_text(encoding='utf-8')
 
 DEVICES = {
     'philips_hy3000': ('PHILIPS-HY3000', 'mt7981b-philips-hy3000', 'philips,hy3000', 'Philips HY3000', None),
@@ -43,6 +45,13 @@ for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
     identity_path = ROOT / 'target/linux/mediatek/dts' / (identity_dts or f'{dts}.dts')
     assert identity_path.is_file(), identity_path
     assert f'compatible = "{compatible}", "mediatek,mt7981";' in identity_path.read_text(encoding='utf-8')
+    rewritten = re.sub(
+        r'^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$',
+        f'CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y',
+        base_config,
+        flags=re.MULTILINE,
+    )
+    assert f'CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y' in rewritten
 
 clt_text = (ROOT / 'target/linux/mediatek/dts/mt7981b-clt-r30b1.dts').read_text(encoding='utf-8')
 clt_base = (ROOT / 'target/linux/mediatek/dts/mt7981b-clt-r30b1-base.dtsi').read_text(encoding='utf-8')
@@ -57,7 +66,8 @@ assert 'mediatek,nmbm;' in zbt_text
 assert 'band@0' in zbt_text and 'band@1' in zbt_text
 
 assert "make defconfig" in script
-assert "CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y" in script
+assert "CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" in script
+assert "CONFIG_TARGET_MEDIATEK_FILOGIC_DEVICE_${device}=y" not in script
 assert "max-parallel: 2" in workflow
 assert "branches: ['2.6.1']" in workflow
 
