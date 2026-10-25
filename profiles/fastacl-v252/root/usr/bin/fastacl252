@@ -26,20 +26,30 @@ esac
 mkdir -p "$R"
 
 detect_capacity(){
-  local mem_kb cpus profile
+  local mem_kb cpus profile identity
   mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
   cpus=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 1)
+  identity=$(cat /tmp/sysinfo/model 2>/dev/null || true)
+  identity="$identity $(tr '\000' '\n' < /proc/device-tree/compatible 2>/dev/null || true)"
   profile=${FASTACL_CAPACITY_PROFILE:-$(uci -q get fastacl252.main.capacity_profile 2>/dev/null || true)}
   if [ "$profile" = auto ] || [ -z "$profile" ]; then
-    if [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 1800000 ]; then
-      profile=high
-    elif [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 900000 ]; then
-      profile=quad
-    elif [ "$cpus" -ge 2 ] && [ "$mem_kb" -ge 900000 ]; then
-      profile=balanced
-    else
-      profile=compact
-    fi
+    case "$identity" in
+      *"CLX S20L"*|*"CLX S20P"*|*"Xiaomi Redmi Router AX6000"*|*"JDCloud RE-CP-03"*|\
+      *clx,s20l*|*clx,s20p*|*redmi-router-ax6000*|*jdcloud,re-cp-03*)
+        profile=high
+        ;;
+      *)
+        if [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 1800000 ]; then
+          profile=high
+        elif [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 900000 ]; then
+          profile=quad
+        elif [ "$cpus" -ge 2 ] && [ "$mem_kb" -ge 900000 ]; then
+          profile=balanced
+        else
+          profile=compact
+        fi
+        ;;
+    esac
   fi
   case "$profile" in
     high)

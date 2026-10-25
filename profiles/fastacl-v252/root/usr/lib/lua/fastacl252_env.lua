@@ -11,26 +11,37 @@ local function status_for(net,u)
   return st.l3_device or u:get('network',net,'device'),addr,mask
 end
 
+function M.capacity(main,cpus,mem_kb,identity)
+  main=main or {}
+  cpus=tonumber(cpus) or 1
+  mem_kb=tonumber(mem_kb) or 0
+  identity=identity or ''
+  local forced_high=identity:find('CLX S20L',1,true) or identity:find('CLX S20P',1,true) or
+    identity:find('Xiaomi Redmi Router AX6000',1,true) or identity:find('JDCloud RE-CP-03',1,true) or
+    identity:find('clx,s20l',1,true) or identity:find('clx,s20p',1,true) or
+    identity:find('redmi-router-ax6000',1,true) or identity:find('jdcloud,re-cp-03',1,true)
+  local profile=main.capacity_profile or 'auto'
+  if profile=='auto' then
+    if forced_high then profile='high'
+    elseif cpus>=4 and mem_kb>=1800000 then profile='high'
+    elseif cpus>=4 and mem_kb>=900000 then profile='quad'
+    elseif cpus>=2 and mem_kb>=900000 then profile='balanced'
+    else profile='compact' end
+  end
+  local defaults={high={16384,128},quad={12288,112},balanced={8192,96},compact={4096,64}}
+  local selected=defaults[profile] or defaults.compact
+  return profile,tonumber(main.data_max_connections) or selected[1],tonumber(main.data_max_connections_per_session) or selected[2]
+end
+
 function M.read(u,guards_only)
   u=u or require('uci').cursor()
   local main=u:get_all('fastacl252','main') or {}
   local net=main.network or 'lan'; assert(policy.id(net),'Invalid network')
   local iface,addr,mask=status_for(net,u)
-  local function capacity()
-    local cpus=tonumber(sys.exec("grep -c '^processor' /proc/cpuinfo 2>/dev/null")) or 1
-    local mem_kb=tonumber(sys.exec("awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null")) or 0
-    local profile=main.capacity_profile or 'auto'
-    if profile=='auto' then
-      if cpus>=4 and mem_kb>=1800000 then profile='high'
-      elseif cpus>=4 and mem_kb>=900000 then profile='quad'
-      elseif cpus>=2 and mem_kb>=900000 then profile='balanced'
-      else profile='compact' end
-    end
-    local defaults={high={16384,128},quad={12288,112},balanced={8192,96},compact={4096,64}}
-    local selected=defaults[profile] or defaults.compact
-    return profile,tonumber(main.data_max_connections) or selected[1],tonumber(main.data_max_connections_per_session) or selected[2]
-  end
-  local capacity_profile,max_connections,max_connections_per_session=capacity()
+  local cpus=tonumber(sys.exec("grep -c '^processor' /proc/cpuinfo 2>/dev/null")) or 1
+  local mem_kb=tonumber(sys.exec("awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null")) or 0
+  local identity=sys.exec("cat /tmp/sysinfo/model 2>/dev/null; tr '\\0' '\\n' < /proc/device-tree/compatible 2>/dev/null") or ''
+  local capacity_profile,max_connections,max_connections_per_session=M.capacity(main,cpus,mem_kb,identity)
   local c={network=net,interface=iface,interfaces={},router_ip=addr,netmask=mask,port=tonumber(main.port or 12525),capacity_profile=capacity_profile,data_max_connections=max_connections,data_max_connections_per_session=max_connections_per_session,enabled=main.enabled=='1',default_mode=main.default_mode or 'direct',dns_policy=main.dns_policy or 'private',dns_server=main.dns_server or '223.5.5.5',dns_name=main.dns_name or 'dns.alidns.com',private_dns_server=main.private_dns_server or '1.1.1.1',private_dns_name=main.private_dns_name or 'cloudflare-dns.com',direct_dns=main.direct_dns or 'alidns',proxy_dns=main.proxy_dns or 'cloudflare',devices={},wifis={},nodes={}}
   if iface and iface~='' then c.interfaces[#c.interfaces+1]=iface end
   u:foreach('fastacl252','node',function(n)

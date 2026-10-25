@@ -45,6 +45,10 @@ assert 'FD_HARD_LIMIT=65536' in runtime
 assert 'DAE_FD_LIMIT=57344' in runtime
 assert 'DNS_FD_LIMIT=57344' in runtime
 assert 'ulimit -Hn "$FD_HARD_LIMIT"' in runtime
+for model in ('CLX S20L', 'CLX S20P', 'Xiaomi Redmi Router AX6000', 'JDCloud RE-CP-03'):
+    assert model in runtime
+for compatible in ('clx,s20l', 'clx,s20p', 'redmi-router-ax6000', 'jdcloud,re-cp-03'):
+    assert compatible in runtime
 assert 'tcp_idle_timeout' in fastacl_config and "'300s'" in fastacl_config
 assert 'tcp_half_close_timeout' in fastacl_config and "'30s'" in fastacl_config
 assert "capacity_profile 'auto'" in fastacl_config
