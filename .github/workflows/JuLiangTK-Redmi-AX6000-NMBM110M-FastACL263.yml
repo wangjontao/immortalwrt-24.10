@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: fastacl263-JuLiangTK-Redmi-AX6000-NMBM110M-FastACL263-${{ github.ref }}
+  group: fastacl263-JuLiangTK-Redmi-AX6000-NMBM110M-FastACL263-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -206,17 +206,17 @@ jobs:
           python3 scripts/tests/test_redmi_110m_layout.py --factory "$factory" --sysupgrade "$sysupgrade"
           cp -a "${images[@]}" upload/
           cp profiles/fastacl-v252/README-REDMI-110M-2.6.3.md upload/
-          mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name "*${DEVICE}*.manifest")
-          [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: selected device manifest missing'; exit 1; }
-            for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
-            grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
+          manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest
+          [ -s "$manifest" ] || { echo 'ERROR: shared package manifest missing'; exit 1; }
+          for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+            grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
           done
-          if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "${manifests[0]}"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
-          if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "${manifests[0]}"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
+          if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
+          if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
           grep -q '2.6.3' package/fastacl252/Makefile
           grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
-          cp -a "${manifests[@]}" upload/
+          cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
           cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.6.3.md upload/
           printf 'branch=%s\ncommit=%s\nversion=2.6.3\nlayout=NMBM-110MiB\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt

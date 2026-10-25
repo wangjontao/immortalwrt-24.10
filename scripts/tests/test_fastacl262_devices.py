@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 script = (ROOT / 'scripts/integrate-fastacl252-s20l.sh').read_text(encoding='utf-8')
 workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262.yml').read_text(encoding='utf-8')
 grouped_workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262-Grouped.yml').read_text(encoding='utf-8')
+grouped_workflow_263 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL263-Grouped.yml').read_text(encoding='utf-8')
 image_makefile = (ROOT / 'target/linux/mediatek/image/filogic.mk').read_text(encoding='utf-8')
 base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL258.txt').read_text(encoding='utf-8')
 grouped_script = (ROOT / 'scripts/integrate-fastacl262-grouped.sh').read_text(encoding='utf-8')
@@ -82,6 +83,8 @@ assert all(len(devices) == 5 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == set(DEVICES)
 assert 'max-parallel: 4' in grouped_workflow
 assert 'integrate-fastacl262-grouped.sh' in grouped_workflow
+assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_263
+assert '${{ github.run_id }}' in grouped_workflow_263
 assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
 assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
 
