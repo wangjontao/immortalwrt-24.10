@@ -91,7 +91,7 @@ assert not (ROOT / 'root/etc/uci-defaults/95-fastacl252-hotfix6-fast-switch').ex
 assert '+libuci-lua' in pkg
 
 
-# 2.6.1 keeps the shared-core safety regressions and adds reconnect tuning.
+# 2.6.2 keeps the shared-core safety regressions and adds reconnect tuning.
 assert "main.fixed_exit=1" in defaults
 assert "open_flags('wronly','creat')+524288" in controller
 assert "edit_handle:lock('ulock')" in controller
