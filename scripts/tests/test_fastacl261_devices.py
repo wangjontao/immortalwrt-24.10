@@ -5,8 +5,10 @@ import re
 ROOT = Path(__file__).resolve().parents[2]
 script = (ROOT / 'scripts/integrate-fastacl252-s20l.sh').read_text(encoding='utf-8')
 workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL261.yml').read_text(encoding='utf-8')
+grouped_workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL261-Grouped.yml').read_text(encoding='utf-8')
 image_makefile = (ROOT / 'target/linux/mediatek/image/filogic.mk').read_text(encoding='utf-8')
 base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL258.txt').read_text(encoding='utf-8')
+grouped_script = (ROOT / 'scripts/integrate-fastacl261-grouped.sh').read_text(encoding='utf-8')
 
 DEVICES = {
     'philips_hy3000': ('PHILIPS-HY3000', 'mt7981b-philips-hy3000', 'philips,hy3000', 'Philips HY3000', None),
@@ -66,6 +68,18 @@ assert 'mdio: mdio-bus' not in clt_base
 zbt_text = (ROOT / 'target/linux/mediatek/dts/mt7981b-zbtlink-zbt-z8103ax-c.dts').read_text(encoding='utf-8')
 assert 'mediatek,nmbm;' in zbt_text
 assert 'band@0' in zbt_text and 'band@1' in zbt_text
+
+grouped_devices = []
+for line in grouped_workflow.splitlines():
+    if line.startswith('            devices: '):
+        grouped_devices.append(line.split(':', 1)[1].strip().split())
+assert len(grouped_devices) == 4
+assert all(len(devices) == 5 for devices in grouped_devices)
+assert {device for group in grouped_devices for device in group} == set(DEVICES)
+assert 'max-parallel: 4' in grouped_workflow
+assert 'integrate-fastacl261-grouped.sh' in grouped_workflow
+assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
+assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
 
 assert "make defconfig" in script
 assert "CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y" in script
