@@ -90,6 +90,20 @@ jobs:
           test "$(find "$release_dir" -type f | wc -l)" -gt 0
           (cd "$release_dir" && sha256sum ./* > SHA256SUMS)
 
+      - name: Verify updater runtime in firmware manifests
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find artifacts -type f -name '*.manifest')
+          test "${#manifests[@]}" -gt 0
+          for manifest in "${manifests[@]}"; do
+            for package in fastacl252 usign jsonfilter; do
+              grep -q "^${package} " "$manifest" || {
+                echo "$manifest is missing $package" >&2
+                exit 1
+              }
+            done
+          done
+
       - name: Build OpenWrt usign verifier
         run: |
           set -euo pipefail
