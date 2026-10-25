@@ -59,6 +59,12 @@ current_board() {
 		head -n 1
 }
 
+version_key() {
+	printf '%s\n' "$1" |
+		sed 's/[^0-9.].*$//' |
+		awk -F. '{printf "%06d%06d%06d", ($1+0), ($2+0), ($3+0)}'
+}
+
 confirm_pending_upgrade() {
 	local pending target previous version
 	pending="$(uci -q get fastacl-upgrade.settings.upgrade_pending 2>/dev/null || echo 0)"
@@ -117,7 +123,7 @@ find_model_entry() {
 }
 
 check_update() {
-	local board version latest schema channel model_count
+	local board version latest schema channel model_count current_key latest_key
 	load_config
 	[ "$UPGRADE_ENABLED" = 1 ] || {
 		write_status disabled
@@ -169,7 +175,11 @@ check_update() {
 	printf 'board=%s\nchannel=%s\nversion=%s\nimage=%s\nsha256=%s\nsize=%s\n' \
 		"$board" "$CHANNEL" "$latest" "$MODEL_IMAGE" "$MODEL_SHA256" "$MODEL_SIZE" > "$CANDIDATE"
 
-	if [ "$latest" = "$version" ]; then
+	current_key="$(version_key "$version")"
+	latest_key="$(version_key "$latest")"
+	if [ "$latest_key" -lt "$current_key" ]; then
+		write_status failed board="$board" current_version="$version" latest_version="$latest" channel="$CHANNEL" message='downgrade-blocked'
+	elif [ "$latest_key" -eq "$current_key" ]; then
 		write_status uptodate board="$board" current_version="$version" latest_version="$latest" channel="$CHANNEL"
 	else
 		write_status available board="$board" current_version="$version" latest_version="$latest" channel="$CHANNEL" image_size="$MODEL_SIZE" sha256="$MODEL_SHA256"
