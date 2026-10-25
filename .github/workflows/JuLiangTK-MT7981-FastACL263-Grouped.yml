@@ -1,6 +1,6 @@
 name: MT7981 Series FastACL 2.6.3 Grouped Build
 run-name: 'FastACL 2.6.3 - 4 grouped jobs for the 20-device MT7981 matrix'
-# 2.6.3 final release build trigger.
+# 2.6.3 release build trigger for the signed 8443 update endpoint.
 
 'on':
   workflow_dispatch: {}

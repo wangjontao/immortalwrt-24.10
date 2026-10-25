@@ -11,7 +11,7 @@ IMAGE="$STATE_DIR/firmware.bin"
 LOG_FILE="$STATE_DIR/worker.log"
 PUBLIC_KEY=/etc/fastacl-upgrade/update.pub
 CHANNEL=stable
-BASE_URL=https://up.juliangtk.top
+BASE_URL=https://up.juliangtk.top:8443
 UPGRADE_ENABLED=1
 
 mkdir -p "$STATE_DIR"
@@ -34,7 +34,7 @@ load_config() {
 	. /lib/functions.sh
 	config_load fastacl-upgrade
 	config_get UPGRADE_ENABLED settings enabled 1
-	config_get BASE_URL settings base_url https://up.juliangtk.top
+	config_get BASE_URL settings base_url https://up.juliangtk.top:8443
 	config_get CHANNEL settings channel stable
 
 	case "$CHANNEL" in
@@ -44,7 +44,7 @@ load_config() {
 
 	case "$BASE_URL" in
 		https://*) ;;
-		*) BASE_URL=https://up.juliangtk.top ;;
+		*) BASE_URL=https://up.juliangtk.top:8443 ;;
 	esac
 	BASE_URL="${BASE_URL%/}"
 }

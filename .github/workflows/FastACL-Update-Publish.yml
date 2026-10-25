@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RELEASE_DOMAIN: up.juliangtk.top
+  RELEASE_DOMAIN: up.juliangtk.top:8443
   RELEASE_USER: fastacl-deploy
   RELEASE_HOST: 175.178.237.53
   RELEASE_ROOT: /srv/fastacl-releases

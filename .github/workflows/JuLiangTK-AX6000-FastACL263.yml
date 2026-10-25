@@ -1,6 +1,6 @@
 name: S20L S20P JDCloud FastACL 2.6.3 Unlimited
 run-name: 'FastACL 2.6.3 - BBR and unlimited connections - S20L S20P JDCloud'
-# 2.6.3 final release build trigger.
+# 2.6.3 release build trigger for the signed 8443 update endpoint.
 
 'on':
   workflow_dispatch: {}

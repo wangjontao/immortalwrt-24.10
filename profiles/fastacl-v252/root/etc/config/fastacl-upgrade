@@ -1,6 +1,6 @@
 config settings 'settings'
 	option enabled '1'
-	option base_url 'https://up.juliangtk.top'
+	option base_url 'https://up.juliangtk.top:8443'
 	option channel 'stable'
 	option upgrade_pending '0'
 	option target_version ''

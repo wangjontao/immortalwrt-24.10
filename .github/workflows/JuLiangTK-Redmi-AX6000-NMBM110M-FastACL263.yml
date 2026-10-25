@@ -1,6 +1,6 @@
 name: Redmi AX6000 NMBM 110MiB FastACL 2.6.3
 run-name: 'FastACL 2.6.3 - BBR and unlimited connections - Redmi NMBM110 BIN'
-# 2.6.3 final release build trigger.
+# 2.6.3 release build trigger for the signed 8443 update endpoint.
 
 'on':
   workflow_dispatch: {}
@@ -208,7 +208,7 @@ jobs:
           cp profiles/fastacl-v252/README-REDMI-110M-2.6.3.md upload/
           mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name "*${DEVICE}*.manifest")
           [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: selected device manifest missing'; exit 1; }
-          for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+            for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
             grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
           done
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "${manifests[0]}"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
