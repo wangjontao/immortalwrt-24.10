@@ -1,6 +1,6 @@
 import json, unittest
 from test_import import runtime, table, parser
-from test_mihomo import from_lua
+from test_support import from_lua
 runtime.globals().pystringify=lambda value:json.dumps(from_lua(value),ensure_ascii=False,sort_keys=True)
 runtime.execute("package.loaded['luci.jsonc'].stringify=pystringify; package.preload['nixio.fs']=function() return {} end; package.preload['luci.sys']=function() return {} end")
 manager=runtime.eval("require('fastacl252_nodes')")

@@ -11,12 +11,20 @@ FastACL 2.8.0 是独立的 sing-box 内核版本，不包含 dae 数据面，也
 ## 保留能力
 
 - 节点、前置链、订阅和出口检测。
+- JuLiang 监测中心展示 WAN 实时上传/下载、本次运行累计流量和最近两分钟曲线。
 - 设备与 WiFi 分流、平台优先、smart/custom IP 规则。
 - 代理 DNS 与国内 DNS 分离、域名/IP 拦截、DNS 防泄漏。
 - 受管 WiFi 为纯 IPv4 网络，DNS helper 对 AAAA 返回 NODATA，避免手机优先选择不可达的 IPv6 地址。
 - 受管 WiFi 的 DHCP 显式下发默认网关和 DNS，避免客户端只拿到地址却无法建立外网连接。
 - 固定入口映射、来源身份防绕过、NPS、在线升级和健康恢复。
 - TCP 与 UDP 代理。
+
+## 构建范围
+
+- CLX S20L、CLX S20P。
+- 京东云百里 RE-CP-03。
+- Redmi AX6000 NMBM 110MiB。
+- MT7981 系列 20 台设备，分组矩阵构建。
 
 ## 2.8.0 清核
 

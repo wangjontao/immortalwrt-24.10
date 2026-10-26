@@ -1,6 +1,6 @@
 """Privileged Linux-only packet tests in temporary network namespaces."""
 import contextlib, json, os, pathlib, socket, socketserver, struct, subprocess, sys, tempfile, threading, time
-from test_mihomo import config, compile, from_lua, policy, to_lua
+from test_support import config, compile, from_lua, policy, to_lua
 
 def proxy_server():
     class Handler(socketserver.BaseRequestHandler):

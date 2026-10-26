@@ -1,5 +1,5 @@
-import base64, copy, json, pathlib, unittest, yaml
-from test_mihomo import ROOT, LuaRuntime, to_lua, from_lua, config, compile
+import base64, json, unittest, yaml
+from test_support import ROOT, LuaRuntime, from_lua, config, compile
 
 runtime=LuaRuntime(unpack_returned_tuples=True)
 def table(value):

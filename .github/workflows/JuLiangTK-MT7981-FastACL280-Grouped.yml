@@ -55,9 +55,13 @@ jobs:
           .venv/bin/python profiles/fastacl-v252/tests/test_hardware_mac.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_creation.py
           python3 scripts/tests/test_ci_update_feeds.py
+          python3 scripts/tests/test_fastacl280_devices.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wireless.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_fw4.py
           .venv/bin/python profiles/fastacl-v252/tests/test_tun_dataplane.py --sing-box /tmp/sing-box
+          .venv/bin/python profiles/fastacl-v252/tests/test_control.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_traffic_ui.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
           python3 profiles/fastacl-v252/tests/test_online_upgrade.py
           python3 profiles/fastacl-v252/tests/test_update_manifest.py
           node --check profiles/fastacl-v252/root/www/luci-static/resources/view/wan-watchdog.js

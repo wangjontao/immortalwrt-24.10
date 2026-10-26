@@ -14,12 +14,12 @@ def source_checks():
   assert expected in images,expected
  upgrade=(ROOT/'target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh').read_text().split('\txiaomi,redmi-router-ax6000)\n',1)[1].split(';;',1)[0]
  assert 'CI_UBIPART="ubi"' in upgrade and 'CI_KERNPART="kernel"' in upgrade and 'nand_do_upgrade' in upgrade
- config=(ROOT/'build-configs/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL258.txt').read_text()
+ config=(ROOT/'build-configs/JuLiangTK-Redmi-AX6000-NMBM110M-FastACL280.txt').read_text()
  assert 'CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_redmi-router-ax6000=y' in config
  assert 'CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_redmi-router-ax6000-ubootmod=y' not in config
  package=(ROOT/'profiles/fastacl-v252/package-Makefile').read_text()
- assert 'PKG_VERSION:=2.7.1' in package and 'PKG_RELEASE:=1' in package
- print('PASS source: NMBM, 110MiB UBI, factory/sysupgrade BIN, upgrade label, FastACL 2.7.1')
+ assert 'PKG_VERSION:=2.8.0' in package
+ print('PASS source: NMBM, 110MiB UBI, factory/sysupgrade BIN, upgrade label, FastACL 2.8.0')
 
 def fdt(blob):
  h=struct.unpack_from('>10I',blob);assert h[0]==0xd00dfeed

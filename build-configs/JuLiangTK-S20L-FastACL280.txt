@@ -10,7 +10,7 @@ CONFIG_LUCI_LANG_zh_Hans=y
 CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_luci-lib-ipkg=y
 
-# JuLiangTK FastACL 2.5.6 intentionally excludes iStore / QuickStart.
+# JuLiangTK FastACL 2.8.0 intentionally excludes iStore / QuickStart.
 # CONFIG_PACKAGE_luci-app-store is not set
 # CONFIG_PACKAGE_luci-app-quickstart is not set
 # CONFIG_PACKAGE_quickstart is not set
@@ -48,7 +48,7 @@ CONFIG_PACKAGE_collectd-mod-rrdtool=y
 CONFIG_PACKAGE_collectd-mod-thermal=y
 CONFIG_PACKAGE_collectd-mod-uptime=y
 
-# Independent FastACL 2.5.2 dae / fw4 (no other proxy plugins)
+# Independent FastACL 2.8.0 sing-box / fw4 (no other proxy plugins)
 CONFIG_PACKAGE_fastacl252=y
 # CONFIG_PACKAGE_juliangtk-dae is not set
 CONFIG_PACKAGE_lyaml=y
@@ -85,7 +85,7 @@ CONFIG_VERSION_DIST="JuLiangTK"
 CONFIG_VERSION_MANUFACTURER="JuLiangTK"
 CONFIG_VERSION_PRODUCT="JuLiangTK S20L"
 CONFIG_VERSION_HWREV="S20L"
-CONFIG_VERSION_CODE="FastACL2.5.6"
+CONFIG_VERSION_CODE="FastACL2.8.0"
 
 # CONFIG_PACKAGE_fastacl25 is not set
 CONFIG_PACKAGE_juliangtk-sing-box=y
