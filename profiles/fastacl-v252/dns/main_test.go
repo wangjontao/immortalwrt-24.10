@@ -15,7 +15,7 @@ func TestManagedIPv4NetworkSuppressesAAAA(t *testing.T){
  q:=query();q[16]=28
  r:=&relay{config:Config{NetworkPolicies:map[string]PolicyConfig{"172.16.1.0/24":{Resolver:"cloudflare"}}}}
  b:=r.resolve(q,"172.16.1.217");var msg dnsmessage.Message
- if msg.Unpack(b)!=nil||!msg.Response||msg.RCode!=dnsmessage.RCodeSuccess||len(msg.Answers)!=0{t.Fatal("managed AAAA was not suppressed")}
+ if msg.Unpack(b)!=nil||!msg.Response||msg.RCode!=dnsmessage.RCodeSuccess||len(msg.Answers)!=0||len(msg.Authorities)!=1||msg.Authorities[0].Header.Type!=dnsmessage.TypeSOA{t.Fatal("managed AAAA negative response is incomplete")}
  if len(msg.Questions)!=1||msg.Questions[0].Type!=dnsmessage.TypeAAAA{t.Fatal("AAAA question was not preserved")}
 }
 func TestSocksPinnedEndpoint(t *testing.T){l,e:=net.Listen("tcp4","127.0.0.1:0");if e!=nil{t.Fatal(e)};defer l.Close();done:=make(chan error,1);go func(){c,e:=l.Accept();if e!=nil{done<-e;return};defer c.Close();b:=make([]byte,3);io.ReadFull(c,b);c.Write([]byte{5,0});b=make([]byte,10);io.ReadFull(c,b);if !bytes.Equal(b,[]byte{5,1,0,1,9,9,9,9,1,187}){done<-errors.New("wrong destination");return};c.Write([]byte{5,0,0,1,0,0,0,0,0,0});done<-nil}();cfg:=Config{Exits:map[string]string{"12600":fmt.Sprintf("socks5://127.0.0.1:%d",l.Addr().(*net.TCPAddr).Port)}};exits,e:=makeExits(cfg);if e!=nil{t.Fatal(e)};r:=&relay{exits:exits};c,e:=r.privateDial(context.Background(),12600,"9.9.9.9");if e!=nil{t.Fatal(e)};c.Close();if e=<-done;e!=nil{t.Fatal(e)}}

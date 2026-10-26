@@ -473,6 +473,35 @@ func ipv4OnlyAnswer(q []byte) []byte {
 			RecursionAvailable: true,
 		},
 		Questions: query.Questions,
+		Authorities: []dnsmessage.Resource{{
+			Header: dnsmessage.ResourceHeader{
+				Name:  query.Questions[0].Name,
+				Type:  dnsmessage.TypeSOA,
+				Class: dnsmessage.ClassINET,
+				TTL:   30,
+			},
+			Body: &dnsmessage.SOAResource{
+				NS:      dnsmessage.MustNewName("localhost."),
+				MBox:    dnsmessage.MustNewName("hostmaster.localhost."),
+				Serial:  1,
+				Refresh: 60,
+				Retry:   60,
+				Expire:  300,
+				MinTTL:  30,
+			},
+		}},
+	}
+	for _, rr := range query.Additionals {
+		if rr.Header.Type == dnsmessage.TypeOPT {
+			reply.Additionals = append(reply.Additionals, dnsmessage.Resource{
+				Header: dnsmessage.ResourceHeader{
+					Name:  dnsmessage.MustNewName("."),
+					Type:  dnsmessage.TypeOPT,
+					Class: rr.Header.Class,
+				},
+				Body: &dnsmessage.OPTResource{},
+			})
+		}
 	}
 	b, err := reply.Pack()
 	if err != nil {
