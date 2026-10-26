@@ -582,8 +582,11 @@ tun_firewall_ensure(){
 
 start_tun_core(){
   cp "$R/singbox.next.json" "$R/singbox.json"
-  sing-box run -c "$R/singbox.json" >"$R/singbox.log" 2>&1 &
-  echo $! > "$R/tun.pid"
+  /sbin/start-stop-daemon -S -b -m -p "$R/tun.pid" -x /usr/bin/sing-box -- \
+    run -c "$R/singbox.json" >"$R/singbox.log" 2>&1 || {
+    cat "$R/singbox.log" 2>/dev/null || true
+    return 1
+  }
   wait_tun || { cat "$R/singbox.log" 2>/dev/null || true; return 1; }
 }
 

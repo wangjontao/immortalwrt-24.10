@@ -52,7 +52,7 @@ def config(dataplane='tun'):
         'tun_interface': 'fastacl-tun0',
         'tun_address': '172.19.0.1/30',
         'tun_mtu': 9000,
-        'tun_stack': 'mixed',
+        'tun_stack': 'gvisor',
         'default_mode': 'direct',
         'dns_policy': 'direct',
         'dns_server': '223.5.5.5',
@@ -182,6 +182,7 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn('LAN firewall zone not found', runtime)
         self.assertIn('uci add_list firewall.fastacl_tun.device="$iface"', runtime)
         self.assertIn('ip link delete "$iface"', runtime)
+        self.assertIn('/sbin/start-stop-daemon -S -b -m', runtime)
         self.assertIn('TUN_FALLBACK_AFTER', runtime)
         self.assertIn('fallback_to_ebpf', runtime)
         self.assertIn('automatically fell back to eBPF', runtime)
