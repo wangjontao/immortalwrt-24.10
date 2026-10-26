@@ -65,8 +65,8 @@ function M.validate(c,guards_only)
   assert(M.dev(c.interface),'LAN interface unavailable')
   assert(M.ipnum(c.router_ip) and M.prefix(c.netmask),'Static IPv4 LAN required')
   assert(tonumber(c.port) and c.port>=1024 and c.port<=65535 and c.port%1==0,'Invalid port')
-  c.dataplane=c.dataplane or 'ebpf'
-  assert(c.dataplane=='ebpf' or c.dataplane=='tun','Invalid dataplane')
+  c.dataplane=c.dataplane or 'singbox'
+  assert(c.dataplane=='singbox' or c.dataplane=='tun','Invalid dataplane')
   if c.dataplane=='tun' then
     assert(type(c.tun_interface)=='string' and c.tun_interface:match('^[%w_.:-]+$') and #c.tun_interface<=15,'Invalid TUN interface')
     local ip,pfx=assert(c.tun_address,'Missing TUN address'):match('^(%d+%.%d+%.%d+%.%d+)/(%d+)$')
@@ -106,7 +106,10 @@ function M.validate(c,guards_only)
   end
   return c
 end
-function M.compile(c) M.validate(c); return require('fastacl252_dae').compile(c) end
+function M.compile(c)
+  M.validate(c)
+  return require('fastacl252_singbox').compile(c),require('fastacl252_relay').compile(c)
+end
 
 local function quote_iface(s) return '"'..s..'"' end
 local function nft_set(name,kind,values,extra)
@@ -114,32 +117,50 @@ local function nft_set(name,kind,values,extra)
 end
 function M.firewall(c,backend)
   M.validate(c,true); assert(backend=='nft','Invalid firewall backend')
-  local enforce_proxy_forward=c.dataplane~='tun'
   local proxy={}; for _,d in ipairs(c.devices) do if d.mode=='proxy' then proxy[#proxy+1]=d end end
   local macs,ips,pairs,tun_sources={},{},{},{}; for _,d in ipairs(proxy) do macs[#macs+1]=d.mac;ips[#ips+1]=d.ip;pairs[#pairs+1]=d.mac..' . '..d.ip;tun_sources[#tun_sources+1]=d.ip..'/32' end
-  local ifaces,proxy_wifi={},{}; local seen={}
+  local ifaces={}; local seen={}
   for _,v in ipairs(c.interfaces or {c.interface}) do if not seen[v] then ifaces[#ifaces+1]=quote_iface(v);seen[v]=true end end
-  for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then proxy_wifi[#proxy_wifi+1]=quote_iface(w.interface);tun_sources[#tun_sources+1]=w.subnet end end
-  local wifi_set,wifi_drop='',''
-  if #proxy_wifi>0 and enforce_proxy_forward then
-    wifi_set=nft_set('proxy_wifi_ifaces','ifname',proxy_wifi)
-    wifi_drop='iifname @proxy_wifi_ifaces drop\n'
-  end
-  local sets=nft_set('lan_ifaces','ifname',ifaces)..wifi_set..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)..nft_set('tun_sources','ipv4_addr',tun_sources,'flags interval; auto-merge')
+  for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then tun_sources[#tun_sources+1]=w.subnet end end
   local all='iifname @lan_ifaces '; local main='iifname '..quote_iface(c.interface)..' '
+  local proxy_excludes={}
+  local seen_exclude={}
+  local function exclude(v)
+    if v and v~='' and not seen_exclude[v] then seen_exclude[v]=true;proxy_excludes[#proxy_excludes+1]=v end
+  end
+  exclude(M.cidr(c.router_ip,c.netmask))
+  for _,w in ipairs(c.wifis or {}) do exclude(w.subnet) end
+  for _,v in ipairs({'0.0.0.0/8','10.0.0.0/8','100.64.0.0/10','127.0.0.0/8','169.254.0.0/16','172.16.0.0/12','192.168.0.0/16','224.0.0.0/4','240.0.0.0/4'}) do exclude(v) end
+  local intercept=''
+  if c.dataplane=='tun' then
+    intercept=all..'ip saddr @tun_sources meta mark set 0x2027\n'
+  end
+  local sets=nft_set('lan_ifaces','ifname',ifaces)..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)..nft_set('tun_sources','ipv4_addr',tun_sources,'flags interval; auto-merge')..nft_set('proxy_excludes','ipv4_addr',proxy_excludes,'flags interval; auto-merge')
   local dns6=all..'meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n'
   local split_sets,split_rules=require('fastacl252_split').nft(c)
-  return {nft='table inet fastacl252 {\n'..sets..split_sets..
+  local nft='table inet fastacl252 {\n'..sets..split_sets..
     'chain prerouting { type filter hook prerouting priority -151; policy accept;\n'..
     all..'udp sport 68 udp dport 67 return\n'..
-    all..'ip saddr @tun_sources meta mark set 0x2027\n'..
     main..'meta nfproto ipv4 ether saddr @proxy_macs ether saddr . ip saddr != @proxy_pairs drop\n'..
-    main..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n}\n'..
+    main..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n'..
+    intercept..'}\n'..
     'chain forward { type filter hook forward priority -10; policy accept;\n'..dns6..split_rules..
-    wifi_drop..
-    (enforce_proxy_forward and (main..'ether saddr @proxy_macs drop\n'..main..'ip saddr @proxy_ips drop\n') or '')..'}\n'..
+    '}\n'..
     'chain dns_redirect { type nat hook prerouting priority -100; policy accept;\n'..
     all..'meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553\n}\n'..
-    'chain input { type filter hook input priority -10; policy accept;\n'..dns6..'}\n}\n'}
+    'chain input { type filter hook input priority -10; policy accept;\n'..dns6..'}\n}\n'
+  if c.dataplane=='singbox' then
+    nft=nft..
+      'table ip fastacl252_tproxy {\n'..
+      nft_set('lan_ifaces','ifname',ifaces)..
+      nft_set('tproxy_sources','ipv4_addr',tun_sources,'flags interval; auto-merge')..
+      nft_set('tproxy_excludes','ipv4_addr',proxy_excludes,'flags interval; auto-merge')..
+      'chain prerouting { type filter hook prerouting priority -151; policy accept;\n'..
+      all..'ip saddr @tproxy_sources ip daddr @tproxy_excludes return\n'..
+      all..'ip saddr @tproxy_sources meta l4proto tcp th dport != 53 meta mark set 0x2028 tproxy to :'..tostring(c.port)..' accept\n'..
+      all..'ip saddr @tproxy_sources meta l4proto udp th dport != 53 meta mark set 0x2028 tproxy to :'..tostring(c.port)..' accept\n'..
+      '}\n}\n'
+  end
+  return {nft=nft}
 end
 return M

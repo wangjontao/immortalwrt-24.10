@@ -44,7 +44,7 @@ local topok,toperr=pcall(function()
     local due=not last.attempt or now-last.attempt>=delay
     if mode==id or mode=='all' or (mode=='due' and s.enabled~='0' and due) then
       local ok,count=pcall(update,s)
-      local reasons={['准备']='更新准备失败',['下载']='订阅下载失败，请检查地址、网络或订阅有效期',['解析']='订阅内容无法解析，请检查格式或是否已过期',['核心校验']='节点未通过 dae 核心校验',['保存']='节点保存失败或配置正在修改',['应用']='节点已保存，但运行配置应用失败'}
+      local reasons={['准备']='更新准备失败',['下载']='订阅下载失败，请检查地址、网络或订阅有效期',['解析']='订阅内容无法解析，请检查格式或是否已过期',['核心校验']='节点未通过 sing-box 核心校验',['保存']='节点保存失败或配置正在修改',['应用']='节点已保存，但运行配置应用失败'}
       local result={ok=ok,attempt=now,finished=os.time(),count=ok and count or nil,stage=stage,error=not ok and ((reasons[stage] or '更新失败')..(stage=='下载' and curl_code and ('（curl 返回码 '..curl_code..'）') or '')) or nil}
       -- Log only structured, safe fields; never retain URLs, node links or raw parser/core output.
       result.id=id

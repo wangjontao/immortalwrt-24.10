@@ -88,7 +88,7 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.7.1',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({dns_stats=dns_stats,ok=true,version='2.8.0',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -408,7 +408,7 @@ function probe()
   else error('检测类型无效') end
   local link=''
   if mode=='proxy' then
-   local compiler=require'fastacl252_dae';link=compiler.link(assert(c.nodes[x.node],'绑定节点不存在'))
+   local compiler=require'fastacl252_relay';link=compiler.link(assert(c.nodes[x.node],'绑定节点不存在'))
    if x.preproxy and x.preproxy~='' then link=link..' -> '..compiler.link(assert(c.nodes[x.preproxy],'前置节点不存在')) end
   end
   assert(fs.writefile('/tmp/fastacl252-probe.lock/spec.json',json.stringify({link=link})),'写入检测配置失败');fs.chmod('/tmp/fastacl252-probe.lock/spec.json','600')

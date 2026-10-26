@@ -22,6 +22,6 @@ reload_service(){
 
 service_triggers(){
   # Only FastACL configuration changes are hot-reloaded here.  A normal fw4
-  # restart must not restart dae or race with a user node switch.
+  # restart must not restart sing-box or race with a user node switch.
   procd_add_reload_trigger fastacl252
 }

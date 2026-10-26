@@ -51,7 +51,7 @@ def fixtures(folder):
     links=['socks5://user:pass@proxy.example:1080','https://user:pass@proxy.example:443','vless://'+UUID+'@proxy.example:443?security=tls&type=ws&path=%2Fws','trojan://pass@proxy.example:443','hy2://pass@proxy.example:443','tuic://'+UUID+':pass@proxy.example:443','ss://'+base64.b64encode(b'aes-128-gcm:secret').decode()+'@proxy.example:443']
     v=dict(add='proxy.example',port='443',id=UUID,aid='0',net='ws',path='/ws',tls='tls',ps='VMess'); links.append('vmess://'+base64.b64encode(json.dumps(v).encode()).decode())
     for i,line in enumerate(links):
-        c=config(); c['devices']=c['devices'][:1]; c['nodes']={'us':parse(line)}; out,_=compile(c); p=folder/f'import-{i}.dae';p.write_text(out,encoding='utf-8');p.chmod(0o600)
+        c=config(); c['devices']=c['devices'][:1]; c['nodes']={'us':parse(line)}; out,_=compile(c); p=folder/f'import-{i}.json';p.write_text(json.dumps(from_lua(out)),encoding='utf-8');p.chmod(0o600)
 
 if __name__=='__main__':
     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(ImportTests))

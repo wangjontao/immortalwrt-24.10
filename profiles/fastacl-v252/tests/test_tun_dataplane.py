@@ -62,7 +62,16 @@ def config(dataplane='tun'):
         'platform_secret': 'ab' * 32,
         'cn_ipv4': ['1.0.1.0/24', '1.0.2.0/23', '223.5.5.0/24'],
         'nodes': {
-            'us': {'protocol': 'socks', 'address': 'proxy.example.com', 'port': '1080', 'username': 'a', 'password': 'secret'},
+            'us': {
+                'protocol': 'socks',
+                'outbound': {
+                    'type': 'socks',
+                    'server': 'proxy.example.com',
+                    'server_port': 1080,
+                    'username': 'a',
+                    'password': 'secret',
+                },
+            },
             'front': {
                 'protocol': 'vless',
                 'outbound': {
@@ -110,11 +119,11 @@ def config(dataplane='tun'):
 
 
 class TunDataplaneTests(unittest.TestCase):
-    def test_policy_defaults_to_ebpf(self):
-        cfg = config('ebpf')
+    def test_policy_defaults_to_singbox(self):
+        cfg = config('singbox')
         cfg.pop('dataplane')
         result = from_lua(LUA.eval("require('fastacl252').validate")(to_lua(cfg)))
-        self.assertEqual(result['dataplane'], 'ebpf')
+        self.assertEqual(result['dataplane'], 'singbox')
 
     def test_invalid_dataplane_rejected(self):
         cfg = config('invalid')
@@ -122,7 +131,7 @@ class TunDataplaneTests(unittest.TestCase):
             LUA.eval("require('fastacl252').validate")(to_lua(cfg))
 
     def test_tun_compiler_keeps_dns_and_policy(self):
-        result = from_lua(LUA.eval("require('fastacl252_singbox').compile")(to_lua(config())))
+        result = from_lua(LUA.eval("require('fastacl252_singbox').compile")(to_lua(config('tun'))))
         inbound = result['inbounds'][0]
         self.assertEqual(inbound['type'], 'tun')
         self.assertEqual(inbound['interface_name'], 'fastacl-tun0')
@@ -152,6 +161,29 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertTrue(any(rule.get('ip_cidr') == ['198.19.0.0/16'] and rule.get('source_ip_cidr') == ['192.168.7.101/32'] for rule in rules))
         self.assertTrue(any(rule.get('source_ip_cidr') == ['192.168.7.101/32'] and rule.get('outbound') == 'chain-us-front' for rule in rules))
 
+    def test_tproxy_compiler_keeps_dns_and_policy(self):
+        result = from_lua(LUA.eval("require('fastacl252_singbox').compile")(to_lua(config('singbox'))))
+        self.assertEqual([inbound['type'] for inbound in result['inbounds']], ['tproxy', 'tproxy'])
+        self.assertEqual([inbound['network'] for inbound in result['inbounds']], ['tcp', 'udp'])
+        self.assertTrue(all(inbound['listen'] == '0.0.0.0' for inbound in result['inbounds']))
+        self.assertTrue(all(inbound['listen_port'] == 12525 for inbound in result['inbounds']))
+        self.assertEqual(result['dns']['servers'][0]['server'], '127.0.0.1')
+        self.assertEqual(result['route']['final'], 'direct')
+
+    def test_policy_compile_uses_native_singbox_and_relay(self):
+        compiled = LUA.eval("require('fastacl252').compile")(to_lua(config('singbox')))
+        singbox, relay = compiled[0], compiled[1]
+        singbox = from_lua(singbox)
+        relay = from_lua(relay)
+        self.assertEqual([inbound['type'] for inbound in singbox['inbounds']], ['tproxy', 'tproxy'])
+        self.assertEqual(relay['listen'], '0.0.0.0:12553')
+        self.assertEqual(relay['data_listen'], '127.0.0.1:15443')
+        self.assertEqual(relay['device_policies']['192.168.7.101']['exit'], 12600)
+        self.assertEqual(relay['network_policies']['172.16.1.0/24']['exit'], 12601)
+        self.assertIn('12600', relay['exits'])
+        self.assertIn('12601', relay['exits'])
+        self.assertEqual(relay['data_slots']['platform_device_020000000001'], 12600)
+
     def test_runtime_and_ui_expose_mutually_exclusive_dataplane(self):
         runtime = (PROFILE / 'usr/bin/fastacl252').read_text(encoding='utf-8')
         controller = (PROFILE / 'usr/lib/lua/luci/controller/fastacl252.lua').read_text(encoding='utf-8')
@@ -173,6 +205,13 @@ class TunDataplaneTests(unittest.TestCase):
             'tun_core_stop',
             'start_tun_next',
             'tun_stop',
+            'singbox_alive',
+            'singbox_tproxy_routes_ready',
+            'singbox_tproxy_ready',
+            'singbox_tproxy_routes_start',
+            'singbox_tproxy_routes_stop',
+            'start_singbox_tproxy_next',
+            'singbox_tproxy_stop',
         ):
             self.assertIn(required, runtime)
         self.assertIn('TUN_TABLE', runtime)
@@ -183,21 +222,22 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn('uci add_list firewall.fastacl_tun.device="$iface"', runtime)
         self.assertIn('ip link delete "$iface"', runtime)
         self.assertIn('/sbin/start-stop-daemon -S -b -m', runtime)
-        self.assertIn('TUN_FALLBACK_AFTER', runtime)
-        self.assertIn('fallback_to_ebpf', runtime)
-        self.assertIn('automatically fell back to eBPF', runtime)
+        self.assertIn('SINGBOX_TPROXY_TABLE', runtime)
+        self.assertIn('SINGBOX_TPROXY_FWMARK', runtime)
+        self.assertIn('start_singbox_tproxy_next', runtime)
         self.assertIn('reload_tun_next', runtime)
-        self.assertIn('dae_stop', runtime)
+        self.assertNotIn('dae_stop', runtime)
         self.assertIn('dataplane', controller)
         self.assertIn('id="f25-dataplane"', view)
         self.assertIn('id="f25-dataplane-save"', view)
         self.assertIn("$('dataplane').onchange=updateDataplaneFields", view)
         self.assertNotIn("$('dataplane').onchange=()=>renderDataplane()", view)
-        self.assertIn("option dataplane 'ebpf'", config_text)
+        self.assertIn("option dataplane 'singbox'", config_text)
         self.assertIn('+juliangtk-sing-box', package)
+        self.assertNotIn('+juliangtk-dae', package)
 
     def test_firewall_marks_only_proxy_sources_for_tun(self):
-        cfg = config()
+        cfg = config('tun')
         cfg['devices'][0]['split_mode'] = 'all'
         cfg['devices'][0]['split_rules'] = ''
         cfg['wifis'][0]['split_mode'] = 'all'
@@ -208,28 +248,56 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn('ip saddr @tun_sources meta mark set 0x2027', nft)
         self.assertNotIn('iifname @proxy_wifi_ifaces drop', nft)
 
-    def test_ebpf_firewall_keeps_proxy_fail_close(self):
-        cfg = config('ebpf')
+    def test_tproxy_firewall_intercepts_only_proxy_sources(self):
+        cfg = config('singbox')
+        cfg['devices'][0]['split_mode'] = 'all'
+        cfg['devices'][0]['split_rules'] = ''
+        cfg['wifis'][0]['split_mode'] = 'all'
+        nft = from_lua(LUA.eval("require('fastacl252').firewall")(to_lua(cfg), 'nft'))['nft']
+        self.assertIn('table ip fastacl252_tproxy {', nft)
+        self.assertIn('ip saddr @tproxy_sources ip daddr @tproxy_excludes return', nft)
+        self.assertIn('meta mark set 0x2028 tproxy to :12525 accept', nft)
+        self.assertNotIn('ip tproxy to', nft)
+        self.assertIn('meta l4proto tcp', nft)
+        self.assertIn('meta l4proto udp', nft)
+        self.assertNotIn('iifname @proxy_wifi_ifaces drop', nft)
+
+    def test_removed_legacy_firewall_fallback_is_not_generated(self):
+        cfg = config('tun')
         cfg['devices'][0]['split_mode'] = 'all'
         cfg['devices'][0]['split_rules'] = ''
         cfg['wifis'][0]['split_mode'] = 'all'
         result = from_lua(LUA.eval("require('fastacl252').firewall")(to_lua(cfg), 'nft'))
         nft = result['nft']
-        self.assertIn('iifname @proxy_wifi_ifaces drop', nft)
-        self.assertIn('ip saddr @proxy_ips drop', nft)
+        self.assertNotIn('proxy_wifi_ifaces', nft)
+        self.assertNotIn('iifname "br-lan" ip saddr @proxy_ips drop', nft)
+
+    def test_production_runtime_has_no_dae_core_path(self):
+        production = '\n'.join(
+            path.read_text(encoding='utf-8', errors='ignore')
+            for path in (PROFILE / 'usr').rglob('*')
+            if path.is_file() and path.suffix in ('.lua', '.sh', '')
+        )
+        runtime = (PROFILE / 'usr/bin/fastacl252').read_text(encoding='utf-8')
+        package = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
+        for removed in ('fastacl252_dae', 'router.next.dae', 'dae validate', 'dae run ', 'dae reload'):
+            self.assertNotIn(removed, production)
+        self.assertNotIn('juliangtk-dae', package)
+        self.assertIn('CORE_FD_LIMIT', runtime)
 
     def test_generated_config_with_official_core(self):
         core = globals().get('SING_BOX_CORE')
         if not core:
             self.skipTest('official sing-box core not provided')
-        result = from_lua(LUA.eval("require('fastacl252_singbox').compile")(to_lua(config())))
-        with tempfile.NamedTemporaryFile('w', suffix='.json', encoding='utf-8', delete=False) as handle:
-            json.dump(result, handle)
-            path = handle.name
-        try:
-            subprocess.run([core, 'check', '-c', path], check=True)
-        finally:
-            Path(path).unlink()
+        for mode in ('singbox', 'tun'):
+            result = from_lua(LUA.eval("require('fastacl252_singbox').compile")(to_lua(config(mode))))
+            with tempfile.NamedTemporaryFile('w', suffix='.json', encoding='utf-8', delete=False) as handle:
+                json.dump(result, handle)
+                path = handle.name
+            try:
+                subprocess.run([core, 'check', '-c', path], check=True)
+            finally:
+                Path(path).unlink()
 
 
 if __name__ == '__main__':

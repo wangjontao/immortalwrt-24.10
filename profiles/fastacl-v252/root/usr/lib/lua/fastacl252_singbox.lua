@@ -1,5 +1,5 @@
--- Optional sing-box TUN dataplane. FastACL still owns DNS, identity guards
--- and per-device/per-WiFi policy selection.
+-- FastACL 2.8.0 native sing-box dataplane compiler. FastACL still owns DNS,
+-- identity guards and per-device/per-WiFi policy selection.
 local M={}
 local split=require 'fastacl252_split'
 
@@ -37,7 +37,7 @@ local function add_route(route,scope,outbound)
 end
 
 function M.compile(c)
-  assert(c.dataplane=='tun','TUN compiler requires dataplane=tun')
+  assert(c.dataplane=='singbox' or c.dataplane=='tun','sing-box compiler requires dataplane=singbox or tun')
   local route_rules={}
   local direct={type='direct',tag='direct',domain_resolver='fastacl-dns'}
   if c.wan_interface then direct.bind_interface=c.wan_interface end
@@ -116,6 +116,26 @@ function M.compile(c)
   for _,w in ipairs(c.wifis or {}) do exclude(w.subnet) end
   for _,v in ipairs(PRIVATE) do exclude(v) end
 
+  local inbounds
+  if c.dataplane=='tun' then
+    inbounds={{
+      type='tun',
+      tag='tun-in',
+      interface_name=c.tun_interface,
+      address={c.tun_address},
+      mtu=c.tun_mtu,
+      auto_route=false,
+      strict_route=false,
+      stack=c.tun_stack,
+      endpoint_independent_nat=true,
+      route_exclude_address=excluded
+    }}
+  else
+    inbounds={
+      {type='tproxy',tag='tproxy-tcp-in',listen='0.0.0.0',listen_port=c.port,network='tcp'},
+      {type='tproxy',tag='tproxy-udp-in',listen='0.0.0.0',listen_port=c.port,network='udp',udp_timeout='5m'}
+    }
+  end
   local conf={
     log={level='warn',timestamp=true},
     dns={
@@ -123,27 +143,11 @@ function M.compile(c)
       final='fastacl-dns',
       strategy='ipv4_only'
     },
-    inbounds={{
-      type='tun',
-      tag='tun-in',
-      interface_name=c.tun_interface,
-      address={c.tun_address},
-      mtu=c.tun_mtu,
-      -- FastACL installs an isolated policy route table for forwarded LAN
-      -- traffic. sing-box must not own the main table or local output path,
-      -- otherwise SSH, LuCI and NPS traffic are pulled into the tunnel.
-      auto_route=false,
-      strict_route=false,
-      stack=c.tun_stack,
-      endpoint_independent_nat=true,
-      route_exclude_address=excluded
-    }},
+    inbounds=inbounds,
     outbounds=outbounds,
     route={
       rules=route_rules,
       final='direct',
-      -- Automatic interface detection can select fastacl-tun0 through the
-      -- isolated policy table and create a direct-outbound routing loop.
       auto_detect_interface=false,
       default_domain_resolver='fastacl-dns'
     }

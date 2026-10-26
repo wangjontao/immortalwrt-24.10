@@ -14,7 +14,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/juliangtk-sing-box
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Pinned official sing-box for FastACL TUN
+  TITLE:=Pinned official sing-box for FastACL TPROXY/TUN
   DEPENDS:=@TARGET_mediatek_filogic
   CONFLICTS:=sing-box
 endef

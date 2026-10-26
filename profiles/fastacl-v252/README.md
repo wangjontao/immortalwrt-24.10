@@ -1,24 +1,19 @@
-# FastACL 2.7.1
+# FastACL 2.8.0
 
-This independent `2.7.1` branch combines the proven FastACL eBPF path with an
-optional sing-box TUN backend for JuLiangTK platforms on ImmortalWrt 24.10.
-The package is `2.7.1-r1`.
+FastACL 2.8.0 is the native sing-box branch. It does not use dae as a dataplane,
+configuration compiler, node validator, probe, or runtime dependency.
 
-Node, preproxy and DNS changes use `fastacl252 hot-apply`. The normal hot path keeps both daemon PIDs, reloads dae in process, swaps DNS policy snapshots through a root-only Unix control socket, and atomically updates only FastACL's private nft table when its rules change. It never reloads network, WiFi or the system firewall. A fixed-IP binding change alone can reload dnsmasq. Established dae connections may retain their previous exit; new connections use the updated policy.
+- `sing-box TPROXY` is the default mode and uses an isolated IPv4 nft table,
+  fwmark policy routing, and TCP/UDP TPROXY inbounds.
+- `sing-box TUN` is an optional production mode using the same sing-box policy,
+  DNS helper, nodes, chains, and device/WiFi rules.
+- The two modes can be switched without falling back to another core.
+- Device and WiFi assignment, smart/custom routing, platform priority, DNS
+  splitting and blocking, subscriptions, UDP, chains, health recovery, NPS,
+  and online upgrade remain available.
 
-Creating/removing managed WiFi changes topology and uses the cold path. SSID visibility changes reload wireless only. The health-driven guard repairs missing private firewall rules without restarting healthy daemons; an actual dae reload failure may fall back to a dae-only restart. A rejected DNS reload retains the working DNS policy and listeners. Protection rules are installed before native-core validation, including during startup recovery.
+The DNS helper uses `fastacl252_relay.lua` for resolver and slot policy.
+Imported nodes are validated directly by `sing-box check`.
 
-The main WiFi retains per-device MAC + fixed-IP routing, with unbound devices direct by default. Optional WiFi networks are created on demand, up to 14 additional 5GHz and 8 additional 2.4GHz networks, with separate bridges, DHCP, firewall zones and exit/DNS policies. Used subnets are excluded from the 172.16.x.0/24 allocation pool.
-
-Manual import accepts SOCKS5/SK5/HTTP/HTTPS/VLESS/VMess/Trojan/SS/Hysteria2/TUIC and host:port:user:pass lines. Subscription formats include HTTPS lists, Base64, Clash YAML and sing-box JSON. Device- and WiFi-bound subscription nodes are retained when removed upstream. Proxy DNS requires DoH and uses the assigned proxy chain without a direct fallback.
-
-This branch removes the legacy HOTFIX-6 first-boot substitutions. Native UCI writes, octal permissions, empty JSON object maps and protocol registration are tested directly rather than relying on permissive API mocks.
-
-Both Lite CI gates run shell/Lua syntax checks, import/subscription regressions, native Go tests with the race detector, persistent DNS TCP-session and daemon PID tests, runtime lifecycle/rollback tests, native dae configuration validation and browser UI tests. The shell lifecycle tests stub external commands and do not prove eBPF behavior. Real S20L cold boot, WiFi radio operation, simultaneous device/WiFi switching, failure isolation and measured switching latency remain hardware acceptance checks. CI success alone is not a hardware pass.
-
-The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS uses nps.jontao.top:8024 with an uppercase physical-WAN-MAC VKey. Restricted LuCI operator access is included; SSH uses port 20022.
-
-Official dae source: https://github.com/daeuniverse/dae/tree/v2.1.1 (AGPL-3.0).
-
-See [FastACL 2.7.1 release notes](README-2.7.1.md) for the dataplane model and
-validation limits.
+See `README-2.8.0.md` for the release summary. The `2.7.1` branch remains the
+rollback branch.

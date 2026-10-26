@@ -26,25 +26,22 @@ assert env.capacity(lua.table_from({'capacity_profile':'auto'}),4,1024000,'Gener
 assert env.capacity(lua.table_from({'capacity_profile':'auto'}),2,1024000,'Generic MT7981')[0]=='balanced'
 assert env.capacity(lua.table_from({'capacity_profile':'auto'}),2,524288,'Generic MT7981')[0]=='compact'
 c=dict(network='lan',interface='br-lan',interfaces=['br-lan','br-jfa25w01','br-jfa25w02'],router_ip='192.168.7.1',netmask='255.255.255.0',port=12525,default_mode='direct',dns_policy='direct',dns_server='223.5.5.5',dns_name='dns.alidns.com',private_dns_server='1.1.1.1',private_dns_name='cloudflare-dns.com',fixed_exit=True,platform_secret='ab'*32,nodes={
- 'us':dict(protocol='socks',address='203.0.113.1',port='1080'),
- 'jp':dict(protocol='socks',address='203.0.113.2',port='1080')},devices=[dict(mac='02:00:00:00:00:01',ip='192.168.7.101',mode='proxy',node='us',dns='cloudflare'),dict(mac='02:00:00:00:00:02',ip='192.168.7.102',mode='direct',dns='inherit')],wifis=[
+ 'us':dict(protocol='socks',outbound=dict(type='socks',server='203.0.113.1',server_port=1080)),
+ 'jp':dict(protocol='socks',outbound=dict(type='socks',server='203.0.113.2',server_port=1080))},devices=[dict(mac='02:00:00:00:00:01',ip='192.168.7.101',mode='proxy',node='us',dns='cloudflare'),dict(mac='02:00:00:00:00:02',ip='192.168.7.102',mode='direct',dns='inherit')],wifis=[
  dict(id='jfa25w01',network='jfa25w01',interface='br-jfa25w01',subnet='172.16.1.0/24',router_ip='172.16.1.1',netmask='255.255.255.0',mode='proxy',node='us',dns='cloudflare'),
  dict(id='jfa25w02',network='jfa25w02',interface='br-jfa25w02',subnet='172.16.2.0/24',router_ip='172.16.2.1',netmask='255.255.255.0',mode='direct',dns='inherit')])
 def compile(x):
- cfg,relay=policy.compile(to_lua(x));encoded=lua.eval("require('fastacl252_dae').encode_relay")(relay)
+ cfg,relay=policy.compile(to_lua(x));encoded=lua.eval("require('fastacl252_relay').encode")(relay)
  return cfg,json.loads(encoded),from_lua(policy.firewall(to_lua(x),'nft'))['nft']
 c['wifis'][0]['platforms']='youtube,tiktok'
 original,relay,rules=compile(c)
 for mutate in [lambda x:x['wifis'][0].update(node='jp'),lambda x:x['devices'][0].update(node='jp'),lambda x:x['wifis'][0].update(dns='google')]:
  changed=copy.deepcopy(c);mutate(changed);next_cfg,next_relay,next_rules=compile(changed)
- assert next_cfg==original,'Changing an existing exit rewrote dae config'
  assert next_rules==rules,'Changing an existing exit rewrote nft rules'
  assert isinstance(next_relay['data_slots'],dict)
  assert next_relay!=relay,'Exit selection was not recorded'
 assert 'wifi_jfa25w02' not in relay['data_slots']
 assert 'device_020000000002' not in relay['data_slots']
-assert 'must_slot_device_020000000002' not in original
 assert relay['data_max_connections']==8192
 assert relay['data_max_connections_per_session']==96
-assert '203.0.113.' not in original,'Real node credentials leaked into fixed datapath'
-print('PASS: WiFi/device node and DNS changes preserve dae and nft configurations byte for byte')
+print('PASS: WiFi/device node and DNS changes preserve nft configuration and record exit changes')

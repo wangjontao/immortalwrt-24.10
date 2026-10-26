@@ -19,7 +19,7 @@ function M.node(n)
  o.transport=object(o.transport,'Transport') or o.transport
  o.obfs=object(o.obfs,'Obfs') or o.obfs
  local allowed={type=true,server=true,server_port=true,username=true,password=true,uuid=true,security=true,alter_id=true,flow=true,method=true,version=true,tls=true,transport=true,obfs=true,congestion_control=true,tag=true}
- for k in pairs(o) do assert(allowed[k],'Unsupported dae node field: '..k) end
+ for k in pairs(o) do assert(allowed[k],'Unsupported proxy node field: '..k) end
  local host=assert(o.server); assert(not host:find('[%s/@?#]'),'Invalid server')
  if host:find(':',1,true) then host='['..host..']' end
  local port=assert(tonumber(o.server_port));assert(port>=1 and port<=65535 and port%1==0,'Invalid port')
@@ -38,7 +38,7 @@ function M.node(n)
   local v={v='2',ps='FastACL',add=o.server,port=tostring(port),id=assert(o.uuid),aid=tostring(o.alter_id or 0),scy=o.security or 'auto',net=t.type or 'tcp',path=t.path or t.service_name or '',host=t.headers and t.headers.Host or '',tls=tls.enabled and 'tls' or '',sni=tls.server_name,fp=tls.utls and tls.utls.fingerprint,alpn=tls.alpn and table.concat(tls.alpn,',')}
   assert(not tls.insecure,'VMess insecure setting cannot be represented safely')
   return 'vmess://'..require('nixio').bin.b64encode(require('luci.jsonc').stringify(v))
- else error('Unsupported dae protocol: '..tostring(scheme)) end
+ else error('Unsupported proxy protocol: '..tostring(scheme)) end
  local tls=o.tls
  if tls and tls.enabled then
   for k in pairs(tls) do assert(k=='enabled' or k=='server_name' or k=='insecure' or k=='alpn' or k=='utls' or k=='reality','Unsupported TLS field: '..k) end

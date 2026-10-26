@@ -46,11 +46,6 @@ function M.networks()
  for line in f:lines() do assert(line:match('^%d+%.%d+%.%d+%.%d+/%d+$'),'国内 IP 数据损坏');out[#out+1]=line end
  f:close();assert(#out>1000,'国内 IP 数据不完整');return out
 end
-function M.dae(x,scope,group,rules)
- local mode,custom=M.parse(x);if mode=='all' then return end
- for _,r in ipairs(custom) do rules[#rules+1]=scope..' && dip('..r.cidr..') -> '..(r.action=='proxy' and 'must_'..group or r.action=='direct' and 'must_direct' or 'block') end
- if mode=='smart' then local nets=M.networks();for start=1,#nets,400 do local chunk={};for j=start,math.min(start+399,#nets) do chunk[#chunk+1]=nets[j] end;rules[#rules+1]=scope..' && dip('..table.concat(chunk,', ')..') -> must_direct' end end
-end
 function M.nft(c)
  local sets,out={},{};local cn=false
  local function one(x,scope)

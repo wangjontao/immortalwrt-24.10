@@ -89,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
                 state['runtime']['switch']='hot';state['runtime']['request']='hot';msg='节点已应用层快速切换；network / WiFi / firewall 均未重载。'
             elif a=='remove':
                 r=next(r for r in info['managed'] if r['id']==data['id']);info['counts'][r['band']]-=1;info['managed'].remove(r);msg='WiFi 拓扑已保存并重新加载。'
-            elif a=='hide_all':msg='SSID 显示状态已更新；未重载 network / firewall / dae。'
+            elif a=='hide_all':msg='SSID 显示状态已更新；未重载 network / firewall / sing-box。'
             else:self.reply({'ok':False,'error':'bad action'});return
             self.reply({'ok':True,'message':msg});return
         if self.path.endswith('/fastacl252_subscription'):

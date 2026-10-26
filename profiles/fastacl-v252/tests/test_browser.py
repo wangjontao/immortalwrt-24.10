@@ -22,7 +22,7 @@ try:
         expect(page.get_by_role('heading',name='多 WiFi 分配模式',exact=True)).to_be_visible()
         expect(page.locator('#f25-direct-dns')).to_have_value('alidns')
         expect(page.locator('#f25-proxy-dns')).to_have_value('cloudflare')
-        expect(page.locator('#f25-dataplane')).to_have_value('ebpf')
+        expect(page.locator('#f25-dataplane')).to_have_value('singbox')
         expect(page.locator('#f25-tun-interface')).to_have_value('fastacl-tun0')
         expect(page.get_by_role('button',name='应用数据面',exact=True)).to_be_visible()
 
