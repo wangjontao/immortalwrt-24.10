@@ -14,6 +14,7 @@ mt7986_workflow = (
     ROOT / ".github/workflows/JuLiangTK-MT7986-FastACL280.yml"
 ).read_text(encoding="utf-8")
 package = (ROOT / "profiles/fastacl-v252/package-Makefile").read_text(encoding="utf-8")
+check_kernel = (ROOT / "profiles/fastacl-v252/check-kernel.sh").read_text(encoding="utf-8")
 
 MT7981 = {
     "philips_hy3000",
@@ -50,9 +51,13 @@ MT7986 = {
 assert "PKG_VERSION:=2.8.0" in package
 assert "PKG_RELEASE:=22" in package
 assert "+nftables-json" in package and "+nftables " not in package
+assert "+kmod-nft-tproxy" in package
+assert "NFT_TPROXY" in check_kernel
+assert "NETFILTER_XT_TARGET_TPROXY" not in check_kernel
 dependencies = (ROOT / "profiles/fastacl-v252/dependencies.config").read_text(encoding="utf-8")
 assert "CONFIG_PACKAGE_nftables-json=y" in dependencies
 assert "CONFIG_PACKAGE_nftables=y" not in dependencies
+assert "CONFIG_PACKAGE_kmod-nft-tproxy=y" in dependencies
 
 for device in MT7981:
     assert f"{device}) tag=" in integration, device
@@ -87,6 +92,8 @@ for workflow in (mt7981_workflow, mt7986_workflow):
 
 assert "integrate-fastacl280-grouped.sh" in mt7981_workflow
 assert "integrate-fastacl252-s20l.sh" in mt7986_workflow
+assert "kmod-nft-tproxy" in mt7981_workflow
+assert "kmod-nft-tproxy" in mt7986_workflow
 assert "test_redmi_110m_layout.py" in mt7986_workflow
 assert "README-2.8.0.md" in mt7986_workflow
 assert "find-fastacl280-manifest.py" in mt7981_workflow

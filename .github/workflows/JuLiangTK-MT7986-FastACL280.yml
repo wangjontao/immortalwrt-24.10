@@ -215,7 +215,7 @@ jobs:
           cp -a "${images[@]}" upload/
           manifest="$(python3 scripts/find-fastacl280-manifest.py bin/targets/mediatek/filogic "$DEVICE")"
           [ -s "$manifest" ] || { echo 'ERROR: firmware package manifest missing'; exit 1; }
-          for pkg in fastacl252 juliangtk-sing-box lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+          for pkg in fastacl252 juliangtk-sing-box kmod-tun kmod-nft-tproxy lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
             grep -q "^$pkg " "$manifest" || { echo "$pkg missing from firmware"; exit 1; }
           done
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi

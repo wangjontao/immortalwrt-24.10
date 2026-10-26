@@ -9,7 +9,7 @@ define Package/fastacl252
   CATEGORY:=Network
   TITLE:=JuLiangTK FastACL 2.8.0 sing-box proxy control center
   CONFLICTS:=fastacl25 fastacl251
-  DEPENDS:=+kmod-tcp-bbr +kmod-sched +kmod-tun +juliangtk-sing-box +libuci-lua +luci-compat +luci-lib-nixio +luci-lib-jsonc +lyaml +curl +ca-bundle +usign +jsonfilter +ip-full +iw +iwinfo +ip-bridge +firewall4 +nftables-json +sqm-scripts +kmod-sched-cake +kmod-ifb
+  DEPENDS:=+kmod-tcp-bbr +kmod-sched +kmod-tun +kmod-nft-tproxy +juliangtk-sing-box +libuci-lua +luci-compat +luci-lib-nixio +luci-lib-jsonc +lyaml +curl +ca-bundle +usign +jsonfilter +ip-full +iw +iwinfo +ip-bridge +firewall4 +nftables-json +sqm-scripts +kmod-sched-cake +kmod-ifb
 endef
 define Build/Compile
 endef
