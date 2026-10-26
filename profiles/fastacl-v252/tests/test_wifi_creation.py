@@ -22,7 +22,7 @@ package.preload['fastacl252_dns']=function()
   return {
     valid_id=function() return true end,
     provider=function() return {} end,
-    allowed=function() return true end,
+    allowed=function(id,scope) if scope=='proxy' then return id~='public114' end return true end,
     resolve=function(tmp) tmp.dns_type='doh' end
   }
 end
@@ -120,6 +120,16 @@ u.writes=0
         with self.assertRaises(Exception):
             lua.execute("M.create(u,{count5=1,count2=0,prefix='12345678901234567890123456789012',start=1,key='12345678',node='',dns='inherit'})")
         self.assertEqual(lua.eval("u.writes"), 0)
+
+    def test_proxy_wifi_replaces_plain_udp_dns_with_inherited_doh(self):
+        lua = self.runtime()
+        lua.execute("configs.fastacl252.node1={['.name']='node1',['.type']='node',protocol='vless',retired='0'}")
+        lua.execute("local old=u.get;u.get=function(self,cfg,id,key) if cfg=='fastacl252' and id=='node1' and key==nil then return 'node' end return old(self,cfg,id,key) end")
+        lua.execute("M.create(u,{count5=1,count2=0,prefix='PX',start=1,key='12345678',node='node1',dns='public114'})")
+        rows = list(lua.eval("configs.fastacl252").values())
+        wifi = next(row for row in rows if row['.type'] == 'wifi')
+        self.assertEqual(wifi['mode'], 'proxy')
+        self.assertEqual(wifi['dns'], 'inherit')
 
 
 if __name__ == '__main__':
