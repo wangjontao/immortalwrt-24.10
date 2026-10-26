@@ -140,7 +140,7 @@ function M.create(u,req)
     add(u,'network','interface',id,{device=dev,proto='static',ipaddr=ip,netmask='255.255.255.0',delegate='0'},id)
     add(u,'dhcp','dhcp',id,{interface=id,start='100',limit='120',leasetime='12h',ra='disabled',dhcpv6='disabled',ndp='disabled',dhcp_option={'3,'..ip..' 6,'..ip}},id)
     add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='1',disabled='0',hidden=hidden and '1' or '0'},id)
-    add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT'},id)
+    add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT',masq='1'},id)
     add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','forwarding',id..'_wan',{src=id,dest='wan'},id)
@@ -233,6 +233,7 @@ function M.sync_firewall_devices(u)
   local bridge='br-'..id
   if not (owned(n) and n.device==bridge and owned(b) and b.name==bridge and b.type=='bridge' and owned(z) and z.name==id) then return end
   local networks=type(z.network)=='table' and z.network or {z.network};local found=false;for _,v in ipairs(networks)do if v==id then found=true end end;if not found then return end
+  if z.masq~='1' then assert(u:set('firewall',id,'masq','1'),'Cannot enable managed WiFi WAN masquerading');changed=changed+1 end
   local devices=type(z.device)=='table' and z.device or (z.device and {z.device} or {})
   for _,v in ipairs(devices)do if v==bridge then return end end
   devices[#devices+1]=bridge;assert(u:set('firewall',id,'device',devices),'Cannot pin managed WiFi firewall device');changed=changed+1
