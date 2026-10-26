@@ -45,6 +45,7 @@ env:
   RELEASE_USER: fastacl-deploy
   RELEASE_HOST: 175.178.237.53
   RELEASE_ROOT: /srv/fastacl-releases
+  DOWNLOAD_MIRROR: https://ghfast.top/
 
 jobs:
   publish:
@@ -204,20 +205,29 @@ jobs:
 
           ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$release_id'"
           ssh $ssh_options "$target" \
-            "RELEASE_ROOT='$RELEASE_ROOT' RELEASE_ID='$release_id' RELEASE_URL='$release_url' bash -s" <<'REMOTE_DOWNLOAD'
+            "RELEASE_ROOT='$RELEASE_ROOT' RELEASE_ID='$release_id' RELEASE_URL='$release_url' DOWNLOAD_MIRROR='$DOWNLOAD_MIRROR' bash -s" <<'REMOTE_DOWNLOAD'
           set -euo pipefail
           cd "$RELEASE_ROOT/staging/$RELEASE_ID"
           curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
             "$RELEASE_URL/SHA256SUMS" -o SHA256SUMS
-          args=()
-          while read -r checksum name; do
-            test -n "$name"
-            name="${name#./}"
-            args+=(-o "$name" "$RELEASE_URL/$name")
-          done < SHA256SUMS
-          test "${#args[@]}" -gt 0
-          curl -fL --retry 3 --connect-timeout 15 --max-time 2700 \
-            --parallel --parallel-max 16 "${args[@]}"
+          download_all() {
+            local base="$1" args=() checksum name
+            while read -r checksum name; do
+              test -n "$name"
+              name="${name#./}"
+              args+=(-o "$name" "$base/$name")
+            done < SHA256SUMS
+            test "${#args[@]}" -gt 0
+            curl -fL --retry 3 --connect-timeout 15 --max-time 2700 \
+              --parallel --parallel-max 16 "${args[@]}"
+          }
+          if ! download_all "${DOWNLOAD_MIRROR}${RELEASE_URL}"; then
+            while read -r checksum name; do
+              name="${name#./}"
+              rm -f "$name"
+            done < SHA256SUMS
+            download_all "$RELEASE_URL"
+          fi
           sha256sum -c SHA256SUMS
           REMOTE_DOWNLOAD
           ssh $ssh_options "$target" \
