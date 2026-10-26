@@ -71,6 +71,7 @@ jobs:
           .venv/bin/python profiles/fastacl-v252/tests/test_split_data.py
           .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
           .venv/bin/python profiles/fastacl-v252/tests/test_menu_cleanup.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_delete_confirm.py
           .venv/bin/python profiles/fastacl-v252/tests/test_reboot.py
           .venv/bin/python profiles/fastacl-v252/tests/test_login_theme.py
       - name: Validate DNS relay and native nodes

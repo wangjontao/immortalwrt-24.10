@@ -17,6 +17,7 @@ function delete_nodes()
   local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local policy=require 'fastacl252'
   local req=json.parse(h.formvalue('data') or '')
   local ids=type(req)=='table' and req.ids or nil
+  local force=type(req)=='table' and (req.force==true or tostring(req.force)=='1')
   if type(ids)~='table' or #ids<1 or #ids>256 then reply({ok=false,error='请选择 1–256 个节点'}); return end
   if not fs.mkdir('/tmp/fastacl252-edit.lock') then reply({ok=false,error='配置正在保存，请稍后重试'}); return end
 
@@ -45,9 +46,19 @@ function delete_nodes()
         seen[id]=true
         if not policy.id(id) or u:get('fastacl252',id)~='node' then
           skipped[#skipped+1]={id=id,reason='节点不存在或 ID 无效'}
-        elseif bound[id] then
+        elseif bound[id] and not force then
           skipped[#skipped+1]={id=id,reason='正在使用：'..table.concat(bound[id],'、')}
         else
+          if force then
+            u:foreach('fastacl252','device',function(d)
+              if d.node==id then u:set('fastacl252',d['.name'],'node','') end
+              if d.preproxy==id then u:set('fastacl252',d['.name'],'preproxy','') end
+            end)
+            u:foreach('fastacl252','wifi',function(w)
+              if w.node==id then u:set('fastacl252',w['.name'],'node','') end
+              if w.preproxy==id then u:set('fastacl252',w['.name'],'preproxy','') end
+            end)
+          end
           u:delete('fastacl252',id); deleted[#deleted+1]=id
         end
       end
@@ -59,5 +70,5 @@ function delete_nodes()
     if original then fs.writefile('/etc/config/fastacl252',original) end
   end
   fs.rmdir('/tmp/fastacl252-edit.lock')
-  reply(ok and {ok=true,deleted=deleted,skipped=skipped,message='已删除 '..#deleted..' 个节点；跳过 '..#skipped..' 个正在使用/无效节点。'} or {ok=false,error=tostring(err)})
+  reply(ok and {ok=true,deleted=deleted,skipped=skipped,forced=force,message='已删除 '..#deleted..' 个节点；跳过 '..#skipped..' 个无效节点。'..(force and ' 关联设备和 WiFi 已切换为国内直连。' or '')} or {ok=false,error=tostring(err)})
 end

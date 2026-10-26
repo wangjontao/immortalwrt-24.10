@@ -39,6 +39,13 @@ def bound_nodes():
     return out
 
 
+def clear_node_binding(nid):
+    for rows in (state['devices'],state['wifi']['managed']):
+        for row in rows:
+            if row.get('node')==nid:row['node']=''
+            if row.get('preproxy')==nid:row['preproxy']=''
+
+
 class Handler(BaseHTTPRequestHandler):
     def reply(self,data):
         b=json.dumps(data,ensure_ascii=False).encode();self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.end_headers();self.wfile.write(b)
@@ -105,16 +112,20 @@ class Handler(BaseHTTPRequestHandler):
             elif action=='remove':state['subscriptions']=[]
             self.reply({'ok':True});return
         if self.path.endswith('/fastacl252_delete_nodes'):
-            data=json.loads(form['data'][0]);ids=data.get('ids',[]);bound=bound_nodes();deleted=[];skipped=[]
+            data=json.loads(form['data'][0]);ids=data.get('ids',[]);force=data.get('force') in (True,1,'1');bound=bound_nodes();deleted=[];skipped=[]
             for nid in ids:
-                if nid in bound:skipped.append({'id':nid,'reason':'正在使用'})
+                if nid in bound and not force:skipped.append({'id':nid,'reason':'正在使用'})
                 elif any(n['id']==nid for n in state['nodes']):deleted.append(nid)
                 else:skipped.append({'id':nid,'reason':'节点不存在'})
+            for nid in deleted:clear_node_binding(nid)
             state['nodes']=[n for n in state['nodes'] if n['id'] not in deleted]
-            self.reply({'ok':True,'deleted':deleted,'skipped':skipped,'message':f'已删除 {len(deleted)} 个节点；跳过 {len(skipped)} 个正在使用/无效节点。'});return
+            message=f'已删除 {len(deleted)} 个节点；跳过 {len(skipped)} 个无效节点。'
+            if force:message+=' 关联设备和 WiFi 已切换为国内直连。'
+            self.reply({'ok':True,'deleted':deleted,'skipped':skipped,'forced':force,'message':message});return
         if self.path.endswith('/fastacl252_delete_node'):
-            nid=form.get('id',[''])[0]
-            if nid in bound_nodes():self.reply({'ok':False,'error':'节点仍在使用'});return
+            nid=form.get('id',[''])[0];force=form.get('force',[''])[0] in ('1','true')
+            if nid in bound_nodes() and not force:self.reply({'ok':False,'error':'节点仍在使用'});return
+            clear_node_binding(nid)
             state['nodes']=[n for n in state['nodes'] if n['id']!=nid];self.reply({'ok':True});return
         self.send_error(404)
     def log_message(self,*args):pass

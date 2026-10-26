@@ -369,14 +369,25 @@ function rename_node()
 end
 
 function delete_node()
-  local fs=require 'nixio.fs'; local id=require('luci.http').formvalue('id'); local policy=require 'fastacl252'
+  local fs=require 'nixio.fs'; local h=require('luci.http'); local id=h.formvalue('id'); local force=h.formvalue('force')=='1' or h.formvalue('force')=='true'; local policy=require 'fastacl252'
   if not policy.id(id) then reply({ok=false,error='节点 ID 无效'}); return end
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor(); local ok,err=pcall(function()
     local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存配置')
     assert(u:get('fastacl252',id)=='node','节点不存在')
-    u:foreach('fastacl252','device',function(d) assert(d.node~=id and d.preproxy~=id,'节点仍被设备使用，请先解除绑定') end)
-    u:foreach('fastacl252','wifi',function(w) assert(w.node~=id and w.preproxy~=id,'节点仍被 WiFi 使用，请先解除绑定') end)
+    if force then
+      u:foreach('fastacl252','device',function(d)
+        if d.node==id then u:set('fastacl252',d['.name'],'node','') end
+        if d.preproxy==id then u:set('fastacl252',d['.name'],'preproxy','') end
+      end)
+      u:foreach('fastacl252','wifi',function(w)
+        if w.node==id then u:set('fastacl252',w['.name'],'node','') end
+        if w.preproxy==id then u:set('fastacl252',w['.name'],'preproxy','') end
+      end)
+    else
+      u:foreach('fastacl252','device',function(d) assert(d.node~=id and d.preproxy~=id,'节点仍被设备使用，请先解除绑定') end)
+      u:foreach('fastacl252','wifi',function(w) assert(w.node~=id and w.preproxy~=id,'节点仍被 WiFi 使用，请先解除绑定') end)
+    end
     u:delete('fastacl252',id); assert(u:commit('fastacl252'),'删除节点失败')
   end)
   if not ok then u:revert('fastacl252') end

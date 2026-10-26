@@ -105,11 +105,15 @@ try:
         page.locator('#f25-assign-go').click()
         expect(page.locator('#f25-msg')).to_contain_text('应用层快速切换',timeout=10000)
 
-        stage='protected batch deletion'
+        stage='confirmed batch deletion'
         page.locator('#f25-select-all').click()
-        page.once('dialog',lambda d:d.accept())
+        confirmations=[]
+        def accept_confirm(d):confirmations.append(d.message);d.accept()
+        page.on('dialog',accept_confirm)
         page.locator('#f25-delete-selected').click()
-        expect(page.locator('#f25-msg')).to_contain_text('跳过',timeout=10000)
+        expect(page.locator('#f25-msg')).to_contain_text('已删除',timeout=10000)
+        page.remove_listener('dialog',accept_confirm)
+        assert len(confirmations)==2,confirmations
 
         stage='search and responsive screenshots'
         page.locator('#f25-search').fill('手机 B')
