@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Validate the complete FastACL 2.8.0 MT7981 and MT7986 build matrix."""
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 integration = (ROOT / "scripts/integrate-fastacl252-s20l.sh").read_text(encoding="utf-8")
@@ -72,6 +75,9 @@ for device, (tag, config_name) in MT7986.items():
     assert "CONFIG_PACKAGE_juliangtk-sing-box=y" in config
     assert "CONFIG_PACKAGE_juliangtk-dae=y" not in config
     assert 'CONFIG_VERSION_CODE="FastACL2.8.0"' in config
+    assert 'CONFIG_VERSION_DIST="JuLiang OS"' in config
+    assert 'CONFIG_VERSION_MANUFACTURER="JuLiang OS"' in config
+    assert 'CONFIG_VERSION_PRODUCT="JuLiang OS"' in config
 
 for workflow in (mt7981_workflow, mt7986_workflow):
     assert "branches: ['2.8.0']" in workflow
@@ -83,4 +89,26 @@ assert "integrate-fastacl280-grouped.sh" in mt7981_workflow
 assert "integrate-fastacl252-s20l.sh" in mt7986_workflow
 assert "test_redmi_110m_layout.py" in mt7986_workflow
 assert "README-2.8.0.md" in mt7986_workflow
+assert "find-fastacl280-manifest.py" in mt7981_workflow
+assert "find-fastacl280-manifest.py" in mt7986_workflow
+assert 'JuLiang-OS-${DEVICE_GROUP}-final.config' in mt7981_workflow
+assert 'JuLiang-OS-${DEVICE_TAG}-final.config' in mt7986_workflow
+
+with tempfile.TemporaryDirectory() as temp:
+    root = Path(temp)
+    profiles = root / "profiles"
+    profiles.mkdir()
+    (root / "shared.manifest").write_text("shared", encoding="utf-8")
+    (profiles / "clx_s20l.manifest").write_text("device", encoding="utf-8")
+    result = subprocess.check_output(
+        [
+            sys.executable,
+            str(ROOT / "scripts/find-fastacl280-manifest.py"),
+            str(root),
+            "clx_s20l",
+        ],
+        text=True,
+    ).strip()
+    assert Path(result).name == "clx_s20l.manifest"
+
 print("FastACL 2.8.0 MT7981 and MT7986 build matrix: OK")

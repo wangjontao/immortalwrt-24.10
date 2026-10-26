@@ -215,8 +215,8 @@ jobs:
             mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname "*${device}*sysupgrade*" -o -iname "*${device}*factory*" \) -size +5M)
             [ "${#images[@]}" -gt 0 ] || { echo "ERROR: $device firmware image missing"; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort; exit 1; }
             cp -a "${images[@]}" upload/
-            manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest
-            [ -s "$manifest" ] || { echo "ERROR: $device shared package manifest missing"; exit 1; }
+            manifest="$(python3 scripts/find-fastacl280-manifest.py bin/targets/mediatek/filogic "$device")"
+            [ -s "$manifest" ] || { echo "ERROR: $device package manifest missing"; exit 1; }
             for pkg in fastacl252 juliangtk-sing-box kmod-tun lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
               grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from $device"; exit 1; }
             done
@@ -228,15 +228,15 @@ jobs:
           grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.8.0.md upload/
-          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nversion=2.8.0\ngroup=%s\ndevices=%s\n' \
+          cp "JuLiang-OS-${DEVICE_GROUP}-final.config" profiles/fastacl-v252/README-2.8.0.md upload/
+          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.0\ngroup=%s\ndevices=%s\n' \
             "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" "$DEVICE_GROUP" "$DEVICES" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiangTK-${{ matrix.tag }}-FastACL2.8.0-MT7981-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-${{ matrix.tag }}-2.8.0-MT7981-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -248,6 +248,6 @@ jobs:
           path: |
             logs/
             .config
-            JuLiangTK-*-final.config
+            JuLiang-OS-*-final.config
           if-no-files-found: ignore
           retention-days: 14

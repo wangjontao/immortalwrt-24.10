@@ -2,6 +2,8 @@
 
 FastACL 2.8.0 是独立的 sing-box 内核版本，不包含 dae 数据面，也不依赖 dae 配置生成、探针或运行进程。
 
+所有机型的系统显示名统一为 `JuLiang OS`，具体硬件型号保留在构建标识、主机名和产物文件名中。
+
 ## 数据面
 
 - `sing-box TPROXY`：默认正式模式。nft 只标记代理设备和代理 WiFi，流量进入 sing-box TCP/UDP TPROXY 入站；国内直连、UDP、DNS 防泄漏和硬件转发路径保持独立。

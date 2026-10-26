@@ -213,8 +213,8 @@ jobs:
               --sysupgrade "bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic-${DEVICE}-squashfs-sysupgrade.bin"
           fi
           cp -a "${images[@]}" upload/
-          manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest
-          [ -s "$manifest" ] || { echo 'ERROR: shared package manifest missing'; exit 1; }
+          manifest="$(python3 scripts/find-fastacl280-manifest.py bin/targets/mediatek/filogic "$DEVICE")"
+          [ -s "$manifest" ] || { echo 'ERROR: firmware package manifest missing'; exit 1; }
           for pkg in fastacl252 juliangtk-sing-box lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
             grep -q "^$pkg " "$manifest" || { echo "$pkg missing from firmware"; exit 1; }
           done
@@ -225,14 +225,14 @@ jobs:
           cp .config upload/build.config
           cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.8.0.md upload/
-          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nversion=2.8.0\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" "$DEVICE" > upload/LITE-BUILD.txt
+          cp "JuLiang-OS-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.8.0.md upload/
+          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.0\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" "$DEVICE" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiangTK-${{ matrix.tag }}-FastACL2.8.0-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-${{ matrix.tag }}-2.8.0-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -244,6 +244,6 @@ jobs:
           path: |
             logs/
             .config
-            JuLiangTK-*-final.config
+            JuLiang-OS-*-final.config
           if-no-files-found: ignore
           retention-days: 14

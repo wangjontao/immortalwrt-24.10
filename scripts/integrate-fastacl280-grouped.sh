@@ -59,4 +59,4 @@ for device in $devices; do
   }
 done
 
-./scripts/diffconfig.sh > "JuLiangTK-${group}-final.config"
+./scripts/diffconfig.sh > "JuLiang-OS-${group}-final.config"
