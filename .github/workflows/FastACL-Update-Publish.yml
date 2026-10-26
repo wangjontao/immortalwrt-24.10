@@ -221,8 +221,8 @@ jobs:
               args+=(-o "$name" "$base/$name")
             done < SHA256SUMS
             test "${#args[@]}" -gt 0
-            curl -fL --http1.1 --retry 3 --connect-timeout 15 --max-time 2700 \
-              --parallel --parallel-max 16 "${args[@]}"
+            curl -fL --http1.1 --retry 3 --retry-all-errors \
+              --connect-timeout 15 --max-time 2700 "${args[@]}"
           }
           if ! download_all "${DOWNLOAD_MIRROR}${RELEASE_URL}"; then
             while read -r checksum name; do
