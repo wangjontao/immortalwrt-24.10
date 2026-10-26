@@ -43,6 +43,16 @@
 .f252 .section-heading .pill{background:rgba(255,255,255,.85)!important;color:#355c88!important;font-weight:700}
 .f252 .section-heading:before{color:#476d99}
 
+/* Use one blue-cyan-lavender heading treatment across the whole console menu. */
+.f252>.card{border:1px solid #b9d4e8!important;border-radius:12px!important;background:linear-gradient(180deg,#f9fcff,#fff)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 7px 20px rgba(42,92,147,.12)!important}
+.f252>.card .section-heading{position:relative;border:0!important;border-bottom:1px solid rgba(96,145,195,.34)!important;border-radius:0!important;color:#153d64!important;background:linear-gradient(118deg,#d9ecff 0%,#d9f5ef 52%,#ebe7ff 100%)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.96)!important;font-family:inherit;font-size:19px;font-weight:800;line-height:1.35}
+.f252>.card .section-heading:before{color:#386b9f}
+.f252>.card .section-heading h3{color:#153d64!important;font-family:inherit;font-size:19px;font-weight:800;text-shadow:0 1px 0 rgba(255,255,255,.72)}
+.f252>.card .section-heading:after{content:'';position:absolute;left:16px;right:16px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:linear-gradient(90deg,#4b83d1,#42b7a8 52%,#9279db);pointer-events:none}
+.f252>.card .section-body{background:linear-gradient(180deg,#f8fcff,#fff 72%)}
+@container(max-width:600px){.f252>.card{border-radius:10px!important}.f252>.card .section-heading{padding:11px 12px!important;font-size:16px}.f252>.card .section-heading h3{font-size:16px}.f252>.card .section-heading:after{left:10px;right:10px;height:2px}}
+@media(forced-colors:active){.f252>.card{background:Canvas!important;border-color:CanvasText!important;box-shadow:none!important}.f252>.card .section-heading{color:CanvasText!important;background:Canvas!important;border-bottom-color:CanvasText!important;box-shadow:none!important}.f252>.card .section-heading h3{color:CanvasText!important;text-shadow:none}.f252>.card .section-heading:after{display:none}}
+
 @media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-sticky > h2{background:linear-gradient(110deg,#263b52,#303e54)!important;color:#e1e6ef!important;border-color:#465065}body:not(.mode-light) .f252 .section-heading{background:linear-gradient(110deg,#2d4056,#35445b)!important;color:#e1e6ef!important;border-color:#465065}body:not(.mode-light) .f252 .section-heading h3{color:#e1e6ef!important}body:not(.mode-light) .f252 .section-heading .pill{background:#ffffff12!important;color:#d4dce8!important}}
 
 /* Keep information and operations together on wide displays. */
@@ -210,7 +220,7 @@
   </div>
 
   <div class="card">
-    <h3>数据面</h3>
+    <h3>透明代理/虚拟网卡模式切换</h3>
     <div class="fields">
       <div class="field"><label>模式</label><select id="f25-dataplane"><option value="singbox">sing-box TPROXY（默认）</option><option value="tun">sing-box TUN</option></select></div>
       <div class="field"><label>接口名</label><input id="f25-tun-interface" maxlength="15" value="fastacl-tun0"></div>

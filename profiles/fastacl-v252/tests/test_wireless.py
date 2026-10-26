@@ -29,3 +29,5 @@ print('PASS wireless counters, missing fields, signal/link rates and restricted 
 center=(ROOT/'root/usr/lib/lua/luci/controller/juliang_center.lua').read_text(encoding='utf-8')
 assert 'statistics/rx_bytes' in center and 'statistics/tx_bytes' in center
 assert 'traffic=counters' in center
+wireless_view=(ROOT/'root/usr/lib/lua/luci/view/juliang_center/wireless.htm').read_text(encoding='utf-8')
+assert '.wmon .stat strong{' in wireless_view and 'color:#d94747' in wireless_view
