@@ -114,13 +114,14 @@ local function nft_set(name,kind,values,extra)
 end
 function M.firewall(c,backend)
   M.validate(c,true); assert(backend=='nft','Invalid firewall backend')
+  local enforce_proxy_forward=c.dataplane~='tun'
   local proxy={}; for _,d in ipairs(c.devices) do if d.mode=='proxy' then proxy[#proxy+1]=d end end
   local macs,ips,pairs,tun_sources={},{},{},{}; for _,d in ipairs(proxy) do macs[#macs+1]=d.mac;ips[#ips+1]=d.ip;pairs[#pairs+1]=d.mac..' . '..d.ip;tun_sources[#tun_sources+1]=d.ip..'/32' end
   local ifaces,proxy_wifi={},{}; local seen={}
   for _,v in ipairs(c.interfaces or {c.interface}) do if not seen[v] then ifaces[#ifaces+1]=quote_iface(v);seen[v]=true end end
   for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then proxy_wifi[#proxy_wifi+1]=quote_iface(w.interface);tun_sources[#tun_sources+1]=w.subnet end end
   local wifi_set,wifi_drop='',''
-  if #proxy_wifi>0 then
+  if #proxy_wifi>0 and enforce_proxy_forward then
     wifi_set=nft_set('proxy_wifi_ifaces','ifname',proxy_wifi)
     wifi_drop='iifname @proxy_wifi_ifaces drop\n'
   end
@@ -136,7 +137,7 @@ function M.firewall(c,backend)
     main..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n}\n'..
     'chain forward { type filter hook forward priority -10; policy accept;\n'..dns6..split_rules..
     wifi_drop..
-    main..'ether saddr @proxy_macs drop\n'..main..'ip saddr @proxy_ips drop\n}\n'..
+    (enforce_proxy_forward and (main..'ether saddr @proxy_macs drop\n'..main..'ip saddr @proxy_ips drop\n') or '')..'}\n'..
     'chain dns_redirect { type nat hook prerouting priority -100; policy accept;\n'..
     all..'meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 redirect to :12553\n}\n'..
     'chain input { type filter hook input priority -10; policy accept;\n'..dns6..'}\n}\n'}

@@ -463,39 +463,115 @@ tun_routes_start(){
 }
 
 tun_firewall_ensure(){
-  local iface network zone current section changed=0
+  local iface network zone current section id desired has_proxy=0 changed=0
+  local setting key value source destination
   iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
   network=$(uci -q get fastacl252.main.network 2>/dev/null || echo lan)
 
-  # Remove zones/forwardings used by earlier 2.7.1 test builds.
-  if [ "$(uci -q get firewall.fastacl_tun 2>/dev/null || true)" = zone ]; then
-    uci -q delete firewall.fastacl_tun
+  current=$(uci -q get firewall.fastacl_tun 2>/dev/null || true)
+  if [ "$current" != zone ]; then
+    uci set firewall.fastacl_tun=zone
     changed=1
   fi
-  for section in $(uci -q show firewall 2>/dev/null |
-      sed -n 's/^firewall\.\(fastacl_tun_[^.]*\)=.*/\1/p' | sort -u); do
-    uci -q delete "firewall.$section"
-    changed=1
+  for setting in \
+    "name=fastacl_tun" \
+    "input=REJECT" \
+    "output=ACCEPT" \
+    "forward=REJECT" \
+    "masq=0" \
+    "mtu_fix=0"; do
+    key=${setting%%=*}
+    value=${setting#*=}
+    current=$(uci -q get "firewall.fastacl_tun.$key" 2>/dev/null || true)
+    if [ "$current" != "$value" ]; then
+      uci set "firewall.fastacl_tun.$key=$value"
+      changed=1
+    fi
   done
+  current=$(uci -q get firewall.fastacl_tun.device 2>/dev/null || true)
+  if [ "$current" != "$iface" ]; then
+    uci -q delete firewall.fastacl_tun.device 2>/dev/null || true
+    uci add_list firewall.fastacl_tun.device="$iface"
+    changed=1
+  fi
 
+  # A TUN interface may belong to only one fw4 zone.
   zone=''
   for section in $(uci -q show firewall 2>/dev/null |
       awk -F= '$2 == "zone" { split($1, p, "."); print p[2] }'); do
+    [ "$section" != fastacl_tun ] || continue
+    current=$(uci -q get "firewall.$section.device" 2>/dev/null || true)
+    case " $current " in
+      *" $iface "*)
+        uci del_list "firewall.$section.device=$iface"
+        changed=1
+        ;;
+    esac
     if [ "$(uci -q get "firewall.$section.name" 2>/dev/null || true)" = "$network" ]; then
       zone=$section
-      break
     fi
   done
   [ -n "$zone" ] || { echo '[FastACL] LAN firewall zone not found' >&2; return 1; }
 
-  current=$(uci -q get "firewall.$zone.device" 2>/dev/null || true)
-  case " $current " in
-    *" $iface "*) ;;
-    *)
-      uci add_list "firewall.$zone.device=$iface"
+  desired=''
+  for id in $(uci -q show fastacl252 2>/dev/null |
+      awk -F= '$2 == "device" { split($1, p, "."); print p[2] }'); do
+    if [ "$(uci -q get "fastacl252.$id.mode" 2>/dev/null || true)" = proxy ]; then
+      has_proxy=1
+      break
+    fi
+  done
+  if [ "$has_proxy" = 1 ]; then
+    desired="$desired fastacl_tun_fwd_${network} fastacl_tun_ret_${network}"
+  fi
+  for id in $(uci -q show fastacl252 2>/dev/null |
+      awk -F= '$2 == "wifi" { split($1, p, "."); print p[2] }'); do
+    if [ "$(uci -q get "fastacl252.$id.mode" 2>/dev/null || true)" = proxy ]; then
+      desired="$desired fastacl_tun_fwd_${id} fastacl_tun_ret_${id}"
+    fi
+  done
+
+  for section in $(uci -q show firewall 2>/dev/null |
+      awk -F= '$2 == "forwarding" { split($1, p, "."); print p[2] }'); do
+    case "$section" in fastacl_tun_*) ;; *) continue;; esac
+    case " $desired " in
+      *" $section "*) ;;
+      *)
+        uci -q delete "firewall.$section"
+        changed=1
+        ;;
+    esac
+  done
+
+  for section in $desired; do
+    current=$(uci -q get "firewall.$section" 2>/dev/null || true)
+    if [ "$current" != forwarding ]; then
+      uci set "firewall.$section=forwarding"
       changed=1
-      ;;
-  esac
+    fi
+    case "$section" in
+      fastacl_tun_fwd_*)
+        id=${section#fastacl_tun_fwd_}
+        source=$id
+        destination=fastacl_tun
+        ;;
+      *)
+        id=${section#fastacl_tun_ret_}
+        source=fastacl_tun
+        destination=$id
+        ;;
+    esac
+    current=$(uci -q get "firewall.$section.src" 2>/dev/null || true)
+    if [ "$current" != "$source" ]; then
+      uci set "firewall.$section.src=$source"
+      changed=1
+    fi
+    current=$(uci -q get "firewall.$section.dest" 2>/dev/null || true)
+    if [ "$current" != "$destination" ]; then
+      uci set "firewall.$section.dest=$destination"
+      changed=1
+    fi
+  done
 
   if [ "$changed" = 1 ]; then
     uci commit firewall
