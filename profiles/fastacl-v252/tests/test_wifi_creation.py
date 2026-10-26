@@ -60,7 +60,7 @@ function u:set(cfg,id,key,value)
   local s=configs[cfg][id];if not s then return false end
   s[key]=value;self.writes=self.writes+1;return true
 end
-function u:delete(cfg,id,key) local s=configs[cfg][id];if s then s[key]=nil end end
+function u:delete(cfg,id,key) if key==nil then configs[cfg][id]=nil else local s=configs[cfg][id];if s then s[key]=nil end end end
 M=require('fastacl252_wifi')
 ''')
         return lua
@@ -133,6 +133,13 @@ u.writes=0
         wifi = next(row for row in rows if row['.type'] == 'wifi')
         self.assertEqual(wifi['mode'], 'proxy')
         self.assertEqual(wifi['dns'], 'inherit')
+
+    def test_remove_deletes_tproxy_firewall_rule(self):
+        lua = self.runtime()
+        lua.execute("M.create(u,{count5=1,count2=0,prefix='RM',start=1,key='12345678',node='',dns='inherit'})")
+        lua.execute("M.remove(u,'jfa25w01')")
+        self.assertIsNone(lua.eval("configs.fastacl252.jfa25w01"))
+        self.assertIsNone(lua.eval("configs.firewall.jfa25w01_tproxy"))
 
 
 if __name__ == '__main__':

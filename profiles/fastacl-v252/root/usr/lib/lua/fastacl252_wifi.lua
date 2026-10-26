@@ -193,7 +193,12 @@ function M.remove(u,id)
   local net=s.network; assert(net and net~='','WiFi 网络信息缺失')
   for _,cfg in ipairs(CONFIGS) do
     local del={}
-    u:foreach(cfg,nil,function(x) if x['.name']==id or (owned(x) and x.jfa25_network==net) then del[#del+1]=x['.name'] end end)
+    u:foreach(cfg,nil,function(x)
+      if x['.name']==id or (owned(x) and x.jfa25_network==net) or
+         (cfg=='firewall' and (x['.name']==id..'_tproxy' or x.src==id)) then
+        del[#del+1]=x['.name']
+      end
+    end)
     for _,name in ipairs(del) do u:delete(cfg,name) end
   end
 end
@@ -264,7 +269,7 @@ function M.sync_tproxy_rules(u)
   local name=id..'_tproxy'
   if u:get('firewall',name)~='rule' then u:set('firewall',name,'rule');changed=changed+1 end
   if u:get('firewall',name,'dest_port')~=nil then u:delete('firewall',name,'dest_port');changed=changed+1 end
-  local values={name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT'}
+  local values={name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT',jfa25_owner=OWNER,jfa25_network=id}
   for key,value in pairs(values) do
    if u:get('firewall',name,key)~=value then u:set('firewall',name,key,value);changed=changed+1 end
   end
