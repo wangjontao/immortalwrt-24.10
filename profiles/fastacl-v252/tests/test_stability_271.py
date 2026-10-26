@@ -42,7 +42,7 @@ assert 'TUN_FWMARK' in runtime
 assert 'fwmark "$TUN_FWMARK" lookup "$TUN_TABLE"' in runtime
 assert 'iif lo lookup main' in runtime
 assert 'LAN firewall zone not found' in runtime
-assert 'uci add_list "firewall.$zone.device=$iface"' in runtime
+assert 'uci add_list firewall.fastacl_tun.device="$iface"' in runtime
 assert 'sing-box check' in runtime
 assert 'ubus call network.interface.wan renew' in watchdog
 assert 'ubus call network.interface.wan down' in watchdog
