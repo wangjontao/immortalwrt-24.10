@@ -29,3 +29,7 @@ print('PASS wireless counters, missing fields, signal/link rates and restricted 
 center=(ROOT/'root/usr/lib/lua/luci/controller/juliang_center.lua').read_text(encoding='utf-8')
 assert 'statistics/rx_bytes' in center and 'statistics/tx_bytes' in center
 assert 'traffic=counters' in center
+fw4=(ROOT/'root/usr/libexec/fastacl252-wifi-fw4.lua').read_text(encoding='utf-8')
+init=(ROOT/'root/etc/init.d/fastacl252').read_text(encoding='utf-8')
+assert 'changed>0 or managed>0' in fw4
+assert '/usr/libexec/fastacl252-wifi-fw4.lua' in init

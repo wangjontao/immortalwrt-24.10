@@ -9,6 +9,8 @@ start_service(){
   procd_set_param command /usr/bin/fastacl252 guard
   procd_set_param respawn 3600 5 5
   procd_close_instance
+  /usr/libexec/fastacl252-wifi-fw4.lua >/tmp/fastacl252/firewall-boot.log 2>&1 ||
+    logger -t fastacl252 'Unable to refresh managed WiFi firewall rules'
 }
 
 stop_service(){
