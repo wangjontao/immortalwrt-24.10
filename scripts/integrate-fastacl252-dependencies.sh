@@ -11,6 +11,6 @@ sed -i \
   .config
 cat profiles/fastacl-v252/dependencies.config >> .config
 make defconfig
-for pkg in juliangtk-sing-box kmod-tun kmod-sched-core kmod-sched-cake kmod-ifb ip-full tc-full ca-bundle curl nftables; do
+for pkg in juliangtk-sing-box kmod-tun kmod-sched-core kmod-sched-cake kmod-ifb ip-full tc-full ca-bundle curl nftables-json; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y$" .config || { echo "Missing sing-box dependency: $pkg"; exit 1; }
 done

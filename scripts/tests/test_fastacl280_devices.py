@@ -45,7 +45,11 @@ MT7986 = {
 }
 
 assert "PKG_VERSION:=2.8.0" in package
-assert "PKG_RELEASE:=21" in package
+assert "PKG_RELEASE:=22" in package
+assert "+nftables-json" in package and "+nftables " not in package
+dependencies = (ROOT / "profiles/fastacl-v252/dependencies.config").read_text(encoding="utf-8")
+assert "CONFIG_PACKAGE_nftables-json=y" in dependencies
+assert "CONFIG_PACKAGE_nftables=y" not in dependencies
 
 for device in MT7981:
     assert f"{device}) tag=" in integration, device
