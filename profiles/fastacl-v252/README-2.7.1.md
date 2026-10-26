@@ -33,7 +33,7 @@ sing-box TUN backend.
   select the TUN interface and create a routing loop.
 - TUN proxy flows cannot use PPE/HNAT hardware offload; direct flows bypass
   TUN and remain eligible for the platform fast path.
-- Defaults: interface `fastacl-tun0`, address `172.19.0.1/30`, MTU `9000`, stack `mixed`.
+- Defaults: interface `fastacl-tun0`, address `172.19.0.1/30`, MTU `9000`, stack `gvisor`.
 
 ## Safety boundaries
 
