@@ -8,16 +8,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/daeuniverse/outbound/netproxy"
-	"golang.org/x/net/dns/dnsmessage"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/daeuniverse/outbound/netproxy"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 type ResolverConfig struct {
@@ -332,6 +334,12 @@ func (r *relay) resolve(q []byte, ip string) (result []byte) {
 	if _, e := questionEnd(q); e != nil || q[2]&128 != 0 {
 		return nil
 	}
+	if os.Getenv("FASTACL_DNS_TRACE") == "1" {
+		var query dnsmessage.Message
+		if query.Unpack(q) == nil && len(query.Questions) == 1 {
+			log.Printf("client=%s name=%s type=%d", ip, query.Questions[0].Name.String(), query.Questions[0].Type)
+		}
+	}
 	if _, managed := r.networkPolicy(ip); managed {
 		if b := ipv4OnlyAnswer(q); b != nil {
 			r.stats.Queries.Add(1)
@@ -597,7 +605,19 @@ func main() {
 		go func() {
 			reply := manager.current.Load().resolve(q, a.IP.String())
 			if reply != nil {
-				u.WriteToUDP(reply, a)
+				_, err := u.WriteToUDP(reply, a)
+				if os.Getenv("FASTACL_DNS_TRACE") == "1" {
+					var msg dnsmessage.Message
+					summary := "malformed"
+					if msg.Unpack(reply) == nil {
+						name := ""
+						if len(msg.Questions) == 1 {
+							name = msg.Questions[0].Name.String()
+						}
+						summary = fmt.Sprintf("name=%s rcode=%d answers=%d", name, msg.RCode, len(msg.Answers))
+					}
+					log.Printf("reply client=%s addr=%s len=%d err=%v %s", a.IP, a.String(), len(reply), err, summary)
+				}
 			}
 		}()
 	}

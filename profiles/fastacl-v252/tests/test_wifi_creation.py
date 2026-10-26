@@ -99,6 +99,10 @@ u.writes=0
         networks = [row for name, row in lua.eval("configs.network").items()
                     if name.startswith('jfa25w') and row['.type'] == 'interface']
         self.assertEqual(len({row['ipaddr'] for row in networks}), 5)
+        for name, row in lua.eval("configs.dhcp").items():
+            if name.startswith('jfa25w') and row['.type'] == 'dhcp':
+                ip = lua.eval(f"configs.network['{name}'].ipaddr")
+                self.assertEqual(list(row['dhcp_option'].values()), [f'3,{ip} 6,{ip}'])
 
     def test_duplicate_or_too_long_essid_is_rejected_before_any_write(self):
         lua = self.reset()
