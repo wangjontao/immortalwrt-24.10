@@ -26,6 +26,7 @@ local function node_outbound(c,id,tag)
   if out.type=='socks' then out.version='5' end
   out.tag=tag
   out.domain_resolver='fastacl-dns'
+  if c.wan_interface then out.bind_interface=c.wan_interface end
   return out
 end
 
@@ -38,7 +39,9 @@ end
 function M.compile(c)
   assert(c.dataplane=='tun','TUN compiler requires dataplane=tun')
   local route_rules={}
-  local outbounds={{type='direct',tag='direct',domain_resolver='fastacl-dns'}}
+  local direct={type='direct',tag='direct',domain_resolver='fastacl-dns'}
+  if c.wan_interface then direct.bind_interface=c.wan_interface end
+  local outbounds={direct}
   local by_tag={}
   local function cn_networks()
     if type(c.cn_ipv4)=='table' and #c.cn_ipv4>0 then return c.cn_ipv4 end
@@ -126,8 +129,11 @@ function M.compile(c)
       interface_name=c.tun_interface,
       address={c.tun_address},
       mtu=c.tun_mtu,
-      auto_route=true,
-      strict_route=true,
+      -- FastACL installs an isolated policy route table for forwarded LAN
+      -- traffic. sing-box must not own the main table or local output path,
+      -- otherwise SSH, LuCI and NPS traffic are pulled into the tunnel.
+      auto_route=false,
+      strict_route=false,
       stack=c.tun_stack,
       endpoint_independent_nat=true,
       route_exclude_address=excluded
@@ -136,7 +142,9 @@ function M.compile(c)
     route={
       rules=route_rules,
       final='direct',
-      auto_detect_interface=true,
+      -- Automatic interface detection can select fastacl-tun0 through the
+      -- isolated policy table and create a direct-outbound routing loop.
+      auto_detect_interface=false,
       default_domain_resolver='fastacl-dns'
     }
   }

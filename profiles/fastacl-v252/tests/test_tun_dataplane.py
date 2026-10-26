@@ -44,6 +44,7 @@ def config(dataplane='tun'):
         'network': 'lan',
         'interface': 'br-lan',
         'interfaces': ['br-lan', 'br-jfa25w01'],
+        'wan_interface': 'eth1',
         'router_ip': '192.168.7.1',
         'netmask': '255.255.255.0',
         'port': 12525,
@@ -126,16 +127,19 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertEqual(inbound['type'], 'tun')
         self.assertEqual(inbound['interface_name'], 'fastacl-tun0')
         self.assertEqual(inbound['address'], ['172.19.0.1/30'])
-        self.assertTrue(inbound['auto_route'])
-        self.assertTrue(inbound['strict_route'])
+        self.assertFalse(inbound['auto_route'])
+        self.assertFalse(inbound['strict_route'])
         self.assertIn('192.168.7.0/24', inbound['route_exclude_address'])
         self.assertEqual(result['dns']['servers'][0]['server'], '127.0.0.1')
         self.assertEqual(result['dns']['servers'][0]['server_port'], 12553)
         self.assertEqual(result['route']['final'], 'direct')
+        self.assertFalse(result['route']['auto_detect_interface'])
         self.assertNotIn('rule_set', result['route'])
 
         tags = {outbound['tag']: outbound for outbound in result['outbounds']}
+        self.assertEqual(tags['direct']['bind_interface'], 'eth1')
         self.assertIn('chain-us-front', tags)
+        self.assertEqual(tags['node-us']['bind_interface'], 'eth1')
         self.assertEqual(tags['chain-us-front']['detour'], 'node-front')
         platform = next(outbound for outbound in result['outbounds'] if outbound['tag'].startswith('platform-'))
         self.assertEqual(platform['type'], 'socks')
@@ -154,8 +158,28 @@ class TunDataplaneTests(unittest.TestCase):
         view = (PROFILE / 'usr/lib/lua/luci/view/fastacl252/console.htm').read_text(encoding='utf-8')
         config_text = (PROFILE / 'etc/config/fastacl252').read_text(encoding='utf-8')
         package = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
-        for required in ('dataplane_now', 'tun_alive', 'tun_ready', 'start_tun_next', 'tun_stop'):
+        for required in (
+            'dataplane_now',
+            'tun_alive',
+            'tun_interface_ready',
+            'tun_routes_ready',
+            'tun_routes_clone_connected',
+            'tun_routes_prepare',
+            'tun_routes_activate',
+            'tun_routes_start',
+            'tun_routes_stop',
+            'tun_firewall_ensure',
+            'start_tun_core',
+            'tun_core_stop',
+            'start_tun_next',
+            'tun_stop',
+        ):
             self.assertIn(required, runtime)
+        self.assertIn('TUN_TABLE', runtime)
+        self.assertIn('iif lo lookup main', runtime)
+        self.assertIn('LAN firewall zone not found', runtime)
+        self.assertIn('uci add_list "firewall.$zone.device=$iface"', runtime)
+        self.assertIn('ip link delete "$iface"', runtime)
         self.assertIn('TUN_FALLBACK_AFTER', runtime)
         self.assertIn('fallback_to_ebpf', runtime)
         self.assertIn('automatically fell back to eBPF', runtime)

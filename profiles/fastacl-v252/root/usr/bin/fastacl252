@@ -11,6 +11,9 @@ DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-}
 RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
 TUN_FALLBACK_AFTER=${FASTACL_TUN_FALLBACK_AFTER:-6}
+TUN_TABLE=${FASTACL_TUN_TABLE:-2027}
+TUN_LOCAL_RULE=${FASTACL_TUN_LOCAL_RULE:-27000}
+TUN_ROUTE_RULE=${FASTACL_TUN_ROUTE_RULE:-27100}
 FD_HARD_LIMIT=
 FD_SOFT_LIMIT=
 CAPACITY_PROFILE=
@@ -190,10 +193,21 @@ dae_ready(){
 }
 
 tun_ready(){
+  tun_interface_ready || return 1
+  tun_routes_ready
+}
+
+tun_interface_ready(){
   tun_alive || return 1
   local iface
   iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
   ip link show "$iface" 2>/dev/null | grep -q 'state UP\|state UNKNOWN\|POINTOPOINT'
+}
+
+tun_routes_ready(){
+  ip -4 rule show 2>/dev/null | grep -q "^${TUN_LOCAL_RULE}:.*iif lo lookup main" &&
+    ip -4 rule show 2>/dev/null | grep -q "^${TUN_ROUTE_RULE}:.*lookup ${TUN_TABLE}" &&
+    ip -4 route show table "$TUN_TABLE" 2>/dev/null | grep -q '^default '
 }
 
 core_alive(){
@@ -313,16 +327,35 @@ dae_stop(){
   ip netns del daens 2>/dev/null || true
 }
 
-tun_stop(){
+tun_link_clear(){
+  local iface i=0
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  while ip link show "$iface" >/dev/null 2>&1; do
+    i=$((i+1))
+    if [ "$i" -ge 30 ]; then
+      ip link delete "$iface" 2>/dev/null || true
+      break
+    fi
+    pause_fast
+  done
+}
+
+tun_core_stop(){
+  local i=0
   if tun_alive; then
     kill "$(cat "$R/tun.pid")" 2>/dev/null || true
-    local i=0
     while tun_alive; do
       i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$(cat "$R/tun.pid")" 2>/dev/null || true; break; }
       pause_fast
     done
   fi
+  tun_link_clear
   rm -f "$R/tun.pid"
+}
+
+tun_stop(){
+  tun_core_stop
+  tun_routes_stop
 }
 
 generate_guards(){
@@ -376,18 +409,110 @@ start_dae_next(){
 
 wait_tun(){
   local i=0
-  while ! tun_ready; do
+  while ! tun_interface_ready; do
     i=$((i+1)); [ "$i" -lt 60 ] || return 1
     pause_fast
   done
 }
 
-start_tun_next(){
-  command -v sing-box >/dev/null 2>&1 || { echo '[FastACL] sing-box is not installed' >&2; return 1; }
+tun_routes_stop(){
+  while ip -4 rule del pref "$TUN_LOCAL_RULE" 2>/dev/null; do :; done
+  while ip -4 rule del pref "$TUN_ROUTE_RULE" 2>/dev/null; do :; done
+  ip -4 route flush table "$TUN_TABLE" 2>/dev/null || true
+}
+
+tun_routes_clone_connected(){
+  local route
+  ip -4 route show table main scope link 2>/dev/null |
+    while IFS= read -r route; do
+      [ -n "$route" ] || continue
+      ip -4 route replace table "$TUN_TABLE" $route
+    done
+}
+
+tun_routes_prepare(){
+  tun_routes_stop
+  # Seed the policy table with connected routes before sing-box starts.
+  tun_routes_clone_connected
+  ip -4 rule add pref "$TUN_LOCAL_RULE" iif lo lookup main
+  ip -4 rule add pref "$TUN_ROUTE_RULE" lookup "$TUN_TABLE"
+}
+
+tun_routes_activate(){
+  local iface
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  # The process has now created its real /30 connected route in the main table.
+  tun_routes_clone_connected
+  ip -4 route replace table "$TUN_TABLE" default dev "$iface"
+  tun_routes_ready
+}
+
+tun_routes_start(){
+  tun_routes_prepare
+  tun_routes_activate
+}
+
+tun_firewall_ensure(){
+  local iface network zone current section changed=0
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  network=$(uci -q get fastacl252.main.network 2>/dev/null || echo lan)
+
+  # Remove zones/forwardings used by earlier 2.7.1 test builds.
+  if [ "$(uci -q get firewall.fastacl_tun 2>/dev/null || true)" = zone ]; then
+    uci -q delete firewall.fastacl_tun
+    changed=1
+  fi
+  for section in $(uci -q show firewall 2>/dev/null |
+      sed -n 's/^firewall\.\(fastacl_tun_[^.]*\)=.*/\1/p' | sort -u); do
+    uci -q delete "firewall.$section"
+    changed=1
+  done
+
+  zone=''
+  for section in $(uci -q show firewall 2>/dev/null |
+      awk -F= '$2 == "zone" { split($1, p, "."); print p[2] }'); do
+    if [ "$(uci -q get "firewall.$section.name" 2>/dev/null || true)" = "$network" ]; then
+      zone=$section
+      break
+    fi
+  done
+  [ -n "$zone" ] || { echo '[FastACL] LAN firewall zone not found' >&2; return 1; }
+
+  current=$(uci -q get "firewall.$zone.device" 2>/dev/null || true)
+  case " $current " in
+    *" $iface "*) ;;
+    *)
+      uci add_list "firewall.$zone.device=$iface"
+      changed=1
+      ;;
+  esac
+
+  if [ "$changed" = 1 ]; then
+    uci commit firewall
+    /etc/init.d/firewall reload >"$R/firewall-reload.log" 2>&1 ||
+      { cat "$R/firewall-reload.log" 2>/dev/null || true; return 1; }
+  fi
+}
+
+start_tun_core(){
   cp "$R/singbox.next.json" "$R/singbox.json"
   sing-box run -c "$R/singbox.json" >"$R/singbox.log" 2>&1 &
   echo $! > "$R/tun.pid"
   wait_tun || { cat "$R/singbox.log" 2>/dev/null || true; return 1; }
+}
+
+start_tun_next(){
+  command -v sing-box >/dev/null 2>&1 || { echo '[FastACL] sing-box is not installed' >&2; return 1; }
+  tun_routes_prepare
+  start_tun_core
+  # Keep policy rules and LAN routes present, but delay the default TUN route
+  # until network-manager startup has settled.
+  sleep 4
+  tun_routes_activate || {
+    echo '[FastACL] failed to install isolated TUN routes' >&2
+    tun_stop
+    return 1
+  }
 }
 
 reload_dns_next(){
@@ -476,6 +601,7 @@ hot_apply(){
   generate_guards
   generate_next
   validate_next
+  if [ "$(dataplane_now)" = tun ]; then tun_firewall_ensure; fi
   firewall_apply
   reload_dns_next
   if [ "$(dataplane_now)" = tun ]; then
@@ -495,6 +621,7 @@ cold_apply(){
   generate_guards
   generate_next
   validate_next
+  if [ "$(dataplane_now)" = tun ]; then tun_firewall_ensure; fi
   firewall_apply
   dae_stop
   tun_stop

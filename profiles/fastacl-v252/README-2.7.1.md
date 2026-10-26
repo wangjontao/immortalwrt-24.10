@@ -22,7 +22,15 @@ sing-box TUN backend.
 - Custom direct/proxy/block rules preserve their order.
 - Platform priority uses the authenticated FastACL local relay and the existing fake-IP map.
 - Node-domain resolution uses FastACL DNS at `127.0.0.1:12553`.
-- LAN and managed WiFi subnets are excluded from the TUN route.
+- FastACL owns a dedicated policy route table. Only forwarded LAN/WiFi traffic
+  enters TUN; router-generated traffic keeps using the main routing table, so
+  SSH, LuCI and NPS management paths are not pulled into the tunnel.
+- LAN and managed WiFi connected routes are cloned into the dedicated table
+  before the TUN default route is installed.
+- `fastacl-tun0` is registered as a main LAN zone device so fw4 preserves
+  bidirectional forwarding without masquerading source addresses.
+- sing-box interface auto-detection is disabled so direct outbounds cannot
+  select the TUN interface and create a routing loop.
 - Defaults: interface `fastacl-tun0`, address `172.19.0.1/30`, MTU `9000`, stack `mixed`.
 
 ## Safety boundaries
@@ -31,5 +39,7 @@ sing-box TUN backend.
 - TUN and dae must never run as competing default-route owners.
 - IPv4 policy is the first release scope; IPv6 general forwarding is not enabled.
 - External node and WAN failures remain external faults.
+- TUN forwarding is validated on the main LAN bridge; independently managed
+  per-WiFi firewall zones still require device-level validation before rollout.
 - Redmi AX6000 NMBM 110MiB remains excluded from online firmware updates.
 - TUN should be piloted on physical devices before wide deployment, especially 512 MiB MT7981 models.
