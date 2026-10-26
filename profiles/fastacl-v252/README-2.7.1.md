@@ -1,5 +1,7 @@
 # FastACL V2.7.1
 
+所有机型的系统显示名统一为 `JuLiang OS`，具体硬件型号保留在构建标识、主机名和产物文件名中。
+
 V2.7.1 keeps dae eBPF/TPROXY as the default dataplane and adds an optional
 sing-box TUN backend.
 

@@ -212,8 +212,8 @@ jobs:
           mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname "*${DEVICE}*sysupgrade*" -size +5M)
           [ "${#images[@]}" -gt 0 ] || { echo 'ERROR: selected device sysupgrade image missing'; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort; exit 1; }
           cp -a "${images[@]}" upload/
-          manifest=bin/targets/mediatek/filogic/immortalwrt-mediatek-filogic.manifest
-          [ -s "$manifest" ] || { echo 'ERROR: shared package manifest missing'; exit 1; }
+          manifest="$(python3 scripts/find-fastacl-manifest.py bin/targets/mediatek/filogic "$DEVICE")"
+          [ -s "$manifest" ] || { echo 'ERROR: firmware package manifest missing'; exit 1; }
           for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
             grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
           done
@@ -224,14 +224,14 @@ jobs:
           cp .config upload/build.config
           cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiangTK-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.7.1.md upload/
-          printf 'branch=%s\ncommit=%s\nversion=2.7.1\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
+          cp "JuLiang-OS-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.7.1.md upload/
+          printf 'branch=%s\ncommit=%s\nsystem=JuLiang OS\nversion=2.7.1\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiangTK-${{ matrix.tag }}-FastACL2.7.1-Unlimited-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-${{ matrix.tag }}-2.7.1-Unlimited-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -243,6 +243,6 @@ jobs:
           path: |
             logs/
             .config
-            JuLiangTK-*-final.config
+            JuLiang-OS-*-final.config
           if-no-files-found: ignore
           retention-days: 14

@@ -79,7 +79,7 @@ assert all(len(devices) == 5 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == set(DEVICES)
 assert 'max-parallel: 4' in grouped_workflow
 assert 'integrate-fastacl271-grouped.sh' in grouped_workflow
-assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow
+assert 'find-fastacl-manifest.py' in grouped_workflow
 assert '${{ github.run_id }}' in grouped_workflow
 assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
 assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
@@ -94,5 +94,20 @@ assert "cancel-in-progress: false" in grouped_workflow
 assert "branches: ['2.7.1']" in grouped_workflow
 for path in (ROOT / '.github/workflows').glob('*FastACL271*.yml'):
     assert 'cancel-in-progress: false' in path.read_text(encoding='utf-8'), path
+    workflow_text = path.read_text(encoding='utf-8')
+    assert 'find-fastacl-manifest.py' in workflow_text
+    assert 'JuLiang-OS-${{ matrix.tag }}' in workflow_text
+
+for config_name in (
+    'JuLiangTK-S20L-FastACL258.txt',
+    'JuLiangTK-S20P-FastACL258.txt',
+    'JuLiangTK-JDCloud-RE-CP-03-FastACL258.txt',
+    'JuLiangTK-Redmi-AX6000-NMBM110M-FastACL258.txt',
+):
+    config_text = (ROOT / 'build-configs' / config_name).read_text(encoding='utf-8')
+    assert 'CONFIG_VERSION_DIST="JuLiang OS"' in config_text
+    assert 'CONFIG_VERSION_MANUFACTURER="JuLiang OS"' in config_text
+    assert 'CONFIG_VERSION_PRODUCT="JuLiang OS"' in config_text
+    assert 'CONFIG_VERSION_CODE="FastACL2.7.1"' in config_text
 
 print('FastACL 2.7.1 MT7981 device matrix and DTS identities: OK')

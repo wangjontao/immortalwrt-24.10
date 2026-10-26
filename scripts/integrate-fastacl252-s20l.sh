@@ -101,7 +101,7 @@ grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts_identity" || {
   echo "Required compatible missing from DTS: $compatible" >&2
   exit 1
 }
-./scripts/diffconfig.sh > "JuLiangTK-${tag}-final.config"
+./scripts/diffconfig.sh > "JuLiang-OS-${tag}-final.config"
 
 # Use the control-center name for Argon brand links without changing hardware identity.
 find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name header.htm \) -path '*argon*' 2>/dev/null | while IFS= read -r view; do
