@@ -147,6 +147,7 @@ function M.create(u,req)
     add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT',masq='1'},id)
     add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
+    add(u,'firewall','rule',id..'_tproxy',{name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','forwarding',id..'_wan',{src=id,dest='wan'},id)
     add(u,'fastacl252','wifi',id,{network=id,ssid=ssid,band=band,subnet=cidr,mode=mode,node=node,preproxy=pre},id)
     set_dns(u,id,req,mode); created[#created+1]={id=id,ssid=ssid,band=band,network=id,subnet=cidr}
@@ -251,6 +252,21 @@ function M.sync_wifi_isolation(u)
   if type(id)=='string' and id:match('^jfa25w%d+$') and owned(w) and w.isolate~='0' then
    assert(u:set('wireless',id,'isolate','0'),'Cannot disable managed WiFi client isolation')
    changed=changed+1
+  end
+ end)
+ return changed
+end
+function M.sync_tproxy_rules(u)
+ local changed=0
+ u:foreach('fastacl252','wifi',function(w)
+  local id=w['.name']
+  if type(id)~='string' or not id:match('^jfa25w%d+$') or not owned(w) or w.network~=id then return end
+  local name=id..'_tproxy'
+  if u:get('firewall',name)~='rule' then u:set('firewall',name,'rule');changed=changed+1 end
+  if u:get('firewall',name,'dest_port')~=nil then u:delete('firewall',name,'dest_port');changed=changed+1 end
+  local values={name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT'}
+  for key,value in pairs(values) do
+   if u:get('firewall',name,key)~=value then u:set('firewall',name,key,value);changed=changed+1 end
   end
  end)
  return changed

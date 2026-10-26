@@ -2,6 +2,7 @@ local u=require('uci').cursor()
 local wifi=require('fastacl252_wifi')
 local changed=wifi.sync_firewall_devices(u)
 changed=changed+wifi.sync_wifi_isolation(u)
+changed=changed+wifi.sync_tproxy_rules(u)
 if changed>0 then
  assert(u:commit('firewall'),'Cannot save managed WiFi firewall bridges')
  assert(u:commit('wireless'),'Cannot save managed WiFi client isolation')
