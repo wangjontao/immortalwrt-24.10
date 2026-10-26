@@ -102,7 +102,7 @@ u.writes=0
         for name, row in lua.eval("configs.dhcp").items():
             if name.startswith('jfa25w') and row['.type'] == 'dhcp':
                 ip = lua.eval(f"configs.network['{name}'].ipaddr")
-                self.assertEqual(list(row['dhcp_option'].values()), [f'3,{ip} 6,{ip}'])
+                self.assertEqual(list(row['dhcp_option'].values()), [f'3,{ip}', f'6,{ip}'])
         for name, row in lua.eval("configs.firewall").items():
             if name.startswith('jfa25w') and row['.type'] == 'zone':
                 self.assertEqual(row['masq'], '1')

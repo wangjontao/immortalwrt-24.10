@@ -142,7 +142,7 @@ function M.create(u,req)
     local ip='172.16.'..sn..'.1'; local cidr='172.16.'..sn..'.0/24'; local dev='br-'..id
     add(u,'network','device',id..'_dev',{name=dev,type='bridge',bridge_empty='1',ipv6='0'},id)
     add(u,'network','interface',id,{device=dev,proto='static',ipaddr=ip,netmask='255.255.255.0',delegate='0'},id)
-    add(u,'dhcp','dhcp',id,{interface=id,start='100',limit='120',leasetime='12h',ra='disabled',dhcpv6='disabled',ndp='disabled',dhcp_option={'3,'..ip..' 6,'..ip}},id)
+    add(u,'dhcp','dhcp',id,{interface=id,start='100',limit='120',leasetime='12h',ra='disabled',dhcpv6='disabled',ndp='disabled',dhcp_option={'3,'..ip,'6,'..ip}},id)
     add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='0',disabled='0',hidden=hidden and '1' or '0'},id)
     add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT',masq='1'},id)
     add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
