@@ -109,8 +109,8 @@ end
 function M.compile(c) M.validate(c); return require('fastacl252_dae').compile(c) end
 
 local function quote_iface(s) return '"'..s..'"' end
-local function nft_set(name,kind,values)
-  return 'set '..name..' { type '..kind..';'..(#values>0 and ' elements = { '..table.concat(values,', ')..' };' or '')..' }\n'
+local function nft_set(name,kind,values,extra)
+  return 'set '..name..' { type '..kind..';'..(extra and ' '..extra..';' or '')..(#values>0 and ' elements = { '..table.concat(values,', ')..' };' or '')..' }\n'
 end
 function M.firewall(c,backend)
   M.validate(c,true); assert(backend=='nft','Invalid firewall backend')
@@ -124,7 +124,7 @@ function M.firewall(c,backend)
     wifi_set=nft_set('proxy_wifi_ifaces','ifname',proxy_wifi)
     wifi_drop='iifname @proxy_wifi_ifaces drop\n'
   end
-  local sets=nft_set('lan_ifaces','ifname',ifaces)..wifi_set..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)..nft_set('tun_sources','ipv4_addr',tun_sources)
+  local sets=nft_set('lan_ifaces','ifname',ifaces)..wifi_set..nft_set('proxy_macs','ether_addr',macs)..nft_set('proxy_ips','ipv4_addr',ips)..nft_set('proxy_pairs','ether_addr . ipv4_addr',pairs)..nft_set('tun_sources','ipv4_addr',tun_sources,'flags interval; auto-merge')
   local all='iifname @lan_ifaces '; local main='iifname '..quote_iface(c.interface)..' '
   local dns6=all..'meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n'
   local split_sets,split_rules=require('fastacl252_split').nft(c)
