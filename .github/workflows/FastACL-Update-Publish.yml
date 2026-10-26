@@ -33,7 +33,7 @@ run-name: 'Publish FastACL 2.6.4 online update - ${{ inputs.channel }}'
         type: string
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -154,6 +154,26 @@ jobs:
             -p profiles/fastacl-v252/root/etc/fastacl-upgrade/update.pub
           rm -f /tmp/update-signing.key
 
+      - name: Publish build assets to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          release_id="${{ inputs.release_id }}"
+          if [ -z "$release_id" ]; then release_id="$version"; fi
+          tag="fastacl-$release_id"
+          mapfile -t files < <(find "publish/releases/$release_id" -maxdepth 1 -type f -print | sort)
+          test "${#files[@]}" -gt 0
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "${files[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "FastACL $version ($release_id)" \
+              --notes "Verified FastACL $version firmware assets for immutable release $release_id."
+          fi
+
       - name: Deploy immutable release and update channel
         env:
           DEPLOY_KEY: ${{ secrets.FASTACL_DEPLOY_SSH_KEY }}
@@ -175,6 +195,7 @@ jobs:
           chmod 600 ~/.ssh/fastacl-deploy ~/.ssh/known_hosts
           target="$RELEASE_USER@$RELEASE_HOST"
           ssh_options="-i $HOME/.ssh/fastacl-deploy -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+          release_url="https://github.com/$GITHUB_REPOSITORY/releases/download/fastacl-$release_id"
 
           if ssh $ssh_options "$target" "test -e '$RELEASE_ROOT/releases/$release_id'"; then
             echo "Release $release_id already exists and is immutable." >&2
@@ -182,9 +203,23 @@ jobs:
           fi
 
           ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$release_id'"
-          rsync -az --chmod=D755,F644 -e "ssh $ssh_options" \
-            "publish/releases/$release_id/" \
-            "$target:$RELEASE_ROOT/staging/$release_id/"
+          ssh $ssh_options "$target" \
+            "RELEASE_ROOT='$RELEASE_ROOT' RELEASE_ID='$release_id' RELEASE_URL='$release_url' bash -s" <<'REMOTE_DOWNLOAD'
+          set -euo pipefail
+          cd "$RELEASE_ROOT/staging/$RELEASE_ID"
+          curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+            "$RELEASE_URL/SHA256SUMS" -o SHA256SUMS
+          args=()
+          while read -r checksum name; do
+            test -n "$name"
+            name="${name#./}"
+            args+=(-o "$name" "$RELEASE_URL/$name")
+          done < SHA256SUMS
+          test "${#args[@]}" -gt 0
+          curl -fL --retry 3 --connect-timeout 15 --max-time 2700 \
+            --parallel --parallel-max 16 "${args[@]}"
+          sha256sum -c SHA256SUMS
+          REMOTE_DOWNLOAD
           ssh $ssh_options "$target" \
             "test -s '$RELEASE_ROOT/staging/$release_id/SHA256SUMS' && mv '$RELEASE_ROOT/staging/$release_id' '$RELEASE_ROOT/releases/$release_id'"
 
