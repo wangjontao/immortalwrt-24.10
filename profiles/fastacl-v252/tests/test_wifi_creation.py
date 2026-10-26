@@ -106,6 +106,9 @@ u.writes=0
         for name, row in lua.eval("configs.firewall").items():
             if name.startswith('jfa25w') and row['.type'] == 'zone':
                 self.assertEqual(row['masq'], '1')
+        for name, row in lua.eval("configs.wireless").items():
+            if name.startswith('jfa25w') and row['.type'] == 'wifi-iface':
+                self.assertEqual(row['isolate'], '0')
 
     def test_duplicate_or_too_long_essid_is_rejected_before_any_write(self):
         lua = self.reset()

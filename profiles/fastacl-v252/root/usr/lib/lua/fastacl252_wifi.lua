@@ -139,7 +139,7 @@ function M.create(u,req)
     add(u,'network','device',id..'_dev',{name=dev,type='bridge',bridge_empty='1',ipv6='0'},id)
     add(u,'network','interface',id,{device=dev,proto='static',ipaddr=ip,netmask='255.255.255.0',delegate='0'},id)
     add(u,'dhcp','dhcp',id,{interface=id,start='100',limit='120',leasetime='12h',ra='disabled',dhcpv6='disabled',ndp='disabled',dhcp_option={'3,'..ip..' 6,'..ip}},id)
-    add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='1',disabled='0',hidden=hidden and '1' or '0'},id)
+    add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='0',disabled='0',hidden=hidden and '1' or '0'},id)
     add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT',masq='1'},id)
     add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
@@ -237,6 +237,17 @@ function M.sync_firewall_devices(u)
   local devices=type(z.device)=='table' and z.device or (z.device and {z.device} or {})
   for _,v in ipairs(devices)do if v==bridge then return end end
   devices[#devices+1]=bridge;assert(u:set('firewall',id,'device',devices),'Cannot pin managed WiFi firewall device');changed=changed+1
+ end)
+ return changed
+end
+function M.sync_wifi_isolation(u)
+ local changed=0
+ u:foreach('wireless','wifi-iface',function(w)
+  local id=w['.name']
+  if type(id)=='string' and id:match('^jfa25w%d+$') and owned(w) and w.isolate~='0' then
+   assert(u:set('wireless',id,'isolate','0'),'Cannot disable managed WiFi client isolation')
+   changed=changed+1
+  end
  end)
  return changed
 end
