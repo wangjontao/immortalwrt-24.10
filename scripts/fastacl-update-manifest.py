@@ -37,6 +37,7 @@ def main() -> None:
     parser.add_argument('--models', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--version', required=True)
+    parser.add_argument('--release-id')
     parser.add_argument('--channel', required=True, choices=('stable', 'beta'))
     parser.add_argument('--base-url', default='https://up.juliangtk.top')
     parser.add_argument('--notes-url', default='')
@@ -49,6 +50,10 @@ def main() -> None:
     models = json.loads(args.models.read_text(encoding='utf-8'))
     if not isinstance(models, list) or not models:
         raise SystemExit('Model mapping must be a non-empty list.')
+
+    release_id = args.release_id or args.version
+    if not release_id.replace('.', '').replace('-', '').replace('_', '').isalnum():
+        raise SystemExit('Invalid release ID.')
 
     entries = []
     seen_boards = set()
@@ -63,7 +68,7 @@ def main() -> None:
         if image is None:
             missing.append(device)
             continue
-        relative = f'releases/{args.version}/{image.name}'
+        relative = f'releases/{release_id}/{image.name}'
         entries.append({
             'board': board,
             'label': model.get('label', device),
@@ -83,6 +88,7 @@ def main() -> None:
         'schema': 1,
         'channel': args.channel,
         'version': args.version,
+        'release_id': release_id,
         'published_at': datetime.now(timezone.utc).isoformat(),
         'base_url': args.base_url.rstrip('/'),
         'notes_url': args.notes_url,

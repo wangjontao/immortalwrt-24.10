@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -26,5 +28,20 @@ with tempfile.TemporaryDirectory() as directory:
         'zbtlink_zbt-z8103ax-c', 'clt_r30b1'
     }]) == 20
     assert module.sha256(image) == 'c3bf47ea1f4a4a605470313cacb3a44f4a461f68c6faeab07e737610cb5ac835'
+    output = root / 'beta.json'
+    subprocess.run([
+        sys.executable,
+        str(ROOT / 'scripts/fastacl-update-manifest.py'),
+        '--artifacts', str(artifacts),
+        '--models', str(ROOT / 'profiles/fastacl-v252/update-models.json'),
+        '--output', str(output),
+        '--version', '2.6.4',
+        '--release-id', '2.6.4-fix-test',
+        '--channel', 'beta',
+    ], check=True)
+    manifest = json.loads(output.read_text(encoding='utf-8'))
+    assert manifest['version'] == '2.6.4'
+    assert manifest['release_id'] == '2.6.4-fix-test'
+    assert manifest['models'][0]['image'].startswith('releases/2.6.4-fix-test/')
 
 print('FastACL update manifest generation: OK')

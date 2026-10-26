@@ -9,6 +9,11 @@ run-name: 'Publish FastACL 2.6.4 online update - ${{ inputs.channel }}'
         required: true
         default: 2.6.4
         type: string
+      release_id:
+        description: Optional immutable release directory ID
+        required: false
+        default: ''
+        type: string
       channel:
         description: Update channel
         required: true
@@ -71,7 +76,12 @@ jobs:
         run: |
           set -euo pipefail
           version="${{ inputs.version }}"
-          release_dir="publish/releases/$version"
+          release_id="${{ inputs.release_id }}"
+          if [ -z "$release_id" ]; then release_id="$version"; fi
+          case "$release_id" in
+            ''|*[!A-Za-z0-9._-]*) echo "Invalid release ID" >&2; exit 1 ;;
+          esac
+          release_dir="publish/releases/$release_id"
           mkdir -p "$release_dir"
           find artifacts -type f \
             \( -iname '*sysupgrade.bin' -o -iname '*sysupgrade.itb' \) \
@@ -121,6 +131,8 @@ jobs:
           set -euo pipefail
           version="${{ inputs.version }}"
           channel="${{ inputs.channel }}"
+          release_id="${{ inputs.release_id }}"
+          if [ -z "$release_id" ]; then release_id="$version"; fi
           test -n "$SIGNING_KEY"
           printf '%s\n' "$SIGNING_KEY" > /tmp/update-signing.key
           chmod 600 /tmp/update-signing.key
@@ -129,6 +141,7 @@ jobs:
             --models profiles/fastacl-v252/update-models.json \
             --output "publish/$channel.json" \
             --version "$version" \
+            --release-id "$release_id" \
             --channel "$channel" \
             --base-url "https://$RELEASE_DOMAIN" \
             --notes-url "${{ inputs.notes_url }}" \
@@ -149,6 +162,11 @@ jobs:
           set -euo pipefail
           version="${{ inputs.version }}"
           channel="${{ inputs.channel }}"
+          release_id="${{ inputs.release_id }}"
+          if [ -z "$release_id" ]; then release_id="$version"; fi
+          case "$release_id" in
+            ''|*[!A-Za-z0-9._-]*) echo "Invalid release ID" >&2; exit 1 ;;
+          esac
           test -n "$DEPLOY_KEY"
           test -n "$KNOWN_HOSTS"
           install -m 700 -d ~/.ssh
@@ -158,17 +176,17 @@ jobs:
           target="$RELEASE_USER@$RELEASE_HOST"
           ssh_options="-i $HOME/.ssh/fastacl-deploy -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
 
-          if ssh $ssh_options "$target" "test -e '$RELEASE_ROOT/releases/$version'"; then
-            echo "Release $version already exists and is immutable." >&2
+          if ssh $ssh_options "$target" "test -e '$RELEASE_ROOT/releases/$release_id'"; then
+            echo "Release $release_id already exists and is immutable." >&2
             exit 1
           fi
 
-          ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$version'"
+          ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$release_id'"
           rsync -az --chmod=D755,F644 -e "ssh $ssh_options" \
-            "publish/releases/$version/" \
-            "$target:$RELEASE_ROOT/staging/$version/"
+            "publish/releases/$release_id/" \
+            "$target:$RELEASE_ROOT/staging/$release_id/"
           ssh $ssh_options "$target" \
-            "test -s '$RELEASE_ROOT/staging/$version/SHA256SUMS' && mv '$RELEASE_ROOT/staging/$version' '$RELEASE_ROOT/releases/$version'"
+            "test -s '$RELEASE_ROOT/staging/$release_id/SHA256SUMS' && mv '$RELEASE_ROOT/staging/$release_id' '$RELEASE_ROOT/releases/$release_id'"
 
           rsync -az --chmod=D755,F644 -e "ssh $ssh_options" \
             "publish/$channel.json" "publish/$channel.json.sig" \
@@ -185,6 +203,7 @@ jobs:
             echo "### FastACL online update published"
             echo ""
             echo "- Version: \`${{ inputs.version }}\`"
+            echo "- Release ID: \`${{ inputs.release_id }}\`"
             echo "- Channel: \`${{ inputs.channel }}\`"
             echo "- Manifest: https://$RELEASE_DOMAIN/${{ inputs.channel }}.json"
             echo "- Build runs: \`${{ inputs.run_ids }}\`"
