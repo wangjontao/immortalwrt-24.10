@@ -22,15 +22,17 @@ sing-box TUN backend.
 - Custom direct/proxy/block rules preserve their order.
 - Platform priority uses the authenticated FastACL local relay and the existing fake-IP map.
 - Node-domain resolution uses FastACL DNS at `127.0.0.1:12553`.
-- FastACL owns a dedicated policy route table. Only forwarded LAN/WiFi traffic
-  enters TUN; router-generated traffic keeps using the main routing table, so
-  SSH, LuCI and NPS management paths are not pulled into the tunnel.
+- FastACL owns a dedicated policy route table. Only sources assigned to a
+  proxy policy enter TUN; direct devices stay on the kernel fast path. Router
+  generated traffic keeps using the main table, so SSH, LuCI and NPS are safe.
 - LAN and managed WiFi connected routes are cloned into the dedicated table
   before the TUN default route is installed.
 - `fastacl-tun0` is registered as a main LAN zone device so fw4 preserves
   bidirectional forwarding without masquerading source addresses.
 - sing-box interface auto-detection is disabled so direct outbounds cannot
   select the TUN interface and create a routing loop.
+- TUN proxy flows cannot use PPE/HNAT hardware offload; direct flows bypass
+  TUN and remain eligible for the platform fast path.
 - Defaults: interface `fastacl-tun0`, address `172.19.0.1/30`, MTU `9000`, stack `mixed`.
 
 ## Safety boundaries
