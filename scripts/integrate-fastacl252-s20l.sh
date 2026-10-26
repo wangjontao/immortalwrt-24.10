@@ -70,6 +70,7 @@ ROOT_HASH=$(openssl passwd -1 '@password@')
 sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" package/base-files/files/etc/shadow
 find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d package/fastacl252/files/etc/uci-defaults -type f -exec chmod 755 {} \;
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
+chmod 755 package/fastacl252/files/usr/libexec/juliang-traffic-setup
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
 grep -q "fastacl252.main.version=2.6.4" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
@@ -84,10 +85,12 @@ else
   sed "s/^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$/CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y/" \
     build-configs/JuLiangTK-S20L-FastACL258.txt > .config
 fi
+grep -q '^CONFIG_PACKAGE_vnstat2=y$' .config ||
+  echo 'CONFIG_PACKAGE_vnstat2=y' >>.config
 make defconfig
 sed -i "s/JuLiangTK-S20L/JuLiangTK-${tag}/g" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
 sh scripts/integrate-fastacl252-dependencies.sh
-for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4; do
+for pkg in luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps npc luci-app-nps lyaml fastacl252 juliangtk-dae firewall4 vnstat2; do
   grep -q "^CONFIG_PACKAGE_${pkg}=y" .config || { echo "Required package missing: $pkg"; exit 1; }
 done
 if grep -E '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config; then echo 'iStore/QuickStart must not be selected in Lite'; exit 1; fi

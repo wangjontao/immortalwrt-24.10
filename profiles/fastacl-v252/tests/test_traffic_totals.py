@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+
+PROFILE = Path(__file__).resolve().parents[1]
+controller = (
+    PROFILE / 'root/usr/lib/lua/luci/controller/juliang_center.lua'
+).read_text(encoding='utf-8')
+view = (
+    PROFILE / 'root/usr/lib/lua/luci/view/juliang_center/home.htm'
+).read_text(encoding='utf-8')
+setup = (
+    PROFILE / 'root/usr/libexec/juliang-traffic-setup'
+).read_text(encoding='utf-8')
+init = (
+    PROFILE / 'root/etc/init.d/juliang-traffic'
+).read_text(encoding='utf-8')
+hotplug = (
+    PROFILE / 'root/etc/hotplug.d/iface/99-juliang-traffic'
+).read_text(encoding='utf-8')
+integration = (
+    PROFILE.parents[1] / 'scripts/integrate-fastacl252-s20l.sh'
+).read_text(encoding='utf-8')
+package_makefile = (PROFILE / 'package-Makefile').read_text(encoding='utf-8')
+
+
+assert '/usr/bin/vnstat --json' in controller
+assert 'data.interfaces and data.interfaces[1]' in controller
+assert 'traffic.day' in controller
+assert 'traffic.month' in controller
+assert 'traffic_totals=traffic_totals()' in controller
+assert 'WAN 累计流量' in view
+for element in ('today-up', 'today-down', 'month-up', 'month-down'):
+    assert f'id="jc-{element}"' in view
+assert '每 30 秒更新' in view
+assert "jsonfilter -e '@.l3_device'" in setup
+assert 'DatabaseDir "/etc/vnstat"' in setup
+assert 'vnstat.@vnstat[0].interface' in setup
+assert '/etc/sysupgrade.conf' in setup
+assert '/etc/init.d/vnstat restart' in init
+assert 'INTERFACE" = wan' in hotplug
+assert 'CONFIG_PACKAGE_vnstat2=y' in integration
+assert ' vnstat2; do' in integration
+assert '+vnstat2' in package_makefile
+assert '/usr/libexec/juliang-traffic-setup' in package_makefile
+
+for script in re.findall(r'<script>(.*?)</script>', view, re.DOTALL):
+    script = re.sub(r'<%.*?%>', '', script)
+    with tempfile.NamedTemporaryFile(
+        'w', suffix='.js', encoding='utf-8', delete=False
+    ) as handle:
+        handle.write(script)
+        path = handle.name
+    subprocess.run(['node', '--check', path], check=True)
+    Path(path).unlink()
+
+print('FastACL persistent WAN traffic totals: OK')
