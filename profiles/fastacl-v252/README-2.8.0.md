@@ -13,6 +13,7 @@ FastACL 2.8.0 是独立的 sing-box 内核版本，不包含 dae 数据面，也
 - 节点、前置链、订阅和出口检测。
 - 设备与 WiFi 分流、平台优先、smart/custom IP 规则。
 - 代理 DNS 与国内 DNS 分离、域名/IP 拦截、DNS 防泄漏。
+- 受管 WiFi 为纯 IPv4 网络，DNS helper 对 AAAA 返回 NODATA，避免手机优先选择不可达的 IPv6 地址。
 - 固定入口映射、来源身份防绕过、NPS、在线升级和健康恢复。
 - TCP 与 UDP 代理。
 

@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/daeuniverse/outbound/netproxy"
+	"golang.org/x/net/dns/dnsmessage"
 	"io"
 	"log"
 	"net"
@@ -331,6 +332,13 @@ func (r *relay) resolve(q []byte, ip string) (result []byte) {
 	if _, e := questionEnd(q); e != nil || q[2]&128 != 0 {
 		return nil
 	}
+	if _, managed := r.networkPolicy(ip); managed {
+		if b := ipv4OnlyAnswer(q); b != nil {
+			r.stats.Queries.Add(1)
+			r.stats.Direct.Add(1)
+			return b
+		}
+	}
 	select {
 	case r.slots <- struct{}{}:
 		defer func() { <-r.slots }()
@@ -441,6 +449,26 @@ func (r *relay) resolve(q []byte, ip string) (result []byte) {
 		}
 		r.cache[key] = entry{append([]byte(nil), b...), time.Now(), ttl, offsets}
 		r.mu.Unlock()
+	}
+	return b
+}
+func ipv4OnlyAnswer(q []byte) []byte {
+	var query dnsmessage.Message
+	if query.Unpack(q) != nil || len(query.Questions) != 1 || query.Questions[0].Type != dnsmessage.TypeAAAA {
+		return nil
+	}
+	reply := dnsmessage.Message{
+		Header: dnsmessage.Header{
+			ID:                 query.ID,
+			Response:           true,
+			RecursionDesired:   query.RecursionDesired,
+			RecursionAvailable: true,
+		},
+		Questions: query.Questions,
+	}
+	b, err := reply.Pack()
+	if err != nil {
+		return nil
 	}
 	return b
 }

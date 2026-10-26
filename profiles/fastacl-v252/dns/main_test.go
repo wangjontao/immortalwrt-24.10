@@ -1,5 +1,5 @@
 package main
-import("fmt";"bytes";"context";"encoding/binary";"errors";"io";"net";"net/http";"sync";"testing";"time")
+import("fmt";"bytes";"context";"encoding/binary";"errors";"io";"net";"net/http";"sync";"testing";"time";"golang.org/x/net/dns/dnsmessage")
 type roundFunc func(*http.Request)(*http.Response,error)
 func(f roundFunc)RoundTrip(r *http.Request)(*http.Response,error){return f(r)}
 func query()[]byte{return []byte{1,2,1,0,0,1,0,0,0,0,0,0,1,'a',0,0,1,0,1}}
@@ -11,4 +11,11 @@ func TestExitIsolationAndCache(t *testing.T){
  for k,v:=range r.cache{v.created=time.Now().Add(-3*time.Second);r.cache[k]=v};b:=r.resolve(query(),"192.168.7.101");if binary.BigEndian.Uint32(b[25:29])!=57{t.Fatal("TTL did not age")}
 }
 func TestFailureNeverFallsBack(t *testing.T){r:=&relay{config:Config{PrivateName:"private.test",Devices:map[string]int{"client":12600}},clients:map[int]*http.Client{12600:{Transport:roundFunc(func(*http.Request)(*http.Response,error){return nil,errors.New("proxy down")})},0:{Transport:roundFunc(func(*http.Request)(*http.Response,error){t.Fatal("fell back to direct");return nil,nil})}},cache:map[string]entry{},slots:make(chan struct{},1)};b:=r.resolve(query(),"client");if b[3]&15!=2{t.Fatal("expected SERVFAIL")};if r.resolve([]byte{1},"client")!=nil{t.Fatal("malformed DNS accepted")}}
+func TestManagedIPv4NetworkSuppressesAAAA(t *testing.T){
+ q:=query();q[16]=28
+ r:=&relay{config:Config{NetworkPolicies:map[string]PolicyConfig{"172.16.1.0/24":{Resolver:"cloudflare"}}}}
+ b:=r.resolve(q,"172.16.1.217");var msg dnsmessage.Message
+ if msg.Unpack(b)!=nil||!msg.Response||msg.RCode!=dnsmessage.RCodeSuccess||len(msg.Answers)!=0{t.Fatal("managed AAAA was not suppressed")}
+ if len(msg.Questions)!=1||msg.Questions[0].Type!=dnsmessage.TypeAAAA{t.Fatal("AAAA question was not preserved")}
+}
 func TestSocksPinnedEndpoint(t *testing.T){l,e:=net.Listen("tcp4","127.0.0.1:0");if e!=nil{t.Fatal(e)};defer l.Close();done:=make(chan error,1);go func(){c,e:=l.Accept();if e!=nil{done<-e;return};defer c.Close();b:=make([]byte,3);io.ReadFull(c,b);c.Write([]byte{5,0});b=make([]byte,10);io.ReadFull(c,b);if !bytes.Equal(b,[]byte{5,1,0,1,9,9,9,9,1,187}){done<-errors.New("wrong destination");return};c.Write([]byte{5,0,0,1,0,0,0,0,0,0});done<-nil}();cfg:=Config{Exits:map[string]string{"12600":fmt.Sprintf("socks5://127.0.0.1:%d",l.Addr().(*net.TCPAddr).Port)}};exits,e:=makeExits(cfg);if e!=nil{t.Fatal(e)};r:=&relay{exits:exits};c,e:=r.privateDial(context.Background(),12600,"9.9.9.9");if e!=nil{t.Fatal(e)};c.Close();if e=<-done;e!=nil{t.Fatal(e)}}
