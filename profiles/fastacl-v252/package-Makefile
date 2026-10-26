@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 PKG_NAME:=fastacl252
 PKG_VERSION:=2.8.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=AGPL-3.0-only
 include $(INCLUDE_DIR)/package.mk
 define Package/fastacl252
@@ -18,7 +18,7 @@ define Package/fastacl252/postinst
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
 /etc/init.d/fastacl252 enable >/dev/null 2>&1 || true
 if [ "$$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 1)" = 1 ]; then
-	/usr/bin/fastacl252 hot-apply >/tmp/fastacl252-postinst.log 2>&1 || true
+	/usr/bin/fastacl252 cold-apply >/tmp/fastacl252-postinst.log 2>&1 || true
 	/etc/init.d/fastacl252 start >/dev/null 2>&1 || true
 fi
 exit 0
