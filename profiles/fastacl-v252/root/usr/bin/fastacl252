@@ -12,6 +12,7 @@ RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
 PROBE_FAILURE_LIMIT=${FASTACL_PROBE_FAILURE_LIMIT:-2}
 TUN_FALLBACK_AFTER=${FASTACL_TUN_FALLBACK_AFTER:-6}
 TUN_TABLE=${FASTACL_TUN_TABLE:-2027}
+TUN_FWMARK=${FASTACL_TUN_FWMARK:-0x2027}
 TUN_LOCAL_RULE=${FASTACL_TUN_LOCAL_RULE:-27000}
 TUN_ROUTE_RULE=${FASTACL_TUN_ROUTE_RULE:-27100}
 FD_HARD_LIMIT=
@@ -206,7 +207,7 @@ tun_interface_ready(){
 
 tun_routes_ready(){
   ip -4 rule show 2>/dev/null | grep -q "^${TUN_LOCAL_RULE}:.*iif lo lookup main" &&
-    ip -4 rule show 2>/dev/null | grep -q "^${TUN_ROUTE_RULE}:.*lookup ${TUN_TABLE}" &&
+    ip -4 rule show 2>/dev/null | grep -q "^${TUN_ROUTE_RULE}:.*fwmark ${TUN_FWMARK}.*lookup ${TUN_TABLE}" &&
     ip -4 route show table "$TUN_TABLE" 2>/dev/null | grep -q '^default '
 }
 
@@ -444,7 +445,7 @@ tun_routes_prepare(){
   # Seed the policy table with connected routes before sing-box starts.
   tun_routes_clone_connected
   ip -4 rule add pref "$TUN_LOCAL_RULE" iif lo lookup main
-  ip -4 rule add pref "$TUN_ROUTE_RULE" lookup "$TUN_TABLE"
+  ip -4 rule add pref "$TUN_ROUTE_RULE" fwmark "$TUN_FWMARK" lookup "$TUN_TABLE"
 }
 
 tun_routes_activate(){

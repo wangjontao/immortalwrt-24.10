@@ -38,6 +38,8 @@ assert 'tun_routes_start' in runtime
 assert 'tun_routes_stop' in runtime
 assert 'tun_firewall_ensure' in runtime
 assert 'TUN_TABLE' in runtime
+assert 'TUN_FWMARK' in runtime
+assert 'fwmark "$TUN_FWMARK" lookup "$TUN_TABLE"' in runtime
 assert 'iif lo lookup main' in runtime
 assert 'LAN firewall zone not found' in runtime
 assert 'uci add_list "firewall.$zone.device=$iface"' in runtime

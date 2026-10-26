@@ -176,6 +176,8 @@ class TunDataplaneTests(unittest.TestCase):
         ):
             self.assertIn(required, runtime)
         self.assertIn('TUN_TABLE', runtime)
+        self.assertIn('TUN_FWMARK', runtime)
+        self.assertIn('fwmark "$TUN_FWMARK" lookup "$TUN_TABLE"', runtime)
         self.assertIn('iif lo lookup main', runtime)
         self.assertIn('LAN firewall zone not found', runtime)
         self.assertIn('uci add_list "firewall.$zone.device=$iface"', runtime)
@@ -190,6 +192,17 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn('id="f25-dataplane-save"', view)
         self.assertIn("option dataplane 'ebpf'", config_text)
         self.assertIn('+juliangtk-sing-box', package)
+
+    def test_firewall_marks_only_proxy_sources_for_tun(self):
+        cfg = config()
+        cfg['devices'][0]['split_mode'] = 'all'
+        cfg['devices'][0]['split_rules'] = ''
+        cfg['wifis'][0]['split_mode'] = 'all'
+        result = from_lua(LUA.eval("require('fastacl252').firewall")(to_lua(cfg), 'nft'))
+        nft = result['nft']
+        self.assertIn('set tun_sources { type ipv4_addr;', nft)
+        self.assertIn('192.168.7.101/32, 172.16.1.0/24', nft)
+        self.assertIn('ip saddr @tun_sources meta mark set 0x2027', nft)
 
     def test_generated_config_with_official_core(self):
         core = globals().get('SING_BOX_CORE')
