@@ -208,8 +208,11 @@ jobs:
             "RELEASE_ROOT='$RELEASE_ROOT' RELEASE_ID='$release_id' RELEASE_URL='$release_url' DOWNLOAD_MIRROR='$DOWNLOAD_MIRROR' bash -s" <<'REMOTE_DOWNLOAD'
           set -euo pipefail
           cd "$RELEASE_ROOT/staging/$RELEASE_ID"
-          curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
-            "$RELEASE_URL/SHA256SUMS" -o SHA256SUMS
+          if ! curl -fsSL --http1.1 --retry 3 --connect-timeout 15 --max-time 120 \
+            "${DOWNLOAD_MIRROR}${RELEASE_URL}/SHA256SUMS" -o SHA256SUMS; then
+            curl -fsSL --http1.1 --retry 3 --connect-timeout 15 --max-time 120 \
+              "$RELEASE_URL/SHA256SUMS" -o SHA256SUMS
+          fi
           download_all() {
             local base="$1" args=() checksum name
             while read -r checksum name; do
@@ -218,7 +221,7 @@ jobs:
               args+=(-o "$name" "$base/$name")
             done < SHA256SUMS
             test "${#args[@]}" -gt 0
-            curl -fL --retry 3 --connect-timeout 15 --max-time 2700 \
+            curl -fL --http1.1 --retry 3 --connect-timeout 15 --max-time 2700 \
               --parallel --parallel-max 16 "${args[@]}"
           }
           if ! download_all "${DOWNLOAD_MIRROR}${RELEASE_URL}"; then
