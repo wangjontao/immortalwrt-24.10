@@ -17,4 +17,6 @@ expected=original.replace('value="{{ entityencode(duser, true) }}"','value=""')
 assert changed[changed.index('<form '):changed.index('</form>')]==expected[expected.index('<form '):expected.index('</form>')]
 assert 'name="luci_username" value=""' in changed
 assert files[path+'.before-juliang-login']==original
+css=(ROOT/'root/www/luci-static/argon/css/juliang-login.css').read_text(encoding='utf-8')
+assert '.login-form .brand{' in css and 'linear-gradient(135deg,#eaf3ff' in css
 print('PASS login theme idempotence and blank username and unchanged authentication handler')
