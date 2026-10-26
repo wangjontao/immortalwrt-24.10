@@ -191,6 +191,8 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn('dataplane', controller)
         self.assertIn('id="f25-dataplane"', view)
         self.assertIn('id="f25-dataplane-save"', view)
+        self.assertIn("$('dataplane').onchange=updateDataplaneFields", view)
+        self.assertNotIn("$('dataplane').onchange=()=>renderDataplane()", view)
         self.assertIn("option dataplane 'ebpf'", config_text)
         self.assertIn('+juliangtk-sing-box', package)
 
