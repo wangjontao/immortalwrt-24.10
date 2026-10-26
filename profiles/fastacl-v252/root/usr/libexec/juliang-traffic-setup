@@ -30,7 +30,7 @@ fi
 if ! uci -q get 'vnstat.@vnstat[0]' >/dev/null 2>&1; then
 	uci set vnstat.vnstat=vnstat
 fi
-uci -q delete 'vnstat.@vnstat[0].interface'
+uci -q delete 'vnstat.@vnstat[0].interface' || true
 uci -q add_list "vnstat.@vnstat[0].interface=$wan"
 uci -q commit vnstat
 
