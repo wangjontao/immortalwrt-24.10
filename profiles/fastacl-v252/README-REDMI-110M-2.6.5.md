@@ -1,8 +1,8 @@
-# 红米 AX6000 / D大 U-Boot / NMBM 110MiB / FastACL 2.6.4
+# 红米 AX6000 / D大 U-Boot / NMBM 110MiB / FastACL 2.6.5
 
-本构建在 FastACL 2.6.0 的 Factory 无线身份修复基础上，加入 2.6.4 的长期稳定性、DNS 防泄漏、无线默认参数和 WAN 看门狗修正。
+本构建在 FastACL 2.6.0 的 Factory 无线身份修复基础上，加入 2.6.5 的长期稳定性、DNS 防泄漏、无线默认参数和 WAN 看门狗修正。
 
-完整的稳定性改动见 `README-2.6.4.md`。
+完整的稳定性改动见 `README-2.6.5.md`。
 
 ## 启动布局
 

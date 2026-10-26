@@ -10,7 +10,7 @@ CONFIG_LUCI_LANG_zh_Hans=y
 CONFIG_PACKAGE_luci-compat=y
 CONFIG_PACKAGE_luci-lib-ipkg=y
 
-# JuLiangTK FastACL 2.5.6 intentionally excludes iStore / QuickStart.
+# JuLiangTK FastACL 2.6.5 intentionally excludes iStore / QuickStart.
 # CONFIG_PACKAGE_luci-app-store is not set
 # CONFIG_PACKAGE_luci-app-quickstart is not set
 # CONFIG_PACKAGE_quickstart is not set
@@ -81,11 +81,11 @@ CONFIG_PACKAGE_kmod-nft-offload=y
 CONFIG_CCACHE=y
 
 CONFIG_VERSIONOPT=y
-CONFIG_VERSION_DIST="JuLiangTK"
-CONFIG_VERSION_MANUFACTURER="JuLiangTK"
-CONFIG_VERSION_PRODUCT="JuLiangTK Redmi AX6000 NMBM 110MiB"
+CONFIG_VERSION_DIST="JuLiang OS"
+CONFIG_VERSION_MANUFACTURER="JuLiang OS"
+CONFIG_VERSION_PRODUCT="JuLiang OS"
 CONFIG_VERSION_HWREV="Redmi-AX6000-NMBM110M"
-CONFIG_VERSION_CODE="FastACL2.5.6"
+CONFIG_VERSION_CODE="FastACL2.6.5"
 
 # CONFIG_PACKAGE_fastacl25 is not set
 # CONFIG_PACKAGE_juliangtk-sing-box is not set

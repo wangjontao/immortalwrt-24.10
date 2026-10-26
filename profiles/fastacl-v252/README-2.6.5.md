@@ -1,6 +1,14 @@
-# FastACL V2.6.4
+# FastACL V2.6.5
 
-V2.6.4 adds a signed, model-aware online firmware updater to LuCI.
+V2.6.5 adds a signed, model-aware online firmware updater to LuCI.
+
+所有机型的系统显示名统一为 `JuLiang OS`，具体硬件型号保留在构建标识和主机名中。
+
+## Safer destructive actions
+
+- Node deletion now supports forced one-click deletion after two confirmations.
+- If a node is in use, affected devices and WiFi networks are switched to direct mode before the node is removed.
+- Individual, selected and all-WiFi deletion actions now require two confirmations.
 
 ## Direct-mode routing fix
 
