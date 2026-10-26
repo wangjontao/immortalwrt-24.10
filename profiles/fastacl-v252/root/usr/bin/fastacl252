@@ -341,15 +341,18 @@ tun_link_clear(){
 }
 
 tun_core_stop(){
-  local i=0
+  local i=0 had_tun=0
   if tun_alive; then
+    had_tun=1
     kill "$(cat "$R/tun.pid")" 2>/dev/null || true
     while tun_alive; do
       i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$(cat "$R/tun.pid")" 2>/dev/null || true; break; }
       pause_fast
     done
   fi
-  tun_link_clear
+  if [ "$had_tun" = 1 ] || [ "$(dataplane_now)" = tun ]; then
+    tun_link_clear
+  fi
   rm -f "$R/tun.pid"
 }
 
@@ -416,8 +419,14 @@ wait_tun(){
 }
 
 tun_routes_stop(){
-  while ip -4 rule del pref "$TUN_LOCAL_RULE" 2>/dev/null; do :; done
-  while ip -4 rule del pref "$TUN_ROUTE_RULE" 2>/dev/null; do :; done
+  local i=0
+  while ip -4 rule del pref "$TUN_LOCAL_RULE" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 16 ] || break
+  done
+  i=0
+  while ip -4 rule del pref "$TUN_ROUTE_RULE" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 16 ] || break
+  done
   ip -4 route flush table "$TUN_TABLE" 2>/dev/null || true
 }
 
