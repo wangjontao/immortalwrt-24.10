@@ -200,7 +200,7 @@ class TunDataplaneTests(unittest.TestCase):
         cfg['wifis'][0]['split_mode'] = 'all'
         result = from_lua(LUA.eval("require('fastacl252').firewall")(to_lua(cfg), 'nft'))
         nft = result['nft']
-        self.assertIn('set tun_sources { type ipv4_addr;', nft)
+        self.assertIn('set tun_sources { type ipv4_addr; flags interval; auto-merge;', nft)
         self.assertIn('192.168.7.101/32, 172.16.1.0/24', nft)
         self.assertIn('ip saddr @tun_sources meta mark set 0x2027', nft)
 
