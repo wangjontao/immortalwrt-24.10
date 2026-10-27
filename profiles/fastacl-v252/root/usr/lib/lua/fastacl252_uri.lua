@@ -35,7 +35,7 @@ function M.node(n)
  elseif scheme=='vmess' then
   local t=o.transport or {};local tls=o.tls or {}
   assert(not tls.reality,'VMess Reality unsupported')
-  local v={v='2',ps='FastACL',add=o.server,port=tostring(port),id=assert(o.uuid),aid=tostring(o.alter_id or 0),scy=o.security or 'auto',net=t.type or 'tcp',path=t.path or t.service_name or '',host=t.headers and t.headers.Host or '',tls=tls.enabled and 'tls' or '',sni=tls.server_name,fp=tls.utls and tls.utls.fingerprint,alpn=tls.alpn and table.concat(tls.alpn,',')}
+  local v={v='2',ps=n.name or o.tag or 'FastACL',add=o.server,port=tostring(port),id=assert(o.uuid),aid=tostring(o.alter_id or 0),scy=o.security or 'auto',net=t.type or 'tcp',path=t.path or t.service_name or '',host=t.headers and t.headers.Host or '',tls=tls.enabled and 'tls' or '',sni=tls.server_name,fp=tls.utls and tls.utls.fingerprint,alpn=tls.alpn and table.concat(tls.alpn,',')}
   assert(not tls.insecure,'VMess insecure setting cannot be represented safely')
   return 'vmess://'..require('nixio').bin.b64encode(require('luci.jsonc').stringify(v))
  else error('Unsupported dae protocol: '..tostring(scheme)) end

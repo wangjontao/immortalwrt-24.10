@@ -20,10 +20,11 @@ version = re.search(r"^PKG_VERSION:=(\d+\.\d+\.\d+)$", pkg, re.M).group(1)
 assert f"version='{version}'" in controller
 assert f"fastacl252.main.version={version}" in defaults
 assert f"option version '{version}'" in (ROOT / "root/etc/config/fastacl252").read_text(encoding="utf-8")
-assert f"FastACL V{version}" in (ROOT / "root/usr/lib/lua/luci/view/fastacl252/console.htm").read_text(encoding="utf-8")
+console = (ROOT / "root/usr/lib/lua/luci/view/fastacl252/console.htm").read_text(encoding="utf-8")
+assert "FastACL" in console and f"V{version}" in console
 
 # Managed WiFi node/preproxy/DNS updates are pure application-layer switches.
-wifi_update = between(controller, "if req.action=='update' then", "if req.action=='hide_all'")
+wifi_update = between(controller, "if req.action=='update' or req.action=='lan_update' then", "if req.action=='hide_all'")
 assert "apply_now('hot-apply')" in wifi_update
 for forbidden in (
     "/etc/init.d/network reload",

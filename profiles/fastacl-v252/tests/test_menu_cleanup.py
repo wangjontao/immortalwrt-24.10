@@ -39,8 +39,15 @@ for key in ['ddns','wol','ksmbd']:assert 'title' not in apps['admin/services/'+k
 assert 'admin/statistics' not in apps
 assert files['/usr/lib/lua/luci/controller/nps.lua']==files['/usr/libexec/juliang-nps-controller.lua']
 header=files['/usr/share/ucode/luci/template/themes/argon/header.ut']
-assert header.count('id="juliang-menu-revision"')==1 and '266-network-service-brand-1' in header
-assert '<span class="juliang-brand-name">JuLiang</span><span class="juliang-brand-name">网络服务</span>' in header
-assert 'juliang-brand-card' in header
+assert header.count('id="juliang-menu-revision"')==1 and '267-management-1' in header
+assert 'class="brand juliang-brand-card"' in header, header
+assert header.count('class="juliang-brand-name"')==2
+assert '>网络服务</span></a>' in header
 assert header.count('id="juliang-brand-gradient"')==1
+assert 'linear-gradient(132deg,#1769e0' in header and 'border-radius:10px' in header
+assert '@media(forced-colors:active){ #mainmenu' in header
+center=(ROOT/'root/usr/lib/lua/luci/controller/juliang_center.lua').read_text(encoding='utf-8')
+home=(ROOT/'root/usr/lib/lua/luci/view/juliang_center/home.htm').read_text(encoding='utf-8')
+assert "_('JuLiang 控制面板')" in center and "_('监测中心')" in center
+assert 'JuLiang 监测中心' in home
 print('PASS idempotent first-boot menu migration, compatibility payload and session menu invalidation')

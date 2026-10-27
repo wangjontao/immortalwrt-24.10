@@ -55,8 +55,6 @@ local function validate_exit(c,x,guards_only)
     assert(M.id(x.node) and c.nodes[x.node],'Missing proxy node')
     if x.preproxy and x.preproxy~='' then
       assert(M.id(x.preproxy) and c.nodes[x.preproxy] and x.preproxy~=x.node,'Invalid preproxy')
-      local p=c.nodes[x.node].protocol
-      assert(p=='socks' or p=='http','Preproxy supported for SOCKS5/HTTP landing nodes')
     end
   end
 end
@@ -74,6 +72,11 @@ function M.validate(c,guards_only)
   dns.resolve({},'direct',c,sink,'global_direct'); dns.resolve({},'proxy',c,sink,'global_proxy')
   local seenif={}; for _,v in ipairs(c.interfaces or {c.interface}) do assert(M.dev(v),'Invalid LAN interface'); seenif[v]=true end
   assert(seenif[c.interface],'Primary LAN interface missing')
+  if c.lan_default then
+    assert(c.lan_default.mode=='direct' or c.lan_default.mode=='proxy','Invalid main LAN default mode')
+    validate_exit(c,c.lan_default,guards_only)
+    dns.resolve(c.lan_default,c.lan_default.mode,c,sink,'main_lan')
+  end
   local seenip,seenmac={},{}
   for _,d in ipairs(c.devices) do
     assert(M.mac(d.mac)==d.mac,'Invalid MAC')

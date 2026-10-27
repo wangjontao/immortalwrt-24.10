@@ -47,4 +47,12 @@ assert 'must_slot_device_020000000002' not in original
 assert relay['data_max_connections']==8192
 assert relay['data_max_connections_per_session']==96
 assert '203.0.113.' not in original,'Real node credentials leaked into fixed datapath'
+lan=copy.deepcopy(c)
+lan['fixed_exit']=False
+lan['lan_default']=dict(mode='proxy',node='jp',preproxy='',split_mode='custom',split_rules='direct 192.0.2.0/24',platforms='',dns_split='0',block_domains='',dns='cloudflare')
+lan_cfg,lan_relay,lan_rules=compile(lan)
+assert 'sip(192.168.7.0/24) -> must_exit_jp' in lan_cfg
+assert 'sip(192.168.7.102/32) -> must_direct' in lan_cfg
+assert '192.168.7.0/24' in lan_relay['network_policies']
+assert 'iifname "br-lan" ip saddr 192.168.7.0/24 ip daddr 192.0.2.0/24 counter return' in lan_rules
 print('PASS: WiFi/device node and DNS changes preserve dae and nft configurations byte for byte')

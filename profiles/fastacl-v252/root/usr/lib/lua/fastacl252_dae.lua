@@ -21,6 +21,7 @@ end
 
 function M.compile(c)
   local policy=require 'fastacl252'; policy.validate(c)
+  c.lan_default=c.lan_default or {mode='direct',node='',preproxy='',split_mode='all',split_rules='',platforms='',dns_split='0',block_domains='',dns='inherit'}
   local data_max_connections=tonumber(c.data_max_connections) or 8192
   local data_max_connections_per_session=tonumber(c.data_max_connections_per_session) or 96
   assert(data_max_connections>=1 and data_max_connections<=16384,'Invalid global connection cap')
@@ -41,7 +42,6 @@ function M.compile(c)
     local name='exit_'..id(x.node); local uri=M.link(assert(c.nodes[x.node],'Missing exit node'))
     if x.preproxy and x.preproxy~='' then
       assert(x.preproxy~=x.node,'Self-referencing chain')
-      local exit=c.nodes[x.node]; assert(exit.protocol=='socks' or exit.protocol=='http','Chain requires SOCKS/HTTP landing')
       uri=uri..' -> '..M.link(assert(c.nodes[x.preproxy],'Missing front node'))
       name=name..'_via_'..id(x.preproxy)
     end
@@ -81,6 +81,13 @@ function M.compile(c)
   for _,w in ipairs(c.wifis or {}) do rules[#rules+1]='dip('..w.subnet..') -> must_direct' end
   rules[#rules+1]='dip(224.0.0.0/4, 255.255.255.255) -> must_direct'
   rules[#rules+1]='dport(53) -> must_direct'
+  local lan_proxy=c.lan_default and c.lan_default.mode=='proxy'
+  local lan_name,lan_port
+  if lan_proxy then
+    c.lan_default.platform_scope='main_lan'
+    lan_name,lan_port=ensure_exit(c.lan_default)
+    if c.fixed_exit then lan_name=fixed_target('main_lan',lan_port) end
+  end
   for _,d in ipairs(c.devices) do
     d.platform_scope="device_"..d.mac:gsub(":","")
     local port=0; local name
@@ -97,6 +104,8 @@ function M.compile(c)
       -- device_policies map for normal/per-device DNS so keep the old map
       -- empty unless the old private-DNS compatibility path is selected.
       if c.dns_policy=='private' then relay.devices[d.ip]=port end
+    elseif lan_proxy then
+      rules[#rules+1]='sip('..d.ip..'/32) -> must_direct'
     end
     local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
     local resolver=dns.resolve(d,d.mode,c,resolvers,'device_'..did)
@@ -115,6 +124,15 @@ function M.compile(c)
     end
     local resolver=dns.resolve(w,w.mode,c,resolvers,'wifi_'..w.id)
     relay.network_policies[w.subnet]=require('fastacl252_split').dns(w,{resolver=resolver,exit=port},c,resolvers)
+  end
+  local lan_cidr=policy.cidr(c.router_ip,c.netmask)
+  local lan_resolver=dns.resolve(c.lan_default,c.lan_default.mode,c,resolvers,'main_lan')
+  relay.network_policies[lan_cidr]=require('fastacl252_split').dns(c.lan_default,{resolver=lan_resolver,exit=lan_port or 0},c,resolvers)
+  if lan_proxy then
+    local scope='sip('..lan_cidr..')'
+    platform_target(c.lan_default,scope,lan_port)
+    require('fastacl252_split').dae(c.lan_default,scope,lan_name,rules)
+    rules[#rules+1]=scope..' -> must_'..lan_name
   end
   rules[#rules+1]='fallback: must_direct'
   local interfaces=table.concat(c.interfaces or {c.interface},',')

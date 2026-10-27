@@ -73,8 +73,8 @@ chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/u
 chmod 755 package/fastacl252/files/usr/libexec/juliang-traffic-setup
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.6.6" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.6.6" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.6.7" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.6.7" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 

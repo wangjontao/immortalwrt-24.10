@@ -12,6 +12,9 @@ public_key = (PROFILE / 'root/etc/fastacl-upgrade/update.pub').read_text(encodin
 fastacl_config = (PROFILE / 'root/etc/config/fastacl252').read_text(encoding='utf-8')
 upgrade_config = (PROFILE / 'root/etc/config/fastacl-upgrade').read_text(encoding='utf-8')
 defaults = (PROFILE / 'root/etc/uci-defaults/99-juliangtk-fastacl252').read_text(encoding='utf-8')
+bbr_acl = (PROFILE / 'root/usr/share/rpcd/acl.d/juliang-bbr.json').read_text(encoding='utf-8')
+bbr_controller = (PROFILE / 'root/usr/lib/lua/luci/controller/juliang_bbr.lua').read_text(encoding='utf-8')
+admin_defaults = (PROFILE / 'root/etc/uci-defaults/96-juliang-center').read_text(encoding='utf-8')
 
 assert "usign -V -m \"$MANIFEST\" -x \"$SIGNATURE\" -p \"$PUBLIC_KEY\"" in worker
 assert 'find_model_entry "$board"' in worker
@@ -20,13 +23,23 @@ assert 'sysupgrade -v "$IMAGE"' in worker
 assert "--proto '=https' --proto-redir '=https'" in worker
 assert 'upgrade_pending' in worker
 assert "{'admin', 'juliang', 'upgrade'}" in controller
+assert "{'admin', 'juliang', 'upgrade_status'}" in controller
+assert "{'admin', 'juliang', 'upgrade_action'}" in controller
 assert "post('upgrade_action')" in controller
 assert '确认下载并升级到最新版本' in view
+assert 'build_url("admin","juliang","upgrade_status")' in view
+assert 'build_url("admin","juliang","upgrade_action")' in view
+assert 'set -e\n' in worker and 'set -eu' not in worker
+assert 'for item in "$@"' in worker
 assert 'RWRX1735Din4LflnzgONFibY5aDNvwcnbtf8dKfdkq2HfqGZ5t++qEaH' in public_key
 assert "https://up.juliangtk.top:8443" in upgrade_config
 assert "option provisioned '0'" in fastacl_config
 assert 'if [ "$provisioned" != 0 ]; then' in defaults
 assert "uci set 'fastacl252.main.provisioned=1'" in defaults
+assert "uci set 'fastacl252.main.version=2.6.7'" in defaults
+assert '"juliang-bbr"' in bbr_acl and '"juliang_bbr"' in bbr_acl
+assert "acl_depends={'juliang-bbr'}" in bbr_controller
+assert "read='juliang-bbr'" in admin_defaults and "write='juliang-bbr'" in admin_defaults
 
 script = re.search(r'<script>(.*?)</script>', view, re.DOTALL)
 assert script, 'Upgrade page JavaScript was not found'

@@ -28,13 +28,13 @@ fs.remove('/tmp/luci-indexcache')
 -- LuCI caches menus per login in sessionStorage, independently of server caches.
 -- Invalidate only that menu once when this UI revision is first loaded.
 local marker='juliang-menu-revision'
-local script=[=[<script id="juliang-menu-revision">(function(){try{var k='luci-session-store',d=JSON.parse(sessionStorage.getItem(k)||'{}'),r='266-network-service-brand-1';for(var s in d){if(d[s]&&typeof d[s]==='object'&&d[s].juliangMenuRevision!==r){delete d[s].menu;d[s].juliangMenuRevision=r}}sessionStorage.setItem(k,JSON.stringify(d))}catch(e){}})();</script>]=]
+local script=[=[<script id="juliang-menu-revision">(function(){try{var k='luci-session-store',d=JSON.parse(sessionStorage.getItem(k)||'{}'),r='267-management-1';for(var s in d){if(d[s]&&typeof d[s]==='object'&&d[s].juliangMenuRevision!==r){delete d[s].menu;d[s].juliangMenuRevision=r}}sessionStorage.setItem(k,JSON.stringify(d))}catch(e){}})();</script>]=]
 local brand_css=[=[<style id="juliang-brand-gradient">
 #mainmenu .sidenav-header .juliang-brand-card{display:flex!important;flex:0 1 188px;flex-direction:column;align-items:stretch;justify-content:center;box-sizing:border-box;width:188px;min-width:0;max-width:calc(100% - 54px);margin:10px 0 10px 8px;padding:10px 14px 11px;overflow:hidden;color:#fff!important;text-decoration:none;border:1px solid rgba(255,255,255,.62);border-radius:10px;background:radial-gradient(circle at 8% 0%,rgba(255,255,255,.32),rgba(255,255,255,0) 44%),linear-gradient(132deg,#1769e0 0%,#2497ea 45%,#2cbdb3 72%,#7b79e8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 7px 18px rgba(31,91,166,.2)}
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name{display:block;width:100%;white-space:nowrap;text-align:center;color:inherit!important;letter-spacing:0;text-shadow:0 1px 3px rgba(7,42,91,.26)}
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name:first-child{line-height:1.2;font-weight:700}
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name:last-child{line-height:1.4}
-@media(forced-colors:active){#mainmenu .sidenav-header .juliang-brand-card{color:CanvasText!important;background:Canvas;border-color:CanvasText;box-shadow:none}}
+@media(forced-colors:active){ #mainmenu .sidenav-header .juliang-brand-card{color:CanvasText!important;background:Canvas;border-color:CanvasText;box-shadow:none}}
 </style>]=]
 for _,path in ipairs({'/usr/share/ucode/luci/template/themes/argon/header.ut','/usr/lib/lua/luci/view/themes/argon/header.htm'}) do
  local text=fs.readfile(path)

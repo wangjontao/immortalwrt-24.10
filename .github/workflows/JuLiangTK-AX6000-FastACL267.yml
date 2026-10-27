@@ -1,18 +1,18 @@
-name: S20L S20P JDCloud FastACL 2.6.6 Unlimited
-run-name: 'FastACL 2.6.6 - BBR and unlimited connections - S20L S20P JDCloud'
-# 2.6.6 release build trigger for the signed 8443 update endpoint.
+name: S20L S20P JDCloud FastACL 2.6.7 Unlimited
+run-name: 'FastACL 2.6.7 - BBR and unlimited connections - S20L S20P JDCloud'
+# 2.6.7 release build trigger for the signed 8443 update endpoint.
 
 'on':
   workflow_dispatch: {}
   push:
-    branches: ['2.6.6']
-    paths: ['.github/workflows/JuLiangTK-AX6000-FastACL266.yml']
+    branches: ['2.6.7']
+    paths: ['.github/workflows/JuLiangTK-AX6000-FastACL267.yml']
 
 permissions:
   contents: read
 
 concurrency:
-  group: fastacl266-JuLiangTK-AX6000-FastACL266-${{ github.ref }}-${{ github.run_id }}
+  group: fastacl267-JuLiangTK-AX6000-FastACL267-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -85,13 +85,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: FastACL266-preflight-evidence
+          name: FastACL267-preflight-evidence
           path: profiles/fastacl-v252/test-results/*
           if-no-files-found: warn
           retention-days: 14
 
   build:
-    name: Build ${{ matrix.label }} FastACL 2.6.6
+    name: Build ${{ matrix.label }} FastACL 2.6.7
     strategy:
       fail-fast: false
       matrix:
@@ -136,9 +136,9 @@ jobs:
           path: |
             dl
             .ccache
-          key: fastacl266-${{ matrix.device }}-${{ hashFiles('build-configs/*FastACL258.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/core-Makefile', 'profiles/fastacl-v252/dns/go.mod') }}
+          key: fastacl267-${{ matrix.device }}-${{ hashFiles('build-configs/*FastACL258.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/core-Makefile', 'profiles/fastacl-v252/dns/go.mod') }}
           restore-keys: |
-            fastacl266-${{ matrix.device }}-
+            fastacl267-${{ matrix.device }}-
       - name: Update feeds
         run: |
           sh scripts/ci-update-feeds.sh
@@ -167,8 +167,8 @@ jobs:
       - name: Integrate FastACL Lite
         run: |
           sh scripts/integrate-fastacl252-s20l.sh "$DEVICE"
-          grep -q 'PKG_VERSION:=2.6.6' package/fastacl252/Makefile
-          grep -q "version='2.6.6'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q 'PKG_VERSION:=2.6.7' package/fastacl252/Makefile
+          grep -q "version='2.6.7'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
           grep -q "dae reload" package/fastacl252/files/usr/bin/fastacl252
           python3 scripts/tests/test_ci_update_feeds.py
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
@@ -210,19 +210,19 @@ jobs:
           done
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
           if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
-          grep -q '2.6.6' package/fastacl252/Makefile
+          grep -q '2.6.7' package/fastacl252/Makefile
           grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
           cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiang-OS-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.6.6.md upload/
-          printf 'branch=%s\ncommit=%s\nsystem=JuLiang OS\nversion=2.6.6\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
+          cp "JuLiang-OS-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.6.7.md upload/
+          printf 'branch=%s\ncommit=%s\nsystem=JuLiang OS\nversion=2.6.7\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$DEVICE" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiang-OS-${{ matrix.tag }}-2.6.6-Unlimited-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-${{ matrix.tag }}-2.6.7-Unlimited-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -230,7 +230,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FastACL266-build-failure-${{ matrix.device }}-${{ github.run_id }}
+          name: FastACL267-build-failure-${{ matrix.device }}-${{ github.run_id }}
           path: |
             logs/
             .config

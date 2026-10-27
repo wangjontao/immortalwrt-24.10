@@ -1,7 +1,8 @@
-# FastACL V2.6.6
+# FastACL V2.6.7
 
-V2.6.6 restores persistent WAN traffic totals and applies the JuLiang 2.8 LuCI color
-language while retaining the 2.6.5 dae/eBPF dataplane and release behavior.
+V2.6.7 brings the FastACL 2.8.1 management and LuCI fixes to the dae/eBPF line.
+It retains the FastACL 2.6.x dataplane while adding persistent WAN traffic totals,
+five fixed workspaces, node tools and a primary-LAN default exit.
 
 所有机型的系统显示名统一为 `JuLiang OS`，具体硬件型号保留在构建标识和主机名中。
 
@@ -20,6 +21,35 @@ language while retaining the 2.6.5 dae/eBPF dataplane and release behavior.
 - Uses the green JuLiang brand mark with a light yellow outline.
 - Uses prominent red values for monitoring statistics.
 - Adds responsive mobile spacing, dark mode and forced-colors fallbacks.
+
+## Management workspaces
+
+- The Argon product mark is `JuLiang 网络服务`; the parent menu is
+  `JuLiang 控制面板`, its first child is `监测中心`, and the overview heading
+  is `JuLiang 监测中心`.
+- Uses five fixed workspaces: overview, nodes and subscriptions, single-WiFi
+  multi-device assignment, multi-WiFi assignment, and global settings.
+- Keeps the status header and workspace navigation fixed while content scrolls.
+- Adds node JSON editing, link copy, single-node export and full-node export.
+- Keeps node renaming, exit probes, pagination, selection and protected deletion.
+- Auto-dismisses operation notices after three seconds.
+
+## Primary LAN and WiFi
+
+- Adds a direct-or-proxy default exit for the primary WiFi and wired LAN.
+- Supports front proxy, DNS path, DNS provider, split mode, IP rules, platform
+  priority, DNS splitting and domain blocking for the primary LAN.
+- Keeps per-device assignment as the higher-priority policy.
+- Makes primary LAN and existing-WiFi panels collapsible.
+
+## Upgrade and permissions
+
+- Moves upgrade status and action routes to
+  `/admin/juliang/upgrade_status` and `/admin/juliang/upgrade_action`.
+- Makes the upgrade worker compatible with `set -u` and writes `key=value`
+  status records.
+- Adds an independent `juliang-bbr` ACL and delegates BBR read/write access to
+  the restricted `admin` account.
 
 ## Safer destructive actions
 

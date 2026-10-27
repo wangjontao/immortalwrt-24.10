@@ -60,13 +60,13 @@ def preview_shell(content,title,active):
     head=(
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>%s · JuLiang OS 2.6.6</title><style>%s</style></head><body>'
+        '<title>%s · JuLiang OS 2.6.7</title><style>%s</style></head><body>'
         '<div class="preview-shell"><aside class="preview-sidebar">'
         '<div class="preview-brand"><b>JuLiang</b><small>网络服务</small></div>'
         '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
         'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
         '<main class="preview-main"><header class="preview-topbar">'
-        '<div>JuLiang <b>/ %s</b></div><span class="preview-badge">2.6.6 · 本地预览</span>'
+        '<div>JuLiang <b>/ %s</b></div><span class="preview-badge">2.6.7 · 本地预览</span>'
         '</header><div class="preview-content">'
     ) % (title, PREVIEW_CSS, nav, title)
     return head+content+'</div></main></div></body></html>'
@@ -99,7 +99,7 @@ state={'ok':True,'version':VERSION+' · 本地演示','enabled':True,'direct_dns
  'devices':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','fixed_ip':'192.168.7.101','bound':True,'online':True,'mode':'proxy','node':'us','preproxy':'','dns':'inherit'},
             {'mac':'02:00:00:00:00:02','name':'手机 B','ip':'192.168.7.102','bound':False,'online':True,'mode':'direct','dns':'inherit'},
             {'mac':'02:00:00:00:00:03','name':'电脑 C','ip':'192.168.7.103','bound':True,'online':False,'mode':'direct','dns':'alidns'}],
- 'wifi':{'radios':{'5g':['radio1'],'2g':['radio0']},'managed':[],'counts':{'5g':0,'2g':0},'max5':14,'max2':8}}
+ 'wifi':{'radios':{'5g':['radio1'],'2g':['radio0']},'managed':[],'main':{'mode':'direct','node':'','preproxy':'','dns':'inherit','split_mode':'all','split_rules':'','platforms':'','dns_split':'0','block_domains':''},'counts':{'5g':0,'2g':0},'max5':14,'max2':8}}
 
 
 def bound_nodes():
@@ -148,13 +148,15 @@ class Handler(BaseHTTPRequestHandler):
         }
         if self.path.endswith('/juliang/status'):
             self.reply(state);return
+        if self.path.endswith('/fastacl252_node_export'):
+            self.reply({'ok':True,'count':len(state['nodes']),'text':'\n'.join('socks5://demo@'+n['id']+'.example:1080#'+n['name'] for n in state['nodes'])});return
         if self.path.endswith('/fastacl252_wireless'):
             t=time.monotonic();self.reply({'ok':True,'timestamp':t,'interfaces':[{'id':'phy1-ap0','ssid':'JuLiangTK','radio':'radio1','network':'lan','up':True,'stations':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','signal':-51,'rx_bytes':int(t*100000),'tx_bytes':int(t*300000),'tx_link_mbps':866.7,'rx_link_mbps':780}]}]});return
         if self.path.endswith('/fastacl252_status'):self.reply(state);return
         routes={
             '/':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
             '/index.html':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
-            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','控制面板','center'),
+            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','监测中心','center'),
             '/wireless':('root/usr/lib/lua/luci/view/juliang_center/wireless.htm','无线设备','wireless'),
         }
         if self.path not in routes:self.send_error(404);return
@@ -169,6 +171,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.endswith('/fastacl252_device_name'):
             row=next(r for r in state['devices'] if r['mac']==form['mac'][0]);name=form.get('name',[''])[0];row['name']=name;row['custom_name']=name
             self.reply({'ok':True,'name':name});return
+        if self.path.endswith('/fastacl252_node_detail'):
+            node=next(n for n in state['nodes'] if n['id']==form['id'][0])
+            outbound=node.get('outbound',{'type':node['protocol'],'server':'proxy.example','server_port':1080})
+            self.reply({'ok':True,'name':node['name'],'protocol':node['protocol'],'outbound':outbound,'link':f"socks5://demo@{node['id']}.example:1080#"+node['name']});return
+        if self.path.endswith('/fastacl252_update_node'):
+            data=json.loads(form['data'][0]);node=next(n for n in state['nodes'] if n['id']==data['id']);node['name']=data.get('name',node['name']);node['outbound']=data.get('outbound',{});self.reply({'ok':True,'message':'节点参数已保存并应用'});return
         if self.path.endswith('/fastacl252_probe'):
             self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'note':'绑定出口检测，非手机实机检测'});return
         if self.path.endswith('/fastacl252_save'):
@@ -199,6 +207,9 @@ class Handler(BaseHTTPRequestHandler):
             elif a=='remove':
                 r=next(r for r in info['managed'] if r['id']==data['id']);info['counts'][r['band']]-=1;info['managed'].remove(r);msg='WiFi 拓扑已保存并重新加载。'
             elif a=='hide_all':msg='SSID 显示状态已更新；未重载 network / firewall / dae。'
+            elif a=='lan_update':
+                info['main']={'mode':'proxy' if data.get('node') else 'direct','node':data.get('node',''),'preproxy':data.get('preproxy',''),'dns':data.get('dns','inherit'),'split_mode':data.get('split_mode','all'),'split_rules':data.get('split_rules',''),'platforms':data.get('platforms',''),'dns_split':data.get('dns_split','0'),'block_domains':data.get('block_domains','')}
+                state['runtime']['switch']='hot';state['runtime']['request']='hot';msg='主 WiFi / 有线 LAN 默认出口已更新。'
             else:self.reply({'ok':False,'error':'bad action'});return
             self.reply({'ok':True,'message':msg});return
         if self.path.endswith('/fastacl252_subscription'):

@@ -1,0 +1,32 @@
+{
+  "juliang-bbr": {
+    "description": "JuLiangTK BBR TCP acceleration",
+    "read": {
+      "uci": [
+        "juliang_bbr"
+      ],
+      "file": {
+        "/usr/libexec/juliang-bbr": [
+          "exec"
+        ],
+        "/tmp/juliang-bbr.log": [
+          "read"
+        ]
+      },
+      "ubus": {
+        "session": [
+          "access",
+          "get"
+        ],
+        "luci": [
+          "getFeatures"
+        ]
+      }
+    },
+    "write": {
+      "uci": [
+        "juliang_bbr"
+      ]
+    }
+  }
+}
