@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+CONFIG=/etc/vnstat.conf
+DATABASE_DIR=/etc/vnstat
+UPGRADE_LIST=/etc/sysupgrade.conf
+
+wan="$(
+	ubus call network.interface.wan status 2>/dev/null |
+		jsonfilter -e '@.l3_device' 2>/dev/null |
+		head -n 1
+)"
+case "$wan" in
+	'' | *[!A-Za-z0-9_.-]*)
+		echo 'WAN interface is not available' >&2
+		exit 1
+		;;
+esac
+
+mkdir -p "$DATABASE_DIR"
+chmod 700 "$DATABASE_DIR"
+
+[ -s "$CONFIG" ] || exit 1
+if grep -q '^[[:space:]]*DatabaseDir' "$CONFIG"; then
+	sed -i "s|^[[:space:]]*DatabaseDir.*|DatabaseDir \"/etc/vnstat\"|" "$CONFIG"
+else
+	printf '\nDatabaseDir "/etc/vnstat"\n' >>"$CONFIG"
+fi
+
+if ! uci -q get 'vnstat.@vnstat[0]' >/dev/null 2>&1; then
+	uci set vnstat.vnstat=vnstat
+fi
+uci -q delete 'vnstat.@vnstat[0].interface' || true
+uci -q add_list "vnstat.@vnstat[0].interface=$wan"
+uci -q commit vnstat
+
+touch "$UPGRADE_LIST"
+grep -qxF "$DATABASE_DIR" "$UPGRADE_LIST" ||
+	printf '%s\n' "$DATABASE_DIR" >>"$UPGRADE_LIST"
+
+printf '%s\n' "$wan"

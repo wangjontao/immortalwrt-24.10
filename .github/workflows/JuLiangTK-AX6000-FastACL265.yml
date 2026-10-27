@@ -57,6 +57,7 @@ jobs:
           python3 profiles/fastacl-v252/tests/test_lite_hotpath.py
           python3 profiles/fastacl-v252/tests/test_runtime.py
           python3 profiles/fastacl-v252/tests/test_stability_262.py
+          python3 profiles/fastacl-v252/tests/test_traffic_totals.py
           python3 scripts/tests/test_fastacl262_devices.py
           python3 profiles/fastacl-v252/tests/test_online_upgrade.py
           python3 profiles/fastacl-v252/tests/test_update_manifest.py
@@ -204,7 +205,7 @@ jobs:
           cp -a "${images[@]}" upload/
           manifest="$(python3 scripts/find-fastacl-manifest.py bin/targets/mediatek/filogic "$DEVICE")"
           [ -s "$manifest" ] || { echo 'ERROR: firmware package manifest missing'; exit 1; }
-          for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+          for pkg in fastacl252 juliangtk-dae lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb vnstat2; do
             grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
           done
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi

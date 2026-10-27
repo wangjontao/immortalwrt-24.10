@@ -1,8 +1,25 @@
-# FastACL V2.6.5
+# FastACL V2.6.6
 
-V2.6.5 adds a signed, model-aware online firmware updater to LuCI.
+V2.6.6 restores persistent WAN traffic totals and applies the JuLiang 2.8 LuCI color
+language while retaining the 2.6.5 dae/eBPF dataplane and release behavior.
 
 所有机型的系统显示名统一为 `JuLiang OS`，具体硬件型号保留在构建标识和主机名中。
+
+## Persistent WAN traffic
+
+- Adds `vnstat2` with automatic physical WAN interface discovery.
+- Stores the database in `/etc/vnstat` and preserves it through sysupgrade.
+- Shows today's and this month's upload and download totals in the monitoring center.
+- Keeps the existing two-minute real-time upload/download chart.
+- Refreshes totals every 30 seconds and real-time rates every 3 seconds.
+
+## LuCI visual refresh
+
+- Applies the 2.8 blue-cyan-lavender gradient to monitoring cards and FastACL section headings.
+- Adds fine borders, a top highlight, soft shadows and a gradient accent line.
+- Uses the green JuLiang brand mark with a light yellow outline.
+- Uses prominent red values for monitoring statistics.
+- Adds responsive mobile spacing, dark mode and forced-colors fallbacks.
 
 ## Safer destructive actions
 

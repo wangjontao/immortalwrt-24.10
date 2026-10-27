@@ -1,10 +1,11 @@
 """Local demo backend for the FastACL 2.5.6 LuCI UI; no router access."""
-import json, pathlib, re, threading, time
+import json, math, pathlib, re, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 VERSION=re.search(r'^PKG_VERSION:=(.+)$',(ROOT/'package-Makefile').read_text(),re.M).group(1)
+PREVIEW_ORIGIN=time.monotonic()
 CATALOG=[
  {'id':'dns360','label':'360 安全 DNS','scope':'direct','kind':'doh'},
  {'id':'public114','label':'114 公共 DNS','scope':'direct','kind':'udp'},
@@ -17,8 +18,77 @@ CATALOG=[
  {'id':'opendns','label':'Cisco OpenDNS','scope':'proxy','kind':'doh','ip':'208.67.222.222','name':'doh.opendns.com'},
  {'id':'quad9','label':'Quad9','scope':'proxy','kind':'doh','ip':'9.9.9.9','name':'dns.quad9.net'},
 ]
+
+PREVIEW_CSS=r"""
+:root{--shell-ink:#27364d;--shell-muted:#77859a;--shell-line:#d7e2ee;--shell-active:#e5f0fb}
+html,body{margin:0;min-height:100%;background:#eef3f8;color:var(--shell-ink)}
+body,button,input,select,textarea{font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+.preview-shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.preview-sidebar{position:sticky;top:0;height:100vh;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;padding:24px 16px 18px;overflow:hidden;background:linear-gradient(180deg,#fbfdff,#f1f6fb);border-right:1px solid var(--shell-line);box-shadow:8px 0 30px rgba(49,79,116,.05)}
+.preview-brand{display:flex;align-items:center;gap:11px;padding:0 10px 22px;border-bottom:1px solid #e1e9f2;margin-bottom:18px}
+.preview-brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#5278d6,#48b9a8 54%,#9575dc);color:white;font-weight:850;box-shadow:0 7px 18px rgba(72,104,161,.2)}
+.preview-brand b{display:block;font-size:17px;line-height:1.25}.preview-brand small{display:block;margin-top:4px;color:var(--shell-muted);font-size:11px}
+.preview-nav{display:flex;flex-direction:column;gap:7px;min-width:0;max-width:100%}.preview-nav a{display:flex;align-items:center;min-height:42px;padding:0 13px;border:1px solid transparent;border-radius:9px;color:#51637b;text-decoration:none;font-size:14px;font-weight:600}
+.preview-nav a:hover{background:#eef5fc;border-color:#dce8f4}.preview-nav a.active{background:linear-gradient(112deg,#deedfb,#e3f5f0 55%,#ede8fb);border-color:#c6d9e9;color:#24476e;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 12px rgba(62,102,148,.08)}
+.preview-sidefoot{margin-top:auto;padding:15px 10px 0;border-top:1px solid #e1e9f2;color:var(--shell-muted);font-size:11px;line-height:1.7}
+.preview-main{min-width:0;max-width:100%;overflow:hidden;padding:24px 28px 34px}.preview-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1500px;margin:0 auto 16px;color:#607089;font-size:12px}
+.preview-topbar b{color:#304a69}.preview-badge{padding:6px 10px;border:1px solid #c9ddec;border-radius:999px;background:#f7fbff;color:#426485;white-space:nowrap}
+.preview-content{min-width:0;max-width:min(1500px,100%);margin:0 auto}
+@media(max-width:860px){.preview-shell{grid-template-columns:minmax(0,1fr)}.preview-sidebar{position:sticky;z-index:100;height:auto;padding:13px 14px;border-right:0;border-bottom:1px solid var(--shell-line)}.preview-brand{padding:0 2px 10px;margin-bottom:10px}.preview-brand-mark{width:32px;height:32px}.preview-brand b{font-size:15px}.preview-brand small{display:none}.preview-nav{width:100%;flex-direction:row;overflow-x:auto;padding-bottom:2px}.preview-nav a{min-height:36px;white-space:nowrap;font-size:13px}.preview-sidefoot{display:none}.preview-main{padding:18px 14px 28px}.preview-topbar{margin-bottom:12px}}
+@media(max-width:520px){.preview-sidebar{padding:10px 10px 8px}.preview-brand{padding-bottom:8px}.preview-nav{gap:5px}.preview-nav a{min-height:34px;padding:0 10px}.preview-main{padding:14px 9px 24px}.preview-badge{font-size:10px;padding:5px 8px}}
+"""
+
+def preview_shell(content,title,active):
+    items=[
+        ('/center','控制中心','center'),
+        ('/wireless','无线设备','wireless'),
+        ('/','FastACL 控制台','console'),
+        ('/center','在线升级','upgrade'),
+        ('/center','WAN 看门狗','watchdog'),
+        ('/center','系统设置','system'),
+    ]
+    nav=''.join(
+        '<a class="%s" href="%s">%s</a>' % ('active' if key==active else '',href,label)
+        for href,label,key in items
+    )
+    head=(
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>%s · JuLiang OS 2.6.6</title><style>%s</style></head><body>'
+        '<div class="preview-shell"><aside class="preview-sidebar">'
+        '<div class="preview-brand"><span class="preview-brand-mark">JL</span>'
+        '<span><b>JuLiang OS</b><small>FastACL 2.6.6</small></span></div>'
+        '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
+        'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
+        '<main class="preview-main"><header class="preview-topbar">'
+        '<div>JuLiang <b>/ %s</b></div><span class="preview-badge">2.6.6 · 本地预览</span>'
+        '</header><div class="preview-content">'
+    ) % (title, PREVIEW_CSS, nav, title)
+    return head+content+'</div></main></div></body></html>'
+
+def render_preview(path,title,active):
+    text=(ROOT/path).read_text(encoding='utf-8')
+    urls={
+        'admin/juliang/status':'/cgi-bin/luci/admin/juliang/status',
+        'admin/juliang/wireless':'/wireless',
+        'admin/juliang/fastacl':'/',
+        'admin/services':'/cgi-bin/luci/admin/services',
+        'admin/services/fastacl252_wireless':'/cgi-bin/luci/admin/services/fastacl252_wireless',
+    }
+    def build_url(match):
+        args=[a or b for a,b in re.findall(r"'([^']*)'|\"([^\"]*)\"",match.group(1))]
+        return urls.get('/'.join(args),'#')
+    text=re.sub(r'<%=luci\.dispatcher\.build_url\((.*?)\)%>',build_url,text,flags=re.S)
+    text=text.replace('<%=token%>','demo-token')
+    text=re.sub(r'<%.*?%>','',text,flags=re.S)
+    return preview_shell(text,title,active)
 state={'ok':True,'version':VERSION+' · 本地演示','enabled':True,'direct_dns':'alidns','proxy_dns':'cloudflare','dns_catalog':CATALOG,
  'network':'lan','router_ip':'192.168.7.1','runtime':{'engine':'running','firewall':True,'backend':'nft','switch':'hot','request':'hot'},'job':'0','apply_log':'','subscription_running':False,
+ 'wan_up':True,'wan_ip':'100.64.0.2','wan_device':'pppoe-wan','wifi_count':18,'managed_wifi':3,'uptime':93784,
+ 'fastacl':{'engine':'running'},
+ 'ports':[{'device':'wan','known':True,'connected':True,'speed':2500},{'device':'lan1','known':True,'connected':True,'speed':1000},{'device':'lan2','known':True,'connected':False,'speed':1000}],
+ 'traffic':{'rx_bytes':0,'tx_bytes':0,'timestamp':0,'device':'pppoe-wan'},
+ 'traffic_totals':{'available':True,'device':'pppoe-wan','today_rx':0,'today_tx':0,'month_rx':0,'month_tx':0,'total_rx':0,'total_tx':0},
  'nodes':[{'id':'us','name':'美国出口 A','protocol':'socks'},{'id':'jp','name':'日本出口 B','protocol':'http'},{'id':'front','name':'前置节点','protocol':'vless'}],
  'subscriptions':[],
  'devices':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','fixed_ip':'192.168.7.101','bound':True,'online':True,'mode':'proxy','node':'us','preproxy':'','dns':'inherit'},
@@ -50,14 +120,41 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self,data):
         b=json.dumps(data,ensure_ascii=False).encode();self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.end_headers();self.wfile.write(b)
     def do_GET(self):
+        now=time.monotonic()
+        elapsed=now-PREVIEW_ORIGIN
+        gib=1024**3
+        mib=1024**2
+        state['uptime']=93784+int(elapsed)
+        state['traffic']={
+            'rx_bytes':int(145*gib+elapsed*6.8*mib+math.sin(elapsed*1.4)*3*mib),
+            'tx_bytes':int(38*gib+elapsed*1.1*mib+math.sin(elapsed*1.8+0.8)*0.5*mib),
+            'timestamp':now,
+            'device':'pppoe-wan',
+        }
+        state['traffic_totals']={
+            'available':True,
+            'device':'pppoe-wan',
+            'today_rx':int(86.42*gib),
+            'today_tx':int(12.84*gib),
+            'month_rx':int(1.86*1024*gib),
+            'month_tx':int(328.7*gib),
+            'total_rx':int(4.92*1024*gib),
+            'total_tx':int(728.4*gib),
+        }
+        if self.path.endswith('/juliang/status'):
+            self.reply(state);return
         if self.path.endswith('/fastacl252_wireless'):
             t=time.monotonic();self.reply({'ok':True,'timestamp':t,'interfaces':[{'id':'phy1-ap0','ssid':'JuLiangTK','radio':'radio1','network':'lan','up':True,'stations':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','signal':-51,'rx_bytes':int(t*100000),'tx_bytes':int(t*300000),'tx_link_mbps':866.7,'rx_link_mbps':780}]}]});return
         if self.path.endswith('/fastacl252_status'):self.reply(state);return
-        if self.path not in ('/', '/index.html', '/wireless'):self.send_error(404);return
-        text=(ROOT/('root/usr/lib/lua/luci/view/juliang_center/wireless.htm' if self.path=='/wireless' else 'root/usr/lib/lua/luci/view/fastacl252/console.htm')).read_text(encoding='utf-8')
-        text=text.replace('<%+header%>','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FastACL Lite 演示</title><style>body{font:15px system-ui;background:#f4f6fa;color:#242b40;padding:24px}button{padding:8px 14px;border:1px solid #bbc4db;border-radius:6px;background:#fff}.cbi-button-apply,.cbi-button-add{background:#5263d9;color:white}input,select,textarea{padding:8px;border:1px solid #cbd1df;border-radius:6px}h3{margin-top:0}</style>')
-        text=text.replace('<%+footer%>','</html>')
-        text=re.sub(r'<%=luci.dispatcher.build_url\("admin","services"\)%>','/cgi-bin/luci/admin/services',text).replace('<%=token%>','demo-token').replace('<%=luci.dispatcher.build_url("admin","services","fastacl252_wireless")%>','/cgi-bin/luci/admin/services/fastacl252_wireless')
+        routes={
+            '/':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
+            '/index.html':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
+            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','控制中心','center'),
+            '/wireless':('root/usr/lib/lua/luci/view/juliang_center/wireless.htm','无线设备','wireless'),
+        }
+        if self.path not in routes:self.send_error(404);return
+        path,title,active=routes[self.path]
+        text=render_preview(path,title,active)
         self.send_response(200);self.send_header('Content-Type','text/html; charset=utf-8');self.end_headers();self.wfile.write(text.encode())
     def do_POST(self):
         form=parse_qs(self.rfile.read(int(self.headers.get('Content-Length',0))).decode())
