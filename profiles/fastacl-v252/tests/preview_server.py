@@ -42,7 +42,7 @@ body,button,input,select,textarea{font-family:system-ui,-apple-system,'Segoe UI'
 
 def preview_shell(content,title,active):
     items=[
-        ('/center','控制面板','center'),
+        ('/center','监测中心','center'),
         ('/wireless','无线设备','wireless'),
         ('/','FastACL 控制台','console'),
         ('/center','BBR TCP 加速','bbr'),
@@ -62,7 +62,7 @@ def preview_shell(content,title,active):
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>%s · JuLiang OS 2.6.6</title><style>%s</style></head><body>'
         '<div class="preview-shell"><aside class="preview-sidebar">'
-        '<div class="preview-brand"><b>JuLiang</b><small>控制面板</small></div>'
+        '<div class="preview-brand"><b>JuLiang</b><small>网络服务</small></div>'
         '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
         'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
         '<main class="preview-main"><header class="preview-topbar">'
