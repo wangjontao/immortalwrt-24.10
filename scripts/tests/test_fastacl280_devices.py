@@ -98,6 +98,9 @@ assert "test_redmi_110m_layout.py" in mt7986_workflow
 assert "README-2.8.0.md" in mt7986_workflow
 assert "find-fastacl280-manifest.py" in mt7981_workflow
 assert "find-fastacl280-manifest.py" in mt7986_workflow
+assert "fastacl280-apt-noble-openwrt-v1" in mt7986_workflow
+assert "Acquire::http::Timeout=20" in mt7986_workflow
+assert "Acquire::Retries=5" in mt7986_workflow
 assert 'JuLiang-OS-${DEVICE_GROUP}-final.config' in mt7981_workflow
 assert 'JuLiang-OS-${DEVICE_TAG}-final.config' in mt7986_workflow
 
