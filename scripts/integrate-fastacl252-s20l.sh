@@ -105,10 +105,10 @@ grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts_identity" || {
 }
 ./scripts/diffconfig.sh > "JuLiang-OS-${tag}-final.config"
 
-# Use the control-center name for Argon brand links without changing hardware identity.
+# Use the control-panel name for Argon brand links without changing hardware identity.
 find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name header.htm \) -path '*argon*' 2>/dev/null | while IFS= read -r view; do
-  sed -i -e 's/>{{ hostname }}<\/a>/>JuLiang 控制中心<\/a>/g' \
-    -e 's/><%=hostname%><\/a>/>JuLiang 控制中心<\/a>/g' "$view"
+  sed -i -e 's/>{{ hostname }}<\/a>/>JuLiang 控制面板<\/a>/g' \
+    -e 's/><%=hostname%><\/a>/>JuLiang 控制面板<\/a>/g' "$view"
 done
 
 # V2.6.2: use Factory radio identity in MTWiFi configuration generation.

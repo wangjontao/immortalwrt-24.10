@@ -42,7 +42,7 @@ body,button,input,select,textarea{font-family:system-ui,-apple-system,'Segoe UI'
 
 def preview_shell(content,title,active):
     items=[
-        ('/center','监测中心','center'),
+        ('/center','控制面板','center'),
         ('/wireless','无线设备','wireless'),
         ('/','FastACL 控制台','console'),
         ('/center','BBR TCP 加速','bbr'),
@@ -52,7 +52,7 @@ def preview_shell(content,title,active):
         '<a class="preview-nav-sub %s" href="%s">%s</a>' % ('active' if key==active else '',href,label)
         for href,label,key in items
     )
-    nav='<div class="preview-nav-heading"><span style="margin:0">JuLiang 监测中心</span><span>⌄</span></div>'+subnav
+    nav='<div class="preview-nav-heading"><span style="margin:0">JuLiang 控制面板</span><span>⌄</span></div>'+subnav
     nav+='<div class="preview-nav-group">状态 <span>›</span></div>'
     nav+='<div class="preview-nav-group">系统 <span>›</span></div>'
     nav+='<div class="preview-nav-group">网络 <span>›</span></div>'
@@ -62,7 +62,7 @@ def preview_shell(content,title,active):
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>%s · JuLiang OS 2.6.6</title><style>%s</style></head><body>'
         '<div class="preview-shell"><aside class="preview-sidebar">'
-        '<div class="preview-brand"><b>JuLiang</b><small>监测中心</small></div>'
+        '<div class="preview-brand"><b>JuLiang</b><small>控制面板</small></div>'
         '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
         'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
         '<main class="preview-main"><header class="preview-topbar">'
@@ -154,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         routes={
             '/':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
             '/index.html':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
-            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','监测中心','center'),
+            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','控制面板','center'),
             '/wireless':('root/usr/lib/lua/luci/view/juliang_center/wireless.htm','无线设备','wireless'),
         }
         if self.path not in routes:self.send_error(404);return

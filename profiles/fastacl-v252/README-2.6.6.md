@@ -9,7 +9,7 @@ language while retaining the 2.6.5 dae/eBPF dataplane and release behavior.
 
 - Adds `vnstat2` with automatic physical WAN interface discovery.
 - Stores the database in `/etc/vnstat` and preserves it through sysupgrade.
-- Shows today's and this month's upload and download totals in the monitoring center.
+- Shows today's and this month's upload and download totals in the control panel.
 - Keeps the existing two-minute real-time upload/download chart.
 - Refreshes totals every 30 seconds and real-time rates every 3 seconds.
 
