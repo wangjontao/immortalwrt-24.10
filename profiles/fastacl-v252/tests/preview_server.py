@@ -24,40 +24,45 @@ PREVIEW_CSS=r"""
 html,body{margin:0;min-height:100%;background:#eef3f8;color:var(--shell-ink)}
 body,button,input,select,textarea{font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
 .preview-shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
-.preview-sidebar{position:sticky;top:0;height:100vh;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;padding:24px 16px 18px;overflow:hidden;background:linear-gradient(180deg,#fbfdff,#f1f6fb);border-right:1px solid var(--shell-line);box-shadow:8px 0 30px rgba(49,79,116,.05)}
-.preview-brand{display:flex;align-items:center;gap:11px;padding:0 10px 22px;border-bottom:1px solid #e1e9f2;margin-bottom:18px}
-.preview-brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#5278d6,#48b9a8 54%,#9575dc);color:white;font-weight:850;box-shadow:0 7px 18px rgba(72,104,161,.2)}
-.preview-brand b{display:block;font-size:17px;line-height:1.25}.preview-brand small{display:block;margin-top:4px;color:var(--shell-muted);font-size:11px}
-.preview-nav{display:flex;flex-direction:column;gap:7px;min-width:0;max-width:100%}.preview-nav a{display:flex;align-items:center;min-height:42px;padding:0 13px;border:1px solid transparent;border-radius:9px;color:#51637b;text-decoration:none;font-size:14px;font-weight:600}
-.preview-nav a:hover{background:#eef5fc;border-color:#dce8f4}.preview-nav a.active{background:linear-gradient(112deg,#deedfb,#e3f5f0 55%,#ede8fb);border-color:#c6d9e9;color:#24476e;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 12px rgba(62,102,148,.08)}
+.preview-sidebar{position:sticky;top:0;height:100vh;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;padding:18px 12px;overflow:hidden;background:#fff;border-right:1px solid #e7edf4;box-shadow:8px 0 30px rgba(49,79,116,.04)}
+.preview-brand{display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;width:188px;min-height:92px;margin:0 auto 18px;padding:13px 14px;border:1px solid rgba(255,255,255,.62);border-radius:10px;color:#fff;background:linear-gradient(132deg,#1769e0 0%,#2497ea 45%,#2cbdb3 72%,#7b79e8 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 7px 18px rgba(31,91,166,.2)}
+.preview-brand b{display:block;text-align:center;font-size:24px;line-height:1.2}.preview-brand small{display:block;margin-top:6px;text-align:center;color:#fff;font-size:22px;line-height:1.25}
+.preview-nav{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%}.preview-nav a,.preview-nav-heading,.preview-nav-group{display:flex;align-items:center;min-width:0;min-height:38px;box-sizing:border-box;padding:0 13px;border:1px solid transparent;border-radius:7px;color:#51637b;text-decoration:none;font-size:14px;font-weight:600}
+.preview-nav-heading{margin-bottom:6px;min-height:48px;color:#fff;background:linear-gradient(105deg,#4d55df,#4d50e4);box-shadow:0 5px 12px rgba(68,72,210,.16);font-weight:750}
+.preview-nav-group{margin-top:7px;color:#5d6a7d;font-weight:700}.preview-nav-group span,.preview-nav-heading span{margin-left:auto;font-size:18px;line-height:1}
+.preview-nav-sub{padding-left:34px!important}.preview-nav-sub.active{border-color:#d9e3ef!important;border-left:3px solid #4c5be3!important;background:#fff!important;color:#3e4c62!important;box-shadow:0 2px 7px rgba(45,72,109,.04)!important}
+.preview-nav a:hover{background:#eef5fc;border-color:#dce8f4}
 .preview-sidefoot{margin-top:auto;padding:15px 10px 0;border-top:1px solid #e1e9f2;color:var(--shell-muted);font-size:11px;line-height:1.7}
 .preview-main{min-width:0;max-width:100%;overflow:hidden;padding:24px 28px 34px}.preview-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1500px;margin:0 auto 16px;color:#607089;font-size:12px}
 .preview-topbar b{color:#304a69}.preview-badge{padding:6px 10px;border:1px solid #c9ddec;border-radius:999px;background:#f7fbff;color:#426485;white-space:nowrap}
 .preview-content{min-width:0;max-width:min(1500px,100%);margin:0 auto}
-@media(max-width:860px){.preview-shell{grid-template-columns:minmax(0,1fr)}.preview-sidebar{position:sticky;z-index:100;height:auto;padding:13px 14px;border-right:0;border-bottom:1px solid var(--shell-line)}.preview-brand{padding:0 2px 10px;margin-bottom:10px}.preview-brand-mark{width:32px;height:32px}.preview-brand b{font-size:15px}.preview-brand small{display:none}.preview-nav{width:100%;flex-direction:row;overflow-x:auto;padding-bottom:2px}.preview-nav a{min-height:36px;white-space:nowrap;font-size:13px}.preview-sidefoot{display:none}.preview-main{padding:18px 14px 28px}.preview-topbar{margin-bottom:12px}}
+@media(max-width:860px){.preview-shell{grid-template-columns:minmax(0,1fr)}.preview-sidebar{position:sticky;z-index:100;height:auto;padding:10px 12px;border-right:0;border-bottom:1px solid var(--shell-line)}.preview-brand{width:auto;min-height:0;margin:0 0 8px;padding:6px 12px}.preview-brand b{font-size:15px;text-align:left}.preview-brand small{display:inline;margin:0 0 0 8px;font-size:15px}.preview-nav{width:100%;flex-direction:row;overflow-x:auto;padding-bottom:2px}.preview-nav>*{flex:0 0 auto}.preview-nav a,.preview-nav-heading,.preview-nav-group{min-height:34px;margin:0;padding:0 10px!important;white-space:nowrap;font-size:13px}.preview-nav-sub{border-left:0!important}.preview-nav-group span,.preview-nav-heading span{display:none}.preview-sidefoot{display:none}.preview-main{padding:18px 14px 28px}.preview-topbar{margin-bottom:12px}}
 @media(max-width:520px){.preview-sidebar{padding:10px 10px 8px}.preview-brand{padding-bottom:8px}.preview-nav{gap:5px}.preview-nav a{min-height:34px;padding:0 10px}.preview-main{padding:14px 9px 24px}.preview-badge{font-size:10px;padding:5px 8px}}
 """
 
 def preview_shell(content,title,active):
     items=[
-        ('/center','控制中心','center'),
+        ('/center','监测中心','center'),
         ('/wireless','无线设备','wireless'),
         ('/','FastACL 控制台','console'),
+        ('/center','BBR TCP 加速','bbr'),
         ('/center','在线升级','upgrade'),
-        ('/center','WAN 看门狗','watchdog'),
-        ('/center','系统设置','system'),
     ]
-    nav=''.join(
-        '<a class="%s" href="%s">%s</a>' % ('active' if key==active else '',href,label)
+    subnav=''.join(
+        '<a class="preview-nav-sub %s" href="%s">%s</a>' % ('active' if key==active else '',href,label)
         for href,label,key in items
     )
+    nav='<div class="preview-nav-heading"><span style="margin:0">JuLiang 监测中心</span><span>⌄</span></div>'+subnav
+    nav+='<div class="preview-nav-group">状态 <span>›</span></div>'
+    nav+='<div class="preview-nav-group">系统 <span>›</span></div>'
+    nav+='<div class="preview-nav-group">网络 <span>›</span></div>'
+    nav+='<a class="preview-nav-group" href="#">退出</a>'
     head=(
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>%s · JuLiang OS 2.6.6</title><style>%s</style></head><body>'
         '<div class="preview-shell"><aside class="preview-sidebar">'
-        '<div class="preview-brand"><span class="preview-brand-mark">JL</span>'
-        '<span><b>JuLiang OS</b><small>FastACL 2.6.6</small></span></div>'
+        '<div class="preview-brand"><b>JuLiang</b><small>监测中心</small></div>'
         '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
         'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
         '<main class="preview-main"><header class="preview-topbar">'
@@ -149,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         routes={
             '/':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
             '/index.html':('root/usr/lib/lua/luci/view/fastacl252/console.htm','FastACL 控制台','console'),
-            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','控制中心','center'),
+            '/center':('root/usr/lib/lua/luci/view/juliang_center/home.htm','监测中心','center'),
             '/wireless':('root/usr/lib/lua/luci/view/juliang_center/wireless.htm','无线设备','wireless'),
         }
         if self.path not in routes:self.send_error(404);return

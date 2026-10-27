@@ -21,6 +21,9 @@ console_view = (
 login_css = (
     PROFILE / 'root/www/luci-static/argon/css/juliang-login.css'
 ).read_text(encoding='utf-8')
+menu_cleanup = (
+    PROFILE / 'root/usr/libexec/juliang-menu-cleanup.lua'
+).read_text(encoding='utf-8')
 setup = (
     PROFILE / 'root/usr/libexec/juliang-traffic-setup'
 ).read_text(encoding='utf-8')
@@ -47,6 +50,9 @@ assert 'linear-gradient(118deg,#d9ecff 0%,#d9f5ef 52%,#ebe7ff 100%)' in console_
 assert 'color:#c93e4a' in view
 assert 'color:#d94747' in wireless_view
 assert 'linear-gradient(135deg,#eaf3ff 0%,#e3f8f1 52%,#f2ecff 100%)' in login_css
+assert 'id="juliang-brand-gradient"' in menu_cleanup
+assert '<span class="juliang-brand-name">监测中心</span>' in menu_cleanup
+assert '266-monitor-center-1' in menu_cleanup
 for element in ('today-up', 'today-down', 'month-up', 'month-down'):
     assert f'id="jc-{element}"' in view
 assert '每 30 秒更新' in view

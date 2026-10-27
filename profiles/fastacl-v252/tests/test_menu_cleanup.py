@@ -39,7 +39,8 @@ for key in ['ddns','wol','ksmbd']:assert 'title' not in apps['admin/services/'+k
 assert 'admin/statistics' not in apps
 assert files['/usr/lib/lua/luci/controller/nps.lua']==files['/usr/libexec/juliang-nps-controller.lua']
 header=files['/usr/share/ucode/luci/template/themes/argon/header.ut']
-assert header.count('id="juliang-menu-revision"')==1 and '255-device-subscription-list-1' in header
-assert '>JuLiang</span><span' in header and '>控制中心</span></a>' in header
-assert header.count('white-space:nowrap')==2
+assert header.count('id="juliang-menu-revision"')==1 and '266-monitor-center-1' in header
+assert '<span class="juliang-brand-name">JuLiang</span><span class="juliang-brand-name">监测中心</span>' in header
+assert 'juliang-brand-card' in header
+assert header.count('id="juliang-brand-gradient"')==1
 print('PASS idempotent first-boot menu migration, compatibility payload and session menu invalidation')
