@@ -3,7 +3,7 @@ set -eu
 
 provisioned="$(uci -q get fastacl252.main.provisioned || true)"
 if [ "$provisioned" != 0 ]; then
-	uci set 'fastacl252.main.version=2.8.0'
+	uci set 'fastacl252.main.version=2.8.1'
 	uci set 'fastacl252.main.dataplane=singbox'
 	uci set 'fastacl252.main.provisioned=1'
 	uci commit fastacl252
@@ -42,7 +42,7 @@ done
 uci commit wireless
 uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
 uci set 'fastacl252.main.fixed_exit=0'
-uci set 'fastacl252.main.version=2.8.0'
+uci set 'fastacl252.main.version=2.8.1'
 uci set 'fastacl252.main.dataplane=singbox'
 uci set 'fastacl252.main.provisioned=1'; uci commit fastacl252
 /usr/libexec/fastacl252-enable.sh --config-only

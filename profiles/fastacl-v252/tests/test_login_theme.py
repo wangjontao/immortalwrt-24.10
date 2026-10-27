@@ -12,7 +12,7 @@ lua.execute("package.loaded['nixio.fs']={readfile=read,writefile=write,access=ex
 script=(ROOT/'root/usr/libexec/juliang-login-theme.lua').read_text(encoding='utf-8')
 lua.execute(script);after=files.copy();lua.execute(script);assert files==after
 changed=files[path]
-assert changed.count('id="juliang-login-style"')==1 and 'JuLiang Network Control Center' in changed
+assert changed.count('id="juliang-login-style"')==1 and 'JuLiang 网络服务' in changed
 expected=original.replace('value="{{ entityencode(duser, true) }}"','value=""')
 assert changed[changed.index('<form '):changed.index('</form>')]==expected[expected.index('<form '):expected.index('</form>')]
 assert 'name="luci_username" value=""' in changed

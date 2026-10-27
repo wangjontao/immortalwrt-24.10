@@ -83,7 +83,8 @@ local function validate_binding(u,node,pre)
   end
   return 'proxy',node,pre
 end
-local function set_dns(u,section,req,mode)
+local function set_dns(u,section,req,mode,prefix)
+  prefix=prefix or ''
   local dns=require 'fastacl252_dns'; local id=tostring(req.dns or 'inherit')
   assert(dns.valid_id(id),'DNS 选择无效')
   if mode=='proxy' and id=='custom' and tostring(req.dns_type or 'doh')~='doh' then id='inherit' end
@@ -96,11 +97,11 @@ local function set_dns(u,section,req,mode)
   end
   local tmp={dns=id,dns_type=req.dns_type,dns_ip=req.dns_ip,dns_name=req.dns_name}
   local main=u:get_all('fastacl252','main') or {}; dns.resolve(tmp,mode,main,{},'wifi')
-  u:set('fastacl252',section,'dns',id)
+  u:set('fastacl252',section,prefix..'dns',id)
   if id=='custom' then
-    u:set('fastacl252',section,'dns_type',tmp.dns_type or 'doh'); u:set('fastacl252',section,'dns_ip',tmp.dns_ip or ''); u:set('fastacl252',section,'dns_name',tmp.dns_name or '')
+    u:set('fastacl252',section,prefix..'dns_type',tmp.dns_type or 'doh'); u:set('fastacl252',section,prefix..'dns_ip',tmp.dns_ip or ''); u:set('fastacl252',section,prefix..'dns_name',tmp.dns_name or '')
   else
-    u:delete('fastacl252',section,'dns_type'); u:delete('fastacl252',section,'dns_ip'); u:delete('fastacl252',section,'dns_name')
+    u:delete('fastacl252',section,prefix..'dns_type'); u:delete('fastacl252',section,prefix..'dns_ip'); u:delete('fastacl252',section,prefix..'dns_name')
   end
 end
 
@@ -110,7 +111,24 @@ function M.status(u)
     if owned(s) then rows[#rows+1]={id=s['.name'],network=s.network or '',ssid=s.ssid or '',hidden=u:get('wireless',s['.name'],'hidden')=='1',band=s.band or '',subnet=s.subnet or '',mode=s.mode or 'direct',node=s.node or '',preproxy=s.preproxy or '',platforms=s.platforms or '',dns_split=s.dns_split or '0',block_domains=s.block_domains or '',split_mode=s.split_mode or 'all',split_rules=s.split_rules or '',dns=s.dns or 'inherit',dns_type=s.dns_type or '',dns_ip=s.dns_ip or '',dns_name=s.dns_name or ''} end
   end)
   table.sort(rows,function(a,b) return a.id<b.id end)
-  return {radios=map,managed=rows,counts=c,max5=tonumber(main.max_wifi_5g or 14),max2=tonumber(main.max_wifi_2g or 8)}
+  return {radios=map,managed=rows,counts=c,max5=tonumber(main.max_wifi_5g or 14),max2=tonumber(main.max_wifi_2g or 8),main={mode=main.lan_mode or 'direct',node=main.lan_node or '',preproxy=main.lan_preproxy or '',platforms=main.lan_platforms or '',dns_split=main.lan_dns_split or '0',block_domains=main.lan_block_domains or '',split_mode=main.lan_split_mode or 'all',split_rules=main.lan_split_rules or '',dns=main.lan_dns or 'inherit',dns_type=main.lan_dns_type or '',dns_ip=main.lan_dns_ip or '',dns_name=main.lan_dns_name or ''}}
+end
+
+function M.update_main(u,req)
+  req=req or {}
+  local mode,node,pre=validate_binding(u,req.node,req.preproxy)
+  local split={mode=mode,platforms=req.platforms or '',dns_split=req.dns_split or '0',block_domains=req.block_domains or '',split_mode=req.split_mode or 'all',split_rules=req.split_rules or ''}
+  require('fastacl252_split').parse(split)
+  assert(u:set('fastacl252','main','lan_mode',mode),'保存主 WiFi 模式失败')
+  assert(u:set('fastacl252','main','lan_node',node),'保存主 WiFi 节点失败')
+  assert(u:set('fastacl252','main','lan_preproxy',pre),'保存主 WiFi 前置失败')
+  assert(u:set('fastacl252','main','lan_platforms',split.platforms),'保存主 WiFi 平台策略失败')
+  assert(u:set('fastacl252','main','lan_dns_split',split.dns_split),'保存主 WiFi DNS 分流失败')
+  assert(u:set('fastacl252','main','lan_block_domains',split.block_domains),'保存主 WiFi 域名拦截失败')
+  assert(u:set('fastacl252','main','lan_split_mode',split.split_mode),'保存主 WiFi 分流模式失败')
+  assert(u:set('fastacl252','main','lan_split_rules',split.split_rules),'保存主 WiFi IP 规则失败')
+  set_dns(u,'main',req,mode,'lan_')
+  return {mode=mode,node=node,preproxy=pre}
 end
 
 function M.create(u,req)

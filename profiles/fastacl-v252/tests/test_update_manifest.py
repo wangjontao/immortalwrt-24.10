@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     artifacts = root / 'artifacts'
     artifacts.mkdir()
-    image = artifacts / 'immortalwrt-mediatek-filogic-cmcc_rax3000m-emmc-squashfs-sysupgrade.bin'
+    image = artifacts / 'juliang-os-mediatek-filogic-cmcc_rax3000m-emmc-squashfs-sysupgrade.bin'
     image.write_bytes(b'firmware')
     models = json.loads((ROOT / 'profiles/fastacl-v252/update-models.json').read_text(encoding='utf-8'))
     assert len({entry['board'] for entry in models}) == len(models)

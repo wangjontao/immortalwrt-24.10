@@ -55,8 +55,6 @@ local function validate_exit(c,x,guards_only)
     assert(M.id(x.node) and c.nodes[x.node],'Missing proxy node')
     if x.preproxy and x.preproxy~='' then
       assert(M.id(x.preproxy) and c.nodes[x.preproxy] and x.preproxy~=x.node,'Invalid preproxy')
-      local p=c.nodes[x.node].protocol
-      assert(p=='socks' or p=='http','Preproxy supported for SOCKS5/HTTP landing nodes')
     end
   end
 end
@@ -83,6 +81,11 @@ function M.validate(c,guards_only)
   dns.resolve({},'direct',c,sink,'global_direct'); dns.resolve({},'proxy',c,sink,'global_proxy')
   local seenif={}; for _,v in ipairs(c.interfaces or {c.interface}) do assert(M.dev(v),'Invalid LAN interface'); seenif[v]=true end
   assert(seenif[c.interface],'Primary LAN interface missing')
+  if c.lan_default then
+    assert(c.lan_default.mode=='direct' or c.lan_default.mode=='proxy','Invalid main LAN default mode')
+    validate_exit(c,c.lan_default,guards_only)
+    dns.resolve(c.lan_default,c.lan_default.mode,c,sink,'main_lan')
+  end
   local seenip,seenmac={},{}
   for _,d in ipairs(c.devices) do
     assert(M.mac(d.mac)==d.mac,'Invalid MAC')
@@ -119,6 +122,7 @@ function M.firewall(c,backend)
   M.validate(c,true); assert(backend=='nft','Invalid firewall backend')
   local proxy={}; for _,d in ipairs(c.devices) do if d.mode=='proxy' then proxy[#proxy+1]=d end end
   local macs,ips,pairs,tun_sources={},{},{},{}; for _,d in ipairs(proxy) do macs[#macs+1]=d.mac;ips[#ips+1]=d.ip;pairs[#pairs+1]=d.mac..' . '..d.ip;tun_sources[#tun_sources+1]=d.ip..'/32' end
+  if c.lan_default and c.lan_default.mode=='proxy' then tun_sources[#tun_sources+1]=M.cidr(c.router_ip,c.netmask) end
   local ifaces={}; local seen={}
   for _,v in ipairs(c.interfaces or {c.interface}) do if not seen[v] then ifaces[#ifaces+1]=quote_iface(v);seen[v]=true end end
   for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then tun_sources[#tun_sources+1]=w.subnet end end

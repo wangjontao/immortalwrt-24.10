@@ -1,4 +1,4 @@
-"""Shared Lua bridge and configuration fixtures for FastACL 2.8.0 tests."""
+"""Shared Lua bridge and configuration fixtures for FastACL 2.8.1 tests."""
 import base64
 import json
 import pathlib

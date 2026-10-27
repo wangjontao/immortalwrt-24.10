@@ -72,17 +72,19 @@ find package/fastacl252/files/etc/init.d package/fastacl252/files/etc/hotplug.d 
 chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.8.0" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.8.0" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.8.1" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.8.1" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
+grep -q "rpcd.juliang_operator.read='juliang-bbr'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
+grep -q "rpcd.juliang_operator.write='juliang-bbr'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
-config="build-configs/JuLiangTK-${tag}-FastACL280.txt"
+config="build-configs/JuLiangTK-${tag}-FastACL281.txt"
 if [ -f "$config" ]; then
   cp "$config" .config
 else
   sed "s/^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$/CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y/" \
-    build-configs/JuLiangTK-S20L-FastACL280.txt > .config
+    build-configs/JuLiangTK-S20L-FastACL281.txt > .config
 fi
 make defconfig
 sed -i "s/JuLiangTK-S20L/JuLiangTK-${tag}/g" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
@@ -102,10 +104,10 @@ grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts_identity" || {
 }
 ./scripts/diffconfig.sh > "JuLiang-OS-${tag}-final.config"
 
-# Use the monitoring-center name for Argon brand links without changing hardware identity.
+# Use the network-service brand without changing hardware identity.
 find feeds package -type f \( -name header.ut -o -name header_login.ut -o -name header.htm \) -path '*argon*' 2>/dev/null | while IFS= read -r view; do
-  sed -i -e 's/>{{ hostname }}<\/a>/>JuLiang 监测中心<\/a>/g' \
-    -e 's/><%=hostname%><\/a>/>JuLiang 监测中心<\/a>/g' "$view"
+  sed -i -e 's/>{{ hostname }}<\/a>/>JuLiang 网络服务<\/a>/g' \
+    -e 's/><%=hostname%><\/a>/>JuLiang 网络服务<\/a>/g' "$view"
 done
 
 # V2.6.2: use Factory radio identity in MTWiFi configuration generation.

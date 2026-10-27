@@ -1,5 +1,5 @@
 config main 'main'
-	option version '2.8.0'
+	option version '2.8.1'
 	option provisioned '0'
 	option enabled '0'
 	option fixed_exit '0'

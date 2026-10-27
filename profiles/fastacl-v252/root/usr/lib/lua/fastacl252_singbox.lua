@@ -1,4 +1,4 @@
--- FastACL 2.8.0 native sing-box dataplane compiler. FastACL still owns DNS,
+-- FastACL 2.8.1 native sing-box dataplane compiler. FastACL still owns DNS,
 -- identity guards and per-device/per-WiFi policy selection.
 local M={}
 local split=require 'fastacl252_split'
@@ -98,13 +98,21 @@ function M.compile(c)
     add_route(route_rules,scope,outbound)
   end
 
+  local main_lan_proxy=c.lan_default and c.lan_default.mode=='proxy'
   for _,d in ipairs(c.devices or {}) do
     d.platform_scope='device_'..d.mac:gsub(':','')
     add_scope_rules(d,d.ip..'/32')
+    if main_lan_proxy and d.mode~='proxy' then
+      route_rules[#route_rules+1]={source_ip_cidr={d.ip..'/32'},action='route',outbound='direct'}
+    end
   end
   for _,w in ipairs(c.wifis or {}) do
     w.platform_scope='wifi_'..w.id
     add_scope_rules(w,w.subnet)
+  end
+  if main_lan_proxy then
+    c.lan_default.platform_scope='main_lan'
+    add_scope_rules(c.lan_default,require('fastacl252').cidr(c.router_ip,c.netmask))
   end
 
   local excluded={}

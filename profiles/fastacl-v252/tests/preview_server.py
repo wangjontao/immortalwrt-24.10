@@ -24,7 +24,7 @@ state={'ok':True,'version':VERSION+' · 本地演示','enabled':True,'direct_dns
  'devices':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','fixed_ip':'192.168.7.101','bound':True,'online':True,'mode':'proxy','node':'us','preproxy':'','dns':'inherit'},
             {'mac':'02:00:00:00:00:02','name':'手机 B','ip':'192.168.7.102','bound':False,'online':True,'mode':'direct','dns':'inherit'},
             {'mac':'02:00:00:00:00:03','name':'电脑 C','ip':'192.168.7.103','bound':True,'online':False,'mode':'direct','dns':'alidns'}],
- 'wifi':{'radios':{'5g':['radio1'],'2g':['radio0']},'managed':[],'counts':{'5g':0,'2g':0},'max5':14,'max2':8}}
+ 'wifi':{'radios':{'5g':['radio1'],'2g':['radio0']},'managed':[],'main':{'mode':'direct','node':'','preproxy':'','dns':'inherit'},'counts':{'5g':0,'2g':0},'max5':14,'max2':8}}
 
 
 def bound_nodes():
@@ -60,6 +60,13 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.endswith('/fastacl252_device_name'):
             row=next(r for r in state['devices'] if r['mac']==form['mac'][0]);name=form.get('name',[''])[0];row['name']=name;row['custom_name']=name
             self.reply({'ok':True,'name':name});return
+        if self.path.endswith('/fastacl252_node_detail'):
+            node=next(n for n in state['nodes'] if n['id']==form['id'][0])
+            self.reply({'ok':True,'name':node['name'],'protocol':node['protocol'],'outbound':node.get('outbound',{'type':node['protocol'],'server':'proxy.example','server_port':1080}),'link':f"socks5://demo@{node['id']}.example:1080#"+node['name']});return
+        if self.path.endswith('/fastacl252_node_export'):
+            self.reply({'ok':True,'count':len(state['nodes']),'text':'\n'.join('socks5://demo@'+n['id']+'.example:1080#'+n['name'] for n in state['nodes'])});return
+        if self.path.endswith('/fastacl252_update_node'):
+            data=json.loads(form['data'][0]);node=next(n for n in state['nodes'] if n['id']==data['id']);node['name']=data.get('name',node['name']);node['outbound']=data.get('outbound',{});self.reply({'ok':True});return
         if self.path.endswith('/fastacl252_probe'):
             self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'note':'绑定出口检测，非手机实机检测'});return
         if self.path.endswith('/fastacl252_save'):
@@ -90,6 +97,9 @@ class Handler(BaseHTTPRequestHandler):
             elif a=='remove':
                 r=next(r for r in info['managed'] if r['id']==data['id']);info['counts'][r['band']]-=1;info['managed'].remove(r);msg='WiFi 拓扑已保存并重新加载。'
             elif a=='hide_all':msg='SSID 显示状态已更新；未重载 network / firewall / sing-box。'
+            elif a=='lan_update':
+                info['main']={'mode':'proxy' if data.get('node') else 'direct','node':data.get('node',''),'preproxy':data.get('preproxy',''),'dns':data.get('dns','inherit')}
+                state['runtime']['switch']='hot';state['runtime']['request']='hot';msg='主 WiFi / 有线 LAN 默认出口已更新。'
             else:self.reply({'ok':False,'error':'bad action'});return
             self.reply({'ok':True,'message':msg});return
         if self.path.endswith('/fastacl252_subscription'):

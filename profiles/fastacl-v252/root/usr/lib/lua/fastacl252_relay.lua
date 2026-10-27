@@ -56,8 +56,6 @@ function M.compile(c)
     local uri=M.link(assert(c.nodes[x.node],'Missing exit node'))
     if x.preproxy and x.preproxy~='' then
       assert(x.preproxy~=x.node,'Self-referencing chain')
-      local exit=c.nodes[x.node]
-      assert(exit.protocol=='socks' or exit.protocol=='http','Chain requires SOCKS/HTTP landing')
       uri=uri..' -> '..M.link(assert(c.nodes[x.preproxy],'Missing front node'))
       name=name..'_via_'..id(x.preproxy)
     end
@@ -95,6 +93,16 @@ function M.compile(c)
     local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
     local resolver=dns.resolve(d,d.mode,c,resolvers,'device_'..did)
     relay.device_policies[d.ip]=split.dns(d,{resolver=resolver,exit=port},c,resolvers)
+  end
+
+  if c.lan_default and c.lan_default.mode=='proxy' then
+    c.lan_default.platform_scope='main_lan'
+    local _,route=ensure_exit(c.lan_default)
+    local port=route
+    if c.fixed_exit then fixed_target('main_lan',port) end
+    platform_target(c.lan_default,port)
+    local resolver=dns.resolve(c.lan_default,'proxy',c,resolvers,'main_lan')
+    relay.network_policies[require('fastacl252').cidr(c.router_ip,c.netmask)]=split.dns(c.lan_default,{resolver=resolver,exit=port},c,resolvers)
   end
 
   for _,w in ipairs(c.wifis or {}) do

@@ -159,24 +159,241 @@
 .f252 .split-rule-guide{margin-top:9px;padding:9px 11px;background:rgba(104,111,218,.055);border-radius:7px}.f252 .split-rule-guide>summary{font-size:12px;color:#626dc2;font-weight:500}.f252 .split-rule-guide-body{font-size:12px;line-height:1.65;overflow-wrap:anywhere}.f252 .split-rule-guide-body p{margin:8px 0}.f252 .split-rule-guide-body pre{white-space:pre-wrap;font-size:12px;line-height:1.7;padding:9px;border-radius:5px;background:rgba(104,111,218,.06);color:inherit}
 .f252 .wifi-bulk-toolbar{padding:9px 11px;border:1px solid rgba(120,135,170,.2);border-radius:8px;background:rgba(104,111,218,.035)}.f252 .wifi-choice{display:inline-flex!important;align-items:center;gap:7px;margin:0;white-space:nowrap;font-size:12px}.f252 .wifi-choice input{width:17px!important;height:17px;min-height:0!important;margin:0;flex:none}.f252 .wifi-delete,.f252 .wifi-delete:hover,.f252 .wifi-delete:disabled{background:#ff315b!important;border-color:#ff315b!important;color:#6d28d9!important;-webkit-text-fill-color:#6d28d9!important;text-shadow:none!important;font-weight:600}.f252 .wifi-visibility,.f252 .wifi-visibility:hover,.f252 .wifi-visibility:disabled{background:#9575de!important;border-color:#9575de!important;color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:none!important;font-weight:500}.f252 .wifi-delete:disabled,.f252 .wifi-visibility:disabled{opacity:.45;cursor:not-allowed}
 .f252 .msg.pending{color:#5264c8;background:#eef0ff;padding:10px 12px;border-radius:8px}.f252 #f25-wifi-progress{margin-top:10px;color:#5264c8;font-weight:600}
+
+/* Compact workspace navigation: status first, then one task area at a time. */
+.f252{--f25-line:#d7e1ec;--f25-soft:#f5f8fb;--f25-ink:#21384f;--f25-muted:#61758a;--f25-accent:#2f719e;--f25-accent-soft:#e7f1f8;padding-bottom:36px}
+.f252 [hidden]{display:none!important}
+.f252 .f25-sticky{top:0;padding:8px 12px 0;border:1px solid var(--f25-line);border-radius:8px!important;background:color-mix(in srgb,var(--background-color,#fff) 94%,#eaf3f8);box-shadow:0 8px 22px -16px rgba(25,56,83,.5);overflow:visible}
+.f252 .f25-topbar{display:grid;grid-template-columns:auto minmax(320px,1fr) auto;align-items:center;gap:18px;min-height:54px}
+.f252 .f25-brand{display:flex;align-items:baseline;gap:8px;min-width:0}
+.f252 .f25-brand h2{margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;color:var(--f25-ink)!important;font-size:21px!important;line-height:1.2;white-space:nowrap}
+.f252 .f25-brand .f25-brand-text{-webkit-text-fill-color:currentColor!important;-webkit-text-stroke:0!important;text-shadow:none!important;color:var(--f25-ink)!important;font-weight:800}
+.f252 .f25-version{font-size:12px;color:var(--f25-muted);white-space:nowrap}
+.f252 .f25-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+.f252 .f25-tools #f25-health{flex:1 1 320px;min-width:0;padding:8px 10px;border:1px solid var(--f25-line);border-radius:6px;background:var(--f25-soft);color:#47647d;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.f252 .f25-tools #f25-refresh{flex:0 0 auto;min-height:34px!important;padding:6px 12px!important}
+.f252 .f25-tools #f25-search{flex:0 1 280px;min-height:34px!important;width:280px;max-width:100%}
+.f252 .f25-tabs{display:flex;gap:2px;margin-top:5px;overflow-x:auto;scrollbar-width:thin;border-top:1px solid var(--f25-line)}
+.f252 .f25-tabs button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px!important;padding:8px 16px!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#5e7286!important;font-weight:650!important;white-space:nowrap!important}
+.f252 .f25-tabs button:hover{background:#edf4f8!important;color:#264e6d!important}
+.f252 .f25-tabs button[aria-selected=true]{border-bottom-color:var(--f25-accent)!important;color:#1e5d84!important;background:#edf5fa!important}
+.f252 .f25-tabs .f25-nav-count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 6px;border-radius:999px;background:#e1e9f1;color:#526a80;font-size:11px;font-variant-numeric:tabular-nums}
+.f252 .f25-tabs button[aria-selected=true] .f25-nav-count{background:#d4e8f4;color:#245e80}
+.f252 .f25-sticky .msg{margin:7px 0 0;max-height:20vh;overflow:auto;padding:8px 10px;border-radius:6px;background:rgba(30,126,85,.08)}
+.f252 .f25-sticky .msg.bad{background:rgba(197,51,58,.08)}
+.f252 .f25-content{padding-top:14px}
+.f252 .f25-content>.card{margin:0 0 14px!important;padding:18px 20px!important;border:1px solid var(--f25-line)!important;border-radius:8px!important;background:var(--background-color,#fff)!important;box-shadow:0 7px 18px -17px rgba(22,61,91,.55)!important}
+.f252 .f25-content>.card>.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:0;border:0}
+.f252 .f25-content>.card>.head h3,.f252 .f25-content>.card>h3{margin:0!important;color:var(--f25-ink)!important;font-size:20px!important;line-height:1.3;font-weight:780!important}
+.f252 .f25-content>.card>h3{margin-bottom:12px!important}
+.f252 .f25-content>.card>.head .pill{background:#edf3f7!important;color:#48677f!important}
+.f252 .f25-subtabs{display:flex;gap:3px;width:max-content;max-width:100%;margin:0 0 14px;padding:3px;border:1px solid var(--f25-line);border-radius:7px;background:#f3f7fa;overflow-x:auto}
+.f252 .f25-subtabs button{min-height:32px!important;padding:5px 12px!important;border:0!important;border-radius:5px!important;background:transparent!important;box-shadow:none!important;color:#62778a!important;font-size:13px;font-weight:650}
+.f252 .f25-subtabs button[aria-selected=true]{background:var(--background-color,#fff)!important;color:#245d80!important;box-shadow:0 1px 5px rgba(30,69,99,.12)!important}
+.f252 .f25-content>.card.f25-overview{padding:0!important;overflow:hidden}
+.f252 .f25-overview-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px 15px;border-bottom:1px solid var(--f25-line);background:linear-gradient(100deg,#f4f9fc,#f8fafb)}
+.f252 .f25-overview-head h3{margin:0!important;color:var(--f25-ink)!important;font-size:21px!important}
+.f252 .f25-overview-head .note{margin:4px 0 0}
+.f252 .f25-overview-actions{display:flex;gap:7px;flex-wrap:wrap}
+.f252 .f25-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--f25-line)}
+.f252 .f25-metric{min-width:0;padding:18px 20px;background:var(--background-color,#fff)}
+.f252 .f25-metric>span{display:block;margin-bottom:7px;color:var(--f25-muted);font-size:12px;font-weight:650}
+.f252 .f25-metric>strong{display:block;color:var(--f25-ink);font-size:27px;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.f252 .f25-metric>strong.good{color:#148253}.f252 .f25-metric>strong.bad{color:#bf3d46}
+.f252 .f25-metric>small{display:block;margin-top:6px;color:var(--f25-muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.f252 .f25-quickbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:13px 20px;border-top:1px solid var(--f25-line);background:#fafcfd}
+.f252 .f25-quickbar>b{margin-right:3px;color:#45637b;font-size:13px}
+.f252 .f25-batch-drawer{margin:0 0 12px;border:1px solid var(--f25-line);border-radius:7px;background:#f7fafc}
+.f252 .f25-batch-drawer>summary{min-height:38px;padding:8px 11px;color:#41637f;font-size:13px;font-weight:650}
+.f252 .f25-batch-drawer>.bar{margin:0;padding:10px;border-top:1px solid var(--f25-line)}
+.f252 .wifi-bulk-toolbar{position:sticky;bottom:8px;z-index:5;box-shadow:0 8px 20px -14px rgba(30,65,93,.55);background:color-mix(in srgb,var(--background-color,#fff) 92%,#edf4f8)}
+@container(max-width:1050px){.f252 .f25-topbar{grid-template-columns:auto minmax(0,1fr);gap:8px 14px}.f252 .f25-tools{grid-column:1/-1}.f252 .f25-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(max-width:650px){.f252 .f25-sticky{padding:8px 9px 0}.f252 .f25-topbar{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding-bottom:6px}.f252 .f25-brand{justify-content:space-between}.f252 .f25-brand h2{font-size:19px!important}.f252 .f25-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}.f252 .f25-tools #f25-health{grid-column:1/-1;font-size:11px}.f252 .f25-tools #f25-search{grid-column:1/-1;width:100%}.f252 .f25-tabs button{min-height:39px!important;padding:7px 12px!important;font-size:13px}.f252 .f25-content{padding-top:10px}.f252 .f25-content>.card{padding:14px!important}.f252 .f25-overview-head{align-items:flex-start;flex-direction:column;padding:15px 14px}.f252 .f25-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.f252 .f25-metric{padding:14px}.f252 .f25-metric>strong{font-size:24px}.f252 .f25-quickbar{padding:11px 14px}}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f252{--f25-line:#44576b;--f25-soft:#263646;--f25-ink:#e2eaf2;--f25-muted:#aebdca;--f25-accent:#70b3da;--f25-accent-soft:#263f51}body:not(.mode-light) .f252 .f25-sticky{background:#22313f}body:not(.mode-light) .f252 .f25-tabs button:hover,body:not(.mode-light) .f252 .f25-tabs button[aria-selected=true]{background:#293d4e!important;color:#dbeaf5!important}body:not(.mode-light) .f252 .f25-overview-head{background:linear-gradient(100deg,#263744,#243440)}body:not(.mode-light) .f252 .f25-batch-drawer,body:not(.mode-light) .f252 .f25-subtabs{background:#263646}body:not(.mode-light) .f252 .f25-subtabs button[aria-selected=true]{background:#32495b!important;color:#d5e9f7!important}body:not(.mode-light) .f252 .f25-quickbar{background:#23313e}}
+
+/* Strong four-level hierarchy: product, page navigation, page title, content. */
+.f252 .f25-sticky{padding:10px 12px 0;border-color:#b7cada;background:linear-gradient(180deg,#fbfdff 0%,#eef5f9 100%);box-shadow:0 9px 24px -15px rgba(23,64,94,.7)}
+.f252 .f25-topbar{min-height:60px;border-bottom:1px solid #d2e0ea;padding-bottom:8px}
+.f252 .f25-brand{position:relative;padding-left:14px}
+.f252 .f25-brand:before{content:'';position:absolute;left:0;top:2px;bottom:2px;width:5px;border-radius:3px;background:linear-gradient(180deg,#2f719e,#34a383)}
+.f252 .f25-brand h2{font-size:24px!important;letter-spacing:0!important}
+.f252 .f25-version{font-weight:650;color:#587186}
+.f252 .f25-tools #f25-health{position:relative;padding-left:26px;border-color:#c7dbe7;background:#f7fbfd;color:#284f69;font-weight:600;box-shadow:inset 0 1px 0 #fff}
+.f252 .f25-tools #f25-health:before{content:'';position:absolute;left:11px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:#23a36d;box-shadow:0 0 0 3px rgba(35,163,109,.12)}
+.f252 .f25-tabs{gap:5px;margin:8px 0 0;padding:5px;border:1px solid #cbdae5;border-radius:8px;background:#e8f0f5}
+.f252 .f25-tabs button{min-height:40px!important;padding:8px 14px!important;border:0!important;border-radius:6px!important;color:#395a72!important;font-size:14px;font-weight:700!important;background:transparent!important}
+.f252 .f25-tabs button:hover{background:#f8fbfd!important;color:#1e5378!important}
+.f252 .f25-tabs button[aria-selected=true]{background:#2f6d98!important;color:#fff!important;box-shadow:0 3px 9px -4px rgba(22,68,98,.65)!important}
+.f252 .f25-tabs .f25-nav-count{background:#d6e3ec;color:#315b75}
+.f252 .f25-tabs button[aria-selected=true] .f25-nav-count{background:#fff;color:#256382}
+.f252 .f25-content{padding-top:18px}
+.f252 .f25-content>.card{border-color:#c5d6e3!important;box-shadow:0 8px 22px -18px rgba(20,58,87,.65)!important}
+.f252 .f25-content>.card>.head{margin:-18px -20px 18px!important;padding:15px 20px 14px 24px!important;border-bottom:1px solid #c9dce9;background:linear-gradient(100deg,#e5f0f7 0%,#f1f7fa 72%,#f8fbfc 100%);box-shadow:inset 5px 0 0 #2f719e}
+.f252 .f25-content>.card>.head h3{font-size:23px!important;color:#183f5d!important;font-weight:800!important}
+.f252 .f25-content>.card>.head h3:before{content:'';display:inline-block;width:9px;height:9px;margin:0 10px 2px 0;border-radius:2px;background:#34a383;transform:rotate(45deg)}
+.f252 .f25-content>.card>.head .pill{padding:5px 10px!important;border:1px solid #c5d7e4;background:#fff!important;color:#285d7e!important;font-weight:750!important;box-shadow:0 1px 4px rgba(29,67,96,.08)}
+.f252 .f25-content>.card>h3{margin:-18px -20px 18px!important;padding:15px 20px 14px 24px!important;border-bottom:1px solid #c9dce9;background:linear-gradient(100deg,#e5f0f7,#f1f7fa);box-shadow:inset 5px 0 0 #2f719e;font-size:23px!important;color:#183f5d!important;font-weight:800!important}
+.f252 .f25-content>.card>h3:before{content:'';display:inline-block;width:9px;height:9px;margin:0 10px 2px 0;border-radius:2px;background:#34a383;transform:rotate(45deg)}
+.f252 .f25-subtabs{margin:-2px 0 18px;padding:4px;border-color:#c8d9e5;background:#e7eff4}
+.f252 .f25-subtabs button{min-height:34px!important;padding:6px 16px!important;border-radius:5px!important;color:#42637b!important;font-weight:700}
+.f252 .f25-subtabs button[aria-selected=true]{background:#376f95!important;color:#fff!important;box-shadow:0 2px 7px -3px rgba(22,65,93,.65)!important}
+.f252 .f25-content>.card.f25-overview .f25-overview-head{padding:20px 24px 17px;border-bottom:1px solid #c9dce9;background:linear-gradient(100deg,#e2eef7 0%,#eff7f8 68%,#f8fbfb 100%);box-shadow:inset 5px 0 0 #2f719e}
+.f252 .f25-overview-head h3{font-size:24px!important;color:#183f5d!important;font-weight:800!important}
+.f252 .f25-overview-head h3:before{content:'';display:inline-block;width:9px;height:9px;margin:0 10px 2px 0;border-radius:2px;background:#34a383;transform:rotate(45deg)}
+.f252 .f25-metric>span{color:#3f6078;font-weight:750}
+.f252 .f25-metric>strong{font-size:30px}
+.f252 .f25-quickbar{border-top-color:#c9dce9;background:#eef4f7}
+.f252 .f25-quickbar>b{color:#244f6c}
+.f252 .f25-batch-drawer{border-color:#c8d9e5;background:#edf4f8}
+.f252 .f25-batch-drawer>summary{color:#254f6c;font-weight:750}
+.f252 .wifi-bulk-toolbar{border-color:#c8d9e5;background:#edf4f8}
+@container(max-width:650px){.f252 .f25-topbar{min-height:0}.f252 .f25-brand{padding-left:12px}.f252 .f25-brand:before{top:1px;bottom:1px}.f252 .f25-brand h2{font-size:21px!important}.f252 .f25-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:6px;overflow:visible}.f252 .f25-tabs button{min-width:0;min-height:38px!important;padding:7px 9px!important;font-size:13px;white-space:normal!important;line-height:1.35}.f252 .f25-tabs [data-f25-view="devices"]{grid-column:1/-1}.f252 .f25-content>.card>.head{margin:-14px -14px 15px!important;padding:13px 14px 12px 18px!important}.f252 .f25-content>.card>.head h3,.f252 .f25-content>.card>h3{font-size:20px!important}.f252 .f25-content>.card>h3{margin:-14px -14px 15px!important;padding:13px 14px 12px 18px!important}.f252 .f25-overview-head h3{font-size:21px!important}.f252 .f25-metric>strong{font-size:27px}}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-sticky{background:linear-gradient(180deg,#243544,#202f3c);border-color:#4a6174}body:not(.mode-light) .f252 .f25-topbar{border-bottom-color:#43586b}body:not(.mode-light) .f252 .f25-tools #f25-health{background:#273a49;border-color:#486176;color:#d3e3ef}body:not(.mode-light) .f252 .f25-tabs{background:#263846;border-color:#465d70}body:not(.mode-light) .f252 .f25-tabs button[aria-selected=true],body:not(.mode-light) .f252 .f25-subtabs button[aria-selected=true]{background:#3f769b!important;color:#fff!important}body:not(.mode-light) .f252 .f25-content>.card>.head,body:not(.mode-light) .f252 .f25-content>.card>h3,body:not(.mode-light) .f252 .f25-overview .f25-overview-head{background:linear-gradient(100deg,#2b3f4f,#263845);border-color:#4a6072}body:not(.mode-light) .f252 .f25-content>.card>.head h3,body:not(.mode-light) .f252 .f25-content>.card>h3,body:not(.mode-light) .f252 .f25-overview-head h3{color:#e4eef6!important}body:not(.mode-light) .f252 .f25-subtabs,body:not(.mode-light) .f252 .f25-quickbar,body:not(.mode-light) .f252 .f25-batch-drawer,body:not(.mode-light) .f252 .wifi-bulk-toolbar{background:#293b49;border-color:#495e70}}
+
+/* Gradient menu keys: soft idle state, brighter hover, unmistakable active state. */
+.f252 .f25-tabs{background:linear-gradient(180deg,#dce9f2 0%,#edf4f8 100%);border-color:#b9cfdf;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.f252 .f25-tabs button{min-height:42px!important;border:1px solid #c1d5e3!important;background:linear-gradient(180deg,#ffffff 0%,#eaf2f7 100%)!important;color:#214b68!important;font-size:14px;font-weight:750!important;text-shadow:0 1px 0 #fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 2px 5px -3px rgba(31,73,103,.38);transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+.f252 .f25-tabs button:hover{border-color:#8eb8d2!important;background:linear-gradient(180deg,#f8fdff 0%,#d9eaf5 100%)!important;color:#174d71!important;box-shadow:inset 0 1px 0 #fff,0 4px 9px -5px rgba(25,86,123,.55);transform:translateY(-1px)}
+.f252 .f25-tabs button[aria-selected=true]{border-color:#1c658a!important;background:linear-gradient(135deg,#174d72 0%,#246f98 56%,#278a76 100%)!important;color:#fff!important;text-shadow:0 1px 1px rgba(8,44,60,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 6px 14px -7px rgba(15,75,103,.88)!important;transform:translateY(-1px)}
+.f252 .f25-tabs button:focus-visible{outline:3px solid rgba(42,125,169,.35);outline-offset:2px}
+.f252 .f25-tabs .f25-nav-count{border:1px solid rgba(75,113,138,.14);background:linear-gradient(180deg,#f8fbfd,#dde9f1);color:#315d78;font-weight:800;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.f252 .f25-tabs button[aria-selected=true] .f25-nav-count{border-color:rgba(255,255,255,.34);background:rgba(255,255,255,.94);color:#1f627d;box-shadow:0 1px 3px rgba(7,56,77,.2)}
+.f252 .f25-subtabs{background:linear-gradient(180deg,#e0ebf3,#edf4f8);border-color:#bfd2df}
+.f252 .f25-subtabs button{border:1px solid #c6d8e4!important;background:linear-gradient(180deg,#fff,#eaf2f7)!important;color:#2e5975!important;font-weight:750;text-shadow:0 1px 0 #fff;box-shadow:inset 0 1px 0 #fff,0 2px 4px -3px rgba(28,70,100,.36);transition:background .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+.f252 .f25-subtabs button:hover{border-color:#8db6d0!important;background:linear-gradient(180deg,#f8fdff,#dbeaf4)!important;color:#174d6f!important;transform:translateY(-1px)}
+.f252 .f25-subtabs button[aria-selected=true]{border-color:#2b6e91!important;background:linear-gradient(135deg,#286687 0%,#3a8392 58%,#3c9a7c 100%)!important;color:#fff!important;text-shadow:0 1px 1px rgba(9,49,65,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 4px 9px -5px rgba(20,80,108,.75)!important;transform:translateY(-1px)}
+.f252 .f25-quickbar .cbi-button{border-color:#c4d6e3!important;background:linear-gradient(180deg,#fff,#eaf2f7)!important;color:#28536f!important;font-weight:650;text-shadow:0 1px 0 #fff;box-shadow:inset 0 1px 0 #fff,0 2px 5px -4px rgba(32,77,105,.4)}
+.f252 .f25-quickbar .cbi-button:hover{border-color:#8db6d0!important;background:linear-gradient(180deg,#f8fdff,#daeaf4)!important;color:#174d6f!important}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-tabs{background:linear-gradient(180deg,#253744,#20303c);border-color:#496074}body:not(.mode-light) .f252 .f25-tabs button{border-color:#4c6477!important;background:linear-gradient(180deg,#334957,#293c49)!important;color:#d9e8f2!important;text-shadow:0 1px 1px #172630;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 7px -4px #0f1c25}body:not(.mode-light) .f252 .f25-tabs button:hover{border-color:#6c96b0!important;background:linear-gradient(180deg,#3b5667,#304b5b)!important;color:#fff!important}body:not(.mode-light) .f252 .f25-tabs button[aria-selected=true],body:not(.mode-light) .f252 .f25-subtabs button[aria-selected=true]{border-color:#6eb1d1!important;background:linear-gradient(135deg,#245877 0%,#276e85 55%,#24775f 100%)!important;color:#fff!important}body:not(.mode-light) .f252 .f25-subtabs{background:linear-gradient(180deg,#263844,#202f3a);border-color:#465d70}body:not(.mode-light) .f252 .f25-subtabs button{border-color:#486072!important;background:linear-gradient(180deg,#334754,#293b47)!important;color:#d2e3ee!important;text-shadow:none}body:not(.mode-light) .f252 .f25-quickbar .cbi-button{border-color:#4a6172!important;background:linear-gradient(180deg,#334756,#293b47)!important;color:#d9e8f2!important;text-shadow:none}}
+
+/* Node editing and export. */
+.f252 #f25-node-export{border-color:#2f7e6a!important;background:linear-gradient(180deg,#f6fffb,#dff4ea)!important;color:#17654f!important;font-weight:700}
+.f252 #f25-node-export:hover{border-color:#24906f!important;background:linear-gradient(180deg,#effff8,#caefdf)!important}
+.f252 .f25-node-edit .modalbox{width:min(820px,96vw)}
+.f252 .f25-node-edit .head{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #d5e2ec}
+.f252 .f25-node-edit .head h3{margin:0!important;color:#183f5d!important;font-size:22px!important}
+.f252 .f25-node-edit .field{margin-top:12px}
+.f252 .f25-node-edit textarea{min-height:390px;padding:12px!important;border:1px solid #b9cfdf!important;border-radius:7px!important;background:#f8fbfd!important;color:#183b55!important;font:12px/1.55 Consolas,"Courier New",monospace!important;tab-size:2}
+.f252 .f25-node-edit .edit-warning{margin:8px 0 0;padding:8px 10px;border-left:4px solid #d79a36;border-radius:4px;background:#fff7e8;color:#795820}
+.f252 .f25-node-edit .edit-note{margin:8px 0 0;color:#537088;font-size:12px}
+.f252 .f25-node-edit .bar{margin-top:14px;padding-top:13px;border-top:1px solid #d5e2ec}
+@container(max-width:600px){.f252 .node-row>.row-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.f252 .f25-node-edit textarea{min-height:300px;font-size:11px!important}.f252 .f25-node-edit .modalbox{width:100%;padding:15px}}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-node-edit textarea{background:#22323f!important;border-color:#4a6072!important;color:#e3eef6!important}body:not(.mode-light) .f252 .f25-node-edit .edit-warning{background:#3b3527;color:#f1d79d}}
+
+/* Separate the product/status header from the navigation controls. */
+.f252 .f25-sticky{top:0;padding:8px 0;border:0;border-radius:0!important;background:var(--background-color,#f4f7fa);box-shadow:none}
+.f252 .f25-topbar{min-height:64px;padding:10px 16px;border:1px solid #235f77!important;border-radius:9px;background:linear-gradient(110deg,#173f5b 0%,#246b7d 56%,#287c68 100%)!important;box-shadow:0 10px 24px -13px rgba(13,57,76,.88),inset 0 1px 0 rgba(255,255,255,.15)}
+.f252 .f25-brand{padding-left:17px}
+.f252 .f25-brand:before{top:0;bottom:0;width:6px;background:linear-gradient(180deg,#71ddbd,#a2f0d1);box-shadow:0 0 12px rgba(105,224,186,.42)}
+.f252 .f25-brand h2,.f252 .f25-brand .f25-brand-text{color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:0 1px 2px rgba(4,34,46,.38)}
+.f252 .f25-version{color:#d9edf3!important;font-weight:650;text-shadow:0 1px 1px rgba(5,36,48,.35)}
+.f252 .f25-tools #f25-health{border-color:rgba(203,239,233,.38)!important;background:rgba(255,255,255,.13)!important;color:#f2fffc!important;text-shadow:0 1px 1px rgba(5,35,45,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.f252 .f25-tools #f25-health:before{background:#7af0b6;box-shadow:0 0 0 3px rgba(122,240,182,.18),0 0 9px rgba(122,240,182,.5)}
+.f252 .f25-tools #f25-refresh{border-color:rgba(255,255,255,.5)!important;background:rgba(255,255,255,.13)!important;color:#fff!important;text-shadow:0 1px 1px rgba(5,35,45,.35)}
+.f252 .f25-tools #f25-refresh:hover{background:rgba(255,255,255,.22)!important}
+.f252 .f25-tools #f25-search{border-color:rgba(255,255,255,.7)!important;background:#fff!important;box-shadow:inset 0 1px 3px rgba(18,56,74,.12)}
+.f252 .f25-tabs{margin-top:9px;border-color:#b9cedc;box-shadow:0 6px 16px -12px rgba(22,65,91,.65),inset 0 1px 0 rgba(255,255,255,.88)}
+.f252 .f25-sticky .msg{margin:9px 0 0;box-shadow:0 4px 12px -9px rgba(20,65,83,.6)}
+@container(max-width:650px){.f252 .f25-sticky{padding:6px 0}.f252 .f25-topbar{padding:9px 11px}.f252 .f25-brand{padding-left:14px}.f252 .f25-brand:before{width:5px}.f252 .f25-tabs{margin-top:8px}}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-sticky{background:#1d2a35}body:not(.mode-light) .f252 .f25-topbar{border-color:#41677a!important;background:linear-gradient(110deg,#17384d,#21596a 58%,#236552)!important}body:not(.mode-light) .f252 .f25-tools #f25-search{background:#eff6f9!important}}
+
+/* Keep the header and menu stationary; feedback overlays without moving content. */
+.f252{margin-top:0!important}
+.f252 .f25-sticky{position:sticky!important;top:0!important;z-index:90!important;transform:none!important;transition:none!important}
+.f252 .f25-tabs button,.f252 .f25-tabs button:hover,.f252 .f25-tabs button[aria-selected=true],.f252 .f25-subtabs button,.f252 .f25-subtabs button:hover,.f252 .f25-subtabs button[aria-selected=true]{transform:none!important}
+.f252 .f25-tabs,.f252 .f25-subtabs{scrollbar-gutter:stable}
+.f252 .f25-sticky .msg{position:absolute;left:16px;right:16px;top:calc(100% + 7px);z-index:100;margin:0;padding:10px 14px;border:1px solid rgba(29,137,91,.28);border-radius:7px;background:#eaf8f1;color:#166a4a;box-shadow:0 9px 20px -10px rgba(21,72,67,.62);pointer-events:none}
+.f252 .f25-sticky .msg.bad{border-color:rgba(185,57,65,.3);background:#fff0f1;color:#a82932}
+.f252 .f25-sticky .msg.pending{border-color:rgba(70,101,184,.28);background:#edf1ff;color:#3d579f}
+@container(max-width:650px){.f252 .f25-sticky .msg{left:9px;right:9px;top:calc(100% + 6px);padding:9px 11px}}
+
+/* Main WiFi and wired devices share the primary LAN bridge. */
+.f252 .f25-main-lan-panel{margin:0 0 16px;padding:15px;border:1px solid #b9d2e5;border-left:5px solid #2d789d;border-radius:8px;background:linear-gradient(115deg,#eaf5fc 0%,#f2f9f8 64%,#f7fbfa 100%)}
+.f252 .f25-main-lan-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.f252 .f25-main-lan-head h4{margin:0!important;color:#174d6c!important;font-size:18px!important}
+.f252 .f25-main-lan-head p{margin:4px 0 0;color:#58758a;font-size:12px;line-height:1.55}
+.f252 .f25-main-lan-head .pill{flex-shrink:0;border:1px solid #b9d4e4;background:#fff;color:#315f7d;font-weight:700}
+.f252 .f25-main-lan-head .pill.proxy{border-color:#65ab92;background:#e1f6eb;color:#14724f}
+.f252 .f25-main-lan-panel .fields{margin-top:0}
+.f252 .f25-main-lan-panel .bar{margin-bottom:0}
+@container(max-width:650px){.f252 .f25-main-lan-panel{padding:12px}.f252 .f25-main-lan-head{flex-direction:column}.f252 .f25-main-lan-head .pill{align-self:flex-start}}
+
+/* Collapsible primary LAN and existing WiFi panels. */
+.f252 .f25-main-lan-head{list-style:none;cursor:pointer;margin-bottom:0;user-select:none}
+.f252 .f25-main-lan-head::-webkit-details-marker{display:none}
+.f252 .f25-main-lan-head:after{content:'⌄';flex:0 0 auto;color:#39708f;font-size:19px;line-height:1;transition:transform .18s ease}
+.f252 .f25-main-lan-panel[open] .f25-main-lan-head{margin-bottom:12px}
+.f252 .f25-main-lan-panel[open] .f25-main-lan-head:after{transform:rotate(180deg)}
+.f252 .f25-existing-panel{margin:14px 0;border:1px solid #c2d8e5;border-radius:8px;background:linear-gradient(180deg,#f7fbfd,#f1f7fa);overflow:hidden}
+.f252 .f25-existing-panel>.wifi-existing-header{list-style:none;cursor:pointer;margin:0;padding:12px 14px;border:0;background:linear-gradient(100deg,#e5f1f8,#f1f8f8);user-select:none}
+.f252 .f25-existing-panel>.wifi-existing-header::-webkit-details-marker{display:none}
+.f252 .f25-existing-panel>.wifi-existing-header:after{content:'⌄';color:#39708f;font-size:18px;line-height:1;transition:transform .18s ease}
+.f252 .f25-existing-panel[open]>.wifi-existing-header:after{transform:rotate(180deg)}
+.f252 .f25-existing-body{padding:12px 14px 14px}
+.f252 .f25-existing-body .wifi-bulk-toolbar{margin-top:0}
+@container(max-width:650px){.f252 .f25-existing-panel>.wifi-existing-header{padding:11px 12px}.f252 .f25-existing-body{padding:10px}}
 </style>
 <div class="f252">
   <div class="f25-sticky" aria-label="FastACL 状态与操作提示">
-  <h2><span class="f25-brand-text">JuLiangTK · FastACL V2.8.0</span></h2>
-  <div class="bar"><span id="f25-health">读取状态…</span><button class="cbi-button" id="f25-refresh">刷新</button><input id="f25-search" placeholder="搜索设备 / MAC / IP"></div>
-  <div id="f25-msg" class="msg" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="f25-topbar">
+      <div class="f25-brand">
+        <h2><span class="f25-brand-text">FastACL</span></h2>
+        <span class="f25-version">JuLiangTK · V2.8.1</span>
+      </div>
+      <div class="f25-tools">
+        <span id="f25-health">读取状态…</span>
+        <button class="cbi-button" id="f25-refresh">刷新</button>
+        <input id="f25-search" placeholder="搜索设备 / MAC / IP" aria-label="搜索设备">
+      </div>
+    </div>
+    <nav class="f25-tabs" role="tablist" aria-label="FastACL 功能菜单">
+      <button type="button" role="tab" data-f25-view="overview" aria-selected="true">概览</button>
+      <button type="button" role="tab" data-f25-view="nodes" aria-selected="false">节点与订阅 <span class="f25-nav-count" id="f25-nav-nodes">0</span></button>
+      <button type="button" role="tab" data-f25-view="devices" aria-selected="false">单 WiFi 多设备分配模式 <span class="f25-nav-count" id="f25-nav-devices">0</span></button>
+      <button type="button" role="tab" data-f25-view="wifi" aria-selected="false">多 WiFi 分配模式 <span class="f25-nav-count" id="f25-nav-wifi">0</span></button>
+      <button type="button" role="tab" data-f25-view="settings" aria-selected="false">全局设置</button>
+    </nav>
+    <div id="f25-msg" class="msg" role="status" aria-live="polite" aria-atomic="true"></div>
   </div>
 
-  <div class="card">
-    <div class="head"><h3>代理节点</h3><span id="f25-node-count" class="pill">0</span></div>
-    <div class="bar"><button class="cbi-button cbi-button-add" id="f25-import-open">+ 导入节点</button><button class="cbi-button" id="f25-select-all">本页全选</button><button class="cbi-button danger" id="f25-delete-selected">删除所选</button><button class="cbi-button" id="f25-clear-selected">清空选择</button><span id="f25-selected-count" class="pill">已选 0</span></div>
+  <main class="f25-content">
+  <section class="card f25-overview" data-f25-tab="overview" role="tabpanel">
+    <div class="f25-overview-head">
+      <div><h3>运行概览</h3><p class="note">当前状态与常用入口</p></div>
+      <div class="f25-overview-actions">
+        <button type="button" class="cbi-button cbi-button-apply" data-f25-go="devices">管理设备</button>
+        <button type="button" class="cbi-button" data-f25-go="nodes">管理节点</button>
+      </div>
+    </div>
+    <div class="f25-overview-grid">
+      <article class="f25-metric"><span>运行状态</span><strong id="f25-overview-state">读取中</strong><small id="f25-overview-detail">正在读取核心和防火墙状态</small></article>
+      <article class="f25-metric"><span>可用节点</span><strong id="f25-overview-nodes">0</strong><small id="f25-overview-node-detail">尚未读取节点</small></article>
+      <article class="f25-metric"><span>单 WiFi 多设备分配模式</span><strong id="f25-overview-devices">0</strong><small id="f25-overview-device-detail">尚未读取设备</small></article>
+      <article class="f25-metric"><span>多 WiFi 分配模式</span><strong id="f25-overview-wifi">0</strong><small id="f25-overview-wifi-detail">尚未读取 WiFi</small></article>
+    </div>
+    <div class="f25-quickbar">
+      <b>快速入口</b>
+      <button type="button" class="cbi-button" data-f25-go="nodes">节点与订阅</button>
+      <button type="button" class="cbi-button" data-f25-go="devices">单 WiFi 多设备分配</button>
+      <button type="button" class="cbi-button" data-f25-go="wifi">多 WiFi 分配</button>
+      <button type="button" class="cbi-button" data-f25-go="settings">DNS 与转发方式</button>
+    </div>
+  </section>
+
+  <section class="card" data-f25-tab="nodes" data-f25-subview="nodes" role="tabpanel">
+    <div class="f25-subtabs" data-f25-subnav="nodes" role="tablist" aria-label="节点与订阅">
+      <button type="button" data-f25-node-view="nodes" aria-selected="true">节点列表</button>
+      <button type="button" data-f25-node-view="subscriptions" aria-selected="false">订阅源</button>
+    </div>
+    <div class="head"><h3>节点列表</h3><span id="f25-node-count" class="pill">0</span></div>
+    <div class="bar"><button class="cbi-button cbi-button-add" id="f25-import-open">+ 导入节点</button><button class="cbi-button" id="f25-node-export">导出全部</button><button class="cbi-button" id="f25-select-all">本页全选</button><button class="cbi-button danger" id="f25-delete-selected">删除所选</button><button class="cbi-button" id="f25-clear-selected">清空选择</button><span id="f25-selected-count" class="pill">已选 0</span></div>
     <div id="f25-import-box" class="hidden"><textarea id="f25-links" placeholder="每行一个 SOCKS5 / HTTP / VLESS / VMess / Trojan / SS / Hysteria2 / TUIC"></textarea><div class="bar"><button class="cbi-button cbi-button-add" id="f25-import">导入</button><button class="cbi-button" id="f25-import-close">收起</button></div></div>
     <div class="bar" id="f25-node-tabs" role="group" aria-label="节点来源分类"></div><div class="bar"><input id="f25-node-search" placeholder="搜索节点名称 / 服务器" aria-label="搜索节点"><select id="f25-node-region" aria-label="节点地区"></select><span class="note" id="f25-node-filter-count"></span></div><div id="f25-node-list" class="grid"></div><div class="bar"><button type="button" class="cbi-button" id="f25-node-prev">上一页</button><span id="f25-node-page" class="note"></span><button type="button" class="cbi-button" id="f25-node-next">下一页</button></div>
-  </div>
+  </section>
 
-  <div class="card">
+  <section class="card" data-f25-tab="devices" role="tabpanel">
     <div class="head"><h3>单 WiFi 多设备分配模式</h3><span id="f25-device-total" class="pill">0 台设备</span></div>
-    <div class="bar"><select id="f25-batch-node"></select><select id="f25-batch-pre"></select><button class="cbi-button cbi-button-apply" id="f25-batch">应用到勾选设备</button><button class="cbi-button" id="f25-unbind">解除勾选绑定</button></div>
+    <details class="f25-batch-drawer"><summary>批量分配节点</summary><div class="bar"><select id="f25-batch-node"></select><select id="f25-batch-pre"></select><button class="cbi-button cbi-button-apply" id="f25-batch">应用到勾选设备</button><button class="cbi-button" id="f25-unbind">解除勾选绑定</button></div></details>
     <div class="device-summary" aria-label="设备统计">
       <div class="device-stat"><span>设备总数</span><strong id="f25-stat-total">0</strong></div>
       <div class="device-stat online"><span>在线设备</span><strong id="f25-stat-online">0</strong></div>
@@ -186,14 +403,19 @@
     </div>
     <div id="f25-device-matches" class="device-matches note"></div>
     <div id="f25-devices" class="grid"></div>
-  </div>
+  </section>
 
-  <div class="card">
+  <section class="card" data-f25-tab="wifi" role="tabpanel">
     <div class="head"><h3>多 WiFi 分配模式</h3><span id="f25-wifi-count" class="pill">0</span></div>
+    <details id="f25-main-lan-panel" class="f25-main-lan-panel" open>
+      <summary class="f25-main-lan-head"><div><h4>主 WiFi / 有线 LAN 默认出口</h4><p>主 WiFi 与有线设备共用 LAN。未单独设置的设备使用这里的出口，单设备分配优先。</p></div><span id="f25-main-lan-state" class="pill">直连</span></summary>
+      <div class="fields" id="f25-main-lan-fields"><div class="field"><label>默认出口节点</label><select id="f25-main-lan-node"></select></div><div class="field"><label>前置代理</label><select id="f25-main-lan-pre"></select></div><div class="field"><label>DNS 查询路径</label><select id="f25-main-lan-path" disabled></select></div><div class="field"><label>DNS 服务商</label><select id="f25-main-lan-dns"></select></div></div>
+      <div class="bar"><button type="button" class="cbi-button cbi-button-apply" id="f25-main-lan-save">保存主 WiFi 设置</button><span class="note">选择“国内直连”表示不设置默认节点；前置链路会在应用前校验。</span></div>
+    </details>
     <details id="f25-wifi-create-panel" class="wifi-create-panel">
       <summary class="wifi-create-summary"><span class="wifi-create-icon" aria-hidden="true">＋</span><span>批量新建 WiFi<small>数量、SSID、密码和默认出口</small></span><span class="wifi-create-toggle" aria-hidden="true"></span></summary>
       <div class="wifi-create-body">
-    <p class="note">附加 WiFi 按整个网络选择出口；主 WiFi 在设备分配中按设备选择。切换后重新发起连接验证出口，旧连接可能保留原出口。</p>
+    <p class="note">附加 WiFi 按整个网络选择出口；主 WiFi 和有线 LAN 使用上方默认出口，单设备设置优先。切换后重新发起连接验证出口，旧连接可能保留原出口。</p>
     <div class="fields">
       <div class="field"><label>5GHz 数量</label><input id="f25-w5" type="number" min="0" value="0"></div>
       <div class="field"><label>2.4GHz 数量</label><input id="f25-w2" type="number" min="0" value="0"></div>
@@ -208,19 +430,31 @@
     <div class="bar"><button class="cbi-button cbi-button-add" id="f25-wcreate">批量建立 WiFi</button><button class="cbi-button wifi-visibility" id="f25-hide-all">隐藏全部附加 WiFi</button><button class="cbi-button wifi-visibility" id="f25-show-all">显示全部附加 WiFi</button><button type="button" class="cbi-button wifi-delete" id="f25-wifi-clear-all">一键清除全部附加 WiFi</button></div>
       </div>
     </details>
-    <div class="wifi-existing-header"><h4>已创建 WiFi <span id="f25-wifi-existing-count" class="pill">0 个</span></h4></div>
+    <details id="f25-wifi-existing-panel" class="f25-existing-panel" open>
+    <summary class="wifi-existing-header"><h4>已创建 WiFi <span id="f25-wifi-existing-count" class="pill">0 个</span></h4></summary>
+    <div class="f25-existing-body">
     <div class="bar wifi-bulk-toolbar"><label class="wifi-choice"><input type="checkbox" id="f25-wifi-select-all">全选附加 WiFi</label><span id="f25-wifi-selected-count" class="note">已选 0 个</span><button type="button" class="cbi-button wifi-delete" id="f25-wifi-delete-selected" disabled>批量删除所选</button><button type="button" class="cbi-button wifi-visibility" id="f25-wifi-hide-selected" disabled>批量隐藏所选</button><button type="button" class="cbi-button wifi-visibility" id="f25-wifi-show-selected" disabled>批量恢复显示</button></div>
     <div id="f25-wifis" class="grid"></div>
-  </div>
+    </div>
+    </details>
+  </section>
 
-  <div class="card">
-    <h3>全局 DNS</h3><div class="fields"><div class="field"><label>代理 DNS 查询路径</label><select disabled><option>跟随代理出口（节点 + 前置）</option></select></div></div><p class="note">DNS 查询始终跟随对应节点和前置代理。可选择国内的阿里 DNS、腾讯 DNSPod、360 安全 DNS（DoH），或 Cloudflare、Google、Quad9、OpenDNS；选择国内 DNS 不会改为 WAN 直连。原来的“DNS 跟随代理出口（Cloudflare DoH）”保留为固定 CF 的兼容选项。DNS 服务器 IP 不等于节点 IP；失败时不回落直连。百度、114、CNNIC 当前为 UDP，仅直连可选；代理模式显示为不可选，避免绕过代理。设备或 WiFi 的独立 DNS 设置优先于全局。</p>
+  <section class="card" data-f25-tab="settings" data-f25-subview="dns" role="tabpanel">
+    <div class="f25-subtabs" data-f25-subnav="settings" role="tablist" aria-label="全局设置">
+      <button type="button" data-f25-setting-view="dns" aria-selected="true">DNS</button>
+      <button type="button" data-f25-setting-view="dataplane" aria-selected="false">转发方式</button>
+    </div>
+    <h3>DNS</h3><div class="fields"><div class="field"><label>代理 DNS 查询路径</label><select disabled><option>跟随代理出口（节点 + 前置）</option></select></div></div><p class="note">DNS 查询始终跟随对应节点和前置代理。可选择国内的阿里 DNS、腾讯 DNSPod、360 安全 DNS（DoH），或 Cloudflare、Google、Quad9、OpenDNS；选择国内 DNS 不会改为 WAN 直连。原来的“DNS 跟随代理出口（Cloudflare DoH）”保留为固定 CF 的兼容选项。DNS 服务器 IP 不等于节点 IP；失败时不回落直连。百度、114、CNNIC 当前为 UDP，仅直连可选；代理模式显示为不可选，避免绕过代理。设备或 WiFi 的独立 DNS 设置优先于全局。</p>
     <div class="fields"><div class="field"><label>国内直连 DNS</label><select id="f25-direct-dns"></select></div><div class="field"><label>代理 DNS</label><select id="f25-proxy-dns"></select></div></div>
     <div class="bar"><button class="cbi-button cbi-button-apply" id="f25-dns-save">保存 DNS</button></div>
-  </div>
+  </section>
 
-  <div class="card">
-    <h3>透明代理/虚拟网卡模式切换</h3>
+  <section class="card" data-f25-tab="settings" data-f25-subview="dataplane" role="tabpanel">
+    <div class="f25-subtabs" data-f25-subnav="settings" role="tablist" aria-label="全局设置">
+      <button type="button" data-f25-setting-view="dns" aria-selected="false">DNS</button>
+      <button type="button" data-f25-setting-view="dataplane" aria-selected="true">转发方式</button>
+    </div>
+    <h3>转发方式</h3>
     <div class="fields">
       <div class="field"><label>模式</label><select id="f25-dataplane"><option value="singbox">sing-box TPROXY（默认）</option><option value="tun">sing-box TUN</option></select></div>
       <div class="field"><label>接口名</label><input id="f25-tun-interface" maxlength="15" value="fastacl-tun0"></div>
@@ -229,9 +463,15 @@
       <div class="field"><label>栈</label><select id="f25-tun-stack"><option value="mixed">Mixed</option><option value="system">System</option><option value="gvisor">gVisor</option></select></div>
     </div>
     <div class="bar"><button class="cbi-button cbi-button-apply" id="f25-dataplane-save">应用数据面</button><span class="note" id="f25-dataplane-state"></span></div>
-  </div>
+  </section>
 
-  <div class="card"><details><summary>机场订阅</summary><div class="subscription-section-body">
+  <section class="card" data-f25-tab="nodes" data-f25-subview="subscriptions" role="tabpanel">
+    <div class="f25-subtabs" data-f25-subnav="nodes" role="tablist" aria-label="节点与订阅">
+      <button type="button" data-f25-node-view="nodes" aria-selected="false">节点列表</button>
+      <button type="button" data-f25-node-view="subscriptions" aria-selected="true">订阅源</button>
+    </div>
+    <div class="head"><h3>订阅源</h3><span class="pill" id="f25-nav-subscriptions">0 个</span></div>
+    <div class="subscription-section-body">
     <div class="subscription-create"><div class="subscription-create-title">新增订阅</div><div class="subscription-create-fields">
       <div class="field"><label for="f25-sub-name">订阅名称</label><input id="f25-sub-name" placeholder="例如：机场 1 / 备用线路"></div>
       <div class="field"><label for="f25-sub-url">订阅地址</label><input id="f25-sub-url" type="password" placeholder="HTTPS 订阅地址" autocomplete="off"></div>
@@ -242,15 +482,17 @@
     <div class="subscription-columns" aria-hidden="true"><span>编号</span><span>订阅名称</span><span>更新周期</span><span>最近更新</span><span>操作</span></div>
     <div id="f25-sub-list" class="subscription-list"></div>
     <details class="subscription-logs"><summary>订阅更新日志</summary><div class="bar"><button type="button" class="cbi-button" id="f25-sub-log-refresh">刷新日志</button><span class="note">保留最近 50 条，重启后清空；不记录订阅地址或节点凭据。</span></div><div id="f25-sub-logs" style="max-height:360px;overflow:auto"></div></details>
-  </div></details></div>
+  </div></section>
+  </main>
 
+  <div id="f25-node-edit-modal" class="modal hidden f25-node-edit"><div class="modalbox"><div class="head"><h3>编辑节点</h3><span id="f25-node-edit-badge" class="pill"></span></div><p id="f25-node-edit-note" class="edit-warning hidden"></p><div class="field"><label for="f25-node-edit-name">节点名称</label><input id="f25-node-edit-name" maxlength="240" autocomplete="off"></div><div class="field"><label for="f25-node-edit-json">节点参数 JSON</label><textarea id="f25-node-edit-json" spellcheck="false" autocomplete="off"></textarea></div><p class="edit-note">保存后会校验节点格式和代理配置，并执行热应用；失败会恢复原参数。</p><div class="bar"><button type="button" class="cbi-button cbi-button-apply" id="f25-node-edit-save">保存并应用</button><button type="button" class="cbi-button" id="f25-node-edit-close">取消</button></div></div></div>
   <div id="f25-assign-modal" class="modal hidden"><div class="modalbox"><h3>快速分配节点</h3><div id="f25-assign-node" class="modalnode"></div><div class="fields"><div class="field wide"><label>目标类型</label><select id="f25-assign-type"><option value="wifi">附加 WiFi</option><option value="device">主 WiFi 设备</option></select></div><div class="field wide"><label>目标</label><select id="f25-assign-target"></select></div><div class="field"><label>前置代理</label><select id="f25-assign-pre"></select></div><div class="field"><label>DNS 查询路径</label><select disabled><option>跟随代理出口（节点 + 前置）</option></select></div><div class="field"><label>DNS 服务商</label><select id="f25-assign-dns"></select></div></div><p id="f25-assign-note" class="note"></p><div class="bar"><button class="cbi-button cbi-button-apply" id="f25-assign-go">立即分配</button><button class="cbi-button danger" id="f25-assign-unbind">解除目标绑定</button><button class="cbi-button" id="f25-assign-close">关闭</button></div></div></div>
 </div>
 <script>
 (function(){'use strict';
 const base='<%=luci.dispatcher.build_url("admin","services")%>',token='<%=token%>',$=x=>document.getElementById('f25-'+x);
-let state=null,busy=false,rows=[],selected=new Set(),assignNode=null,wifiSelected=new Set();
-function msg(t,b){$('msg').textContent=t||'';$('msg').className='msg '+(b?'bad':'good')}
+let state=null,busy=false,rows=[],selected=new Set(),assignNode=null,wifiSelected=new Set(),editingNode=null,msgTimer=null,mainLanControls=null;
+function msg(t,b){clearTimeout(msgTimer);const box=$('msg');box.textContent=t||'';box.className='msg '+(b?'bad':'good');if(t){const shown=t;msgTimer=setTimeout(()=>{if(box.textContent===shown)box.textContent=''},3000)}}
 async function api(name,data){const o=data?{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({token},data))}:{};const r=await fetch(base+'/fastacl252_'+name,o);let j;try{j=await r.json()}catch(e){throw Error('HTTP '+r.status+' 返回异常')}if(!r.ok)throw Error('HTTP '+r.status);if(!j.ok){const e=Error((j.error||'操作失败')+(j.detail?'\n'+j.detail:''));e.busy=j.busy===true;e.retryAfter=j.retry_after;throw e}return j}
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}function opt(s,v,t){const o=document.createElement('option');o.value=v;o.textContent=t;s.appendChild(o)}
 function nodeSel(v,pre){const s=document.createElement('select');opt(s,'',pre?'不使用前置':'国内直连');(state.nodes||[]).forEach(n=>opt(s,n.id,n.name));s.value=v||'';return s}
@@ -260,16 +502,109 @@ function dnsSel(mode,v,custom){if(v==='follow_exit')v='cloudflare';const s=docum
 function dnsPath(mode){const s=document.createElement('select');setDnsPath(s,mode);s.disabled=true;s.title='查询路径由出口节点决定，代理 DNS 不允许回落直连';return s}
 function setDnsPath(s,mode){s.replaceChildren();opt(s,mode,mode==='split'?'国内域名直连 DNS · 其余跟随代理':mode==='proxy'?'跟随代理出口（节点 + 前置）':'本地直连出口');s.value=mode}
 function field(name,c,wide){const d=el('div','field'+(wide?' wide':''));d.append(el('label','',name),c);return d}
-function health(){const r=state.runtime||{};$('health').textContent=(state.enabled?'已启用':'未启用')+' · '+(r.dataplane||state.dataplane||'singbox')+' · 核心 '+(r.engine||'stopped')+' · 防火墙 '+(r.firewall?'正常':'未加载')+(r.switch&&r.switch!=='none'?' · '+r.switch:'')+' · '+state.version}
+function health(){const r=state.runtime||{};$('health').textContent=(state.enabled?'运行中':'已停用')+' · '+(r.dataplane||state.dataplane||'singbox')+' · 核心 '+(r.engine||'stopped')+' · 防火墙 '+(r.firewall?'正常':'未加载')+(r.switch&&r.switch!=='none'?' · '+r.switch:'')}
+function renderOverview(){
+ const r=state.runtime||{},devices=state.devices||[],nodes=state.nodes||[],subscriptions=state.subscriptions||[],wifi=state.wifi&&state.wifi.managed||[],online=devices.filter(d=>d.online).length,proxied=devices.filter(d=>d.mode==='proxy').length;
+ const running=state.enabled===true,healthy=r.engine&&r.firewall;const stateNode=$('overview-state');
+ stateNode.textContent=running?'运行中':'已停用';stateNode.className=(running&&healthy)?'good':running?'bad':'bad';
+ $('overview-detail').textContent='核心 '+(r.engine||'stopped')+' · 防火墙 '+(r.firewall?'正常':'未加载')+' · '+(r.dataplane||state.dataplane||'singbox');
+ $('overview-nodes').textContent=nodes.length;$('overview-node-detail').textContent=subscriptions.length?subscriptions.length+' 个订阅源提供节点':'当前均为手工导入';
+ $('overview-devices').textContent=devices.length;$('overview-device-detail').textContent='在线 '+online+' · 代理 '+proxied+' · 直连 '+(devices.length-proxied);
+ $('overview-wifi').textContent=wifi.length;const counts=state.wifi&&state.wifi.counts||{};$('overview-wifi-detail').textContent='5G '+(counts['5g']||0)+' / 14 · 2.4G '+(counts['2g']||0)+' / 8';
+ $('nav-devices').textContent=devices.length;$('nav-nodes').textContent=nodes.length;$('nav-wifi').textContent=wifi.length;$('nav-subscriptions').textContent=subscriptions.length+' 个';
+}
 function renderBatch(){const a=nodeSel('',false),b=nodeSel('',true);$('batch-node').replaceChildren(...a.childNodes);$('batch-pre').replaceChildren(...b.childNodes);$('batch-node').value='';$('batch-pre').value=''}
 let nodeSource='all',nodeRegion='all',nodeQuery='',nodePage=0,visibleNodes=[];const pageSize=20;
 function region(n){const name=String(n.name||'');const regions=[['香港',/香港|Hong.?Kong|🇭🇰|\bHK\b/i],['台湾',/台湾|台灣|Taiwan|🇹🇼|\bTW\b/i],['日本',/日本|Japan|东京|大阪|🇯🇵|\bJP\b/i],['新加坡',/新加坡|Singapore|狮城|🇸🇬|\bSG\b/i],['美国',/美国|美國|United.?States|洛杉矶|🇺🇸|\bUS\b/i],['韩国',/韩国|韓國|Korea|🇰🇷|\bKR\b/i],['英国',/英国|英國|Britain|London|🇬🇧|\bUK\b/i],['德国',/德国|德國|Germany|🇩🇪|\bDE\b/i]];return (regions.find(x=>x[1].test(name))||['其他 / 未识别'])[0]}
 function source(n){return (state.subscriptions||[]).some(s=>s.id===n.owner)?n.owner:'manual'}
 function nodeFilters(){const root=$('node-tabs');root.replaceChildren();const groups=[['all','全部'],['manual','手工导入'],...(state.subscriptions||[]).map(s=>[s.id,s.name])];if(!groups.some(g=>g[0]===nodeSource))nodeSource='all';for(const [id,label] of groups){const count=(state.nodes||[]).filter(n=>id==='all'||source(n)===id).length;if(!count&&id==='manual')continue;const b=el('button','cbi-button'+(nodeSource===id?' cbi-button-apply':''),label+' · '+count);b.type='button';b.setAttribute('aria-pressed',String(nodeSource===id));b.onclick=()=>{nodeSource=id;nodePage=0;renderNodes()};root.append(b)}const select=$('node-region');select.replaceChildren();opt(select,'all','全部地区');[...new Set((state.nodes||[]).map(region))].sort().forEach(x=>opt(select,x,x));select.value=nodeRegion;if(!select.value){nodeRegion='all';select.value='all'}}
-function renderNodes(){const known=new Set((state.nodes||[]).map(n=>n.id));[...selected].forEach(x=>{if(!known.has(x))selected.delete(x)});$('node-count').textContent=(state.nodes||[]).length+' 个节点';nodeFilters();const filtered=(state.nodes||[]).filter(n=>(nodeSource==='all'||source(n)===nodeSource)&&(nodeRegion==='all'||region(n)===nodeRegion)&&(!nodeQuery||(n.name+' '+(n.server||'')).toLowerCase().includes(nodeQuery)));const pages=Math.max(1,Math.ceil(filtered.length/pageSize));nodePage=Math.min(nodePage,pages-1);visibleNodes=filtered.slice(nodePage*pageSize,(nodePage+1)*pageSize);$('node-filter-count').textContent='匹配 '+filtered.length+' 个 · 地区按节点名称识别';$('node-page').textContent=(nodePage+1)+' / '+pages+' 页 · 每页 '+pageSize+' 个';$('node-prev').disabled=nodePage===0;$('node-next').disabled=nodePage>=pages-1;$('node-list').replaceChildren();visibleNodes.forEach((n,i)=>{const box=el('div','item node-row'),lab=el('label','check'),ck=document.createElement('input');ck.type='checkbox';ck.checked=selected.has(n.id);lab.append(ck,el('span','row-number',String(nodePage*pageSize+i+1)),el('span','title',n.name));const proto=el('span','pill',String(n.protocol||'').toUpperCase()),a=el('div','row-actions'),q=el('button','cbi-button cbi-button-apply','分配'),test=el('button','cbi-button','检测出口'),d=el('button','cbi-button danger','删除'),result=el('div','probe-result note','未检测');const info=el('div','node-info'),endpoint=n.server?(String(n.server).includes(':')?'['+n.server+']':n.server)+(n.server_port?':'+n.server_port:''):'未提供服务器地址',names=n.wifi_names||[],bindings='设备 '+(n.device_count||0)+' · WiFi '+names.length+(names.length?'（'+names.slice(0,3).join('、')+(names.length>3?'…':'')+'）':'')+(n.front_count?' · 前置引用 '+n.front_count:'');info.append(el('div','node-endpoint','服务器：'+endpoint),el('div','meta',String(n.transport||'tcp').toUpperCase()+' · '+(n.tls?'TLS':'无 TLS')+' · '+bindings),result);proto.classList.add('node-protocol');lab.append(proto);const rename=el('button','cbi-button','重命名');rename.type='button';rename.onclick=async()=>{const name=prompt('输入节点新名称',n.name);if(name===null)return;if(!name.trim())return msg('节点名称不能为空',true);rename.disabled=true;try{await api('rename_node',{id:n.id,name:name.trim()});await load();msg('节点已重命名，绑定与排序保持不变')}catch(e){msg(e.message,true)}finally{rename.disabled=false}};a.append(q,rename,test,d);box.append(lab,info,a);$('node-list').append(box);ck.onchange=()=>{ck.checked?selected.add(n.id):selected.delete(n.id);$('selected-count').textContent='已选 '+selected.size};q.onclick=()=>openAssign(n);test.onclick=()=>probeExit('node',n.id,test,result);d.onclick=async()=>{if(!confirm('删除 '+n.name+'？'))return;try{await api('delete_node',{id:n.id});selected.delete(n.id);await load();msg('节点已删除')}catch(e){msg(e.message,true)}}});$('selected-count').textContent='已选 '+selected.size}
+function updateNodeBulk(){const active=selected.size>0;$('selected-count').textContent='已选 '+selected.size;$('delete-selected').hidden=!active;$('clear-selected').hidden=!active}
+function renderNodes(){const known=new Set((state.nodes||[]).map(n=>n.id));[...selected].forEach(x=>{if(!known.has(x))selected.delete(x)});$('node-count').textContent=(state.nodes||[]).length+' 个节点';nodeFilters();const filtered=(state.nodes||[]).filter(n=>(nodeSource==='all'||source(n)===nodeSource)&&(nodeRegion==='all'||region(n)===nodeRegion)&&(!nodeQuery||(n.name+' '+(n.server||'')).toLowerCase().includes(nodeQuery)));const pages=Math.max(1,Math.ceil(filtered.length/pageSize));nodePage=Math.min(nodePage,pages-1);visibleNodes=filtered.slice(nodePage*pageSize,(nodePage+1)*pageSize);$('node-filter-count').textContent='匹配 '+filtered.length+' 个 · 地区按节点名称识别';$('node-page').textContent=(nodePage+1)+' / '+pages+' 页 · 每页 '+pageSize+' 个';$('node-prev').disabled=nodePage===0;$('node-next').disabled=nodePage>=pages-1;$('node-list').replaceChildren();visibleNodes.forEach((n,i)=>{const box=el('div','item node-row'),lab=el('label','check'),ck=document.createElement('input');ck.type='checkbox';ck.checked=selected.has(n.id);lab.append(ck,el('span','row-number',String(nodePage*pageSize+i+1)),el('span','title',n.name));const proto=el('span','pill',String(n.protocol||'').toUpperCase()),a=el('div','row-actions'),q=el('button','cbi-button cbi-button-apply','分配'),edit=el('button','cbi-button','编辑'),copy=el('button','cbi-button','复制'),exp=el('button','cbi-button','导出'),test=el('button','cbi-button','检测出口'),d=el('button','cbi-button danger','删除'),result=el('div','probe-result note','未检测');const info=el('div','node-info'),endpoint=n.server?(String(n.server).includes(':')?'['+n.server+']':n.server)+(n.server_port?':'+n.server_port:''):'未提供服务器地址',names=n.wifi_names||[],bindings='设备 '+(n.device_count||0)+' · WiFi '+names.length+(names.length?'（'+names.slice(0,3).join('、')+(names.length>3?'…':'')+'）':'')+(n.front_count?' · 前置引用 '+n.front_count:'');info.append(el('div','node-endpoint','服务器：'+endpoint),el('div','meta',String(n.transport||'tcp').toUpperCase()+' · '+(n.tls?'TLS':'无 TLS')+' · '+bindings),result);proto.classList.add('node-protocol');lab.append(proto);const rename=el('button','cbi-button','重命名');rename.type='button';rename.onclick=async()=>{const name=prompt('输入节点新名称',n.name);if(name===null)return;if(!name.trim())return msg('节点名称不能为空',true);rename.disabled=true;try{await api('rename_node',{id:n.id,name:name.trim()});await load();msg('节点已重命名，绑定与排序保持不变')}catch(e){msg(e.message,true)}finally{rename.disabled=false}};edit.type=copy.type=exp.type='button';edit.onclick=()=>openNodeEdit(n);copy.onclick=()=>copyNodeLink(n,copy);exp.onclick=()=>exportNodeLink(n,exp);a.append(q,edit,copy,exp,rename,test,d);box.append(lab,info,a);$('node-list').append(box);ck.onchange=()=>{ck.checked?selected.add(n.id):selected.delete(n.id);updateNodeBulk()};q.onclick=()=>openAssign(n);test.onclick=()=>probeExit('node',n.id,test,result);d.onclick=async()=>{if(!confirm('删除 '+n.name+'？'))return;try{await api('delete_node',{id:n.id});selected.delete(n.id);await load();msg('节点已删除')}catch(e){msg(e.message,true)}}});updateNodeBulk()}
 let probing=false;
 async function probeExit(kind,id,button,result){if(probing)return msg('已有出口检测正在进行，请稍后重试',true);probing=true;button.disabled=true;result.className='probe-result note';result.textContent='正在通过已保存出口查询…';try{const j=await api('probe',{kind,id});result.className='probe-result good';result.textContent=(j.proxy?'代理出口：':'直连出口：')+j.ip+' · '+(j.location||j.country||'归属地未知')+' · '+j.elapsed_ms+'ms'+(j.source?' · '+j.source:'');result.title=j.note||'';if(kind==='device')result.append(el('span','meta','（绑定出口检测，非手机实机检测）'));}catch(e){result.className='probe-result bad';result.textContent=e.message;}finally{button.disabled=false;probing=false}}
-function setupSections(){document.querySelectorAll('.f252 > .card').forEach((card,i)=>{const first=card.firstElementChild;if(!first)return;if(first.tagName==='DETAILS'){first.querySelector('summary')?.classList.add('section-heading');return;}const heading=first.matches('.head')?first:first.matches('h3')?first:null;if(!heading)return;const title=heading.textContent.trim(),d=document.createElement('details'),summary=el('summary','section-heading'),body=el('div','section-body'),key='f253-section-'+((heading.querySelector('h3')?.textContent||title)==='代理节点'?'节点':(heading.querySelector('h3')?.textContent||title));d.open=true;try{d.open=localStorage.getItem(key)!=='closed'}catch(e){};if(heading.matches('.head'))while(heading.firstChild)summary.append(heading.firstChild);else summary.append(heading);if(heading.parentNode===card)heading.remove();while(card.firstChild)body.append(card.firstChild);d.append(summary,body);card.append(d);d.addEventListener('toggle',()=>{try{localStorage.setItem(key,d.open?'open':'closed')}catch(e){}});summary.title='点击展开或折叠';});}
+function downloadText(text,filename){
+ const blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function safeNodeName(n){
+ const value=String(n.name||n.protocol||'node').replace(/[\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60);
+ return value||'node';
+}
+async function getNodeLink(n){
+ const d=await api('node_detail',{id:n.id});
+ if(!d.link)throw Error('节点链接生成失败');
+ return d.link;
+}
+async function copyText(text){
+ if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(text);
+ else{
+  const area=document.createElement('textarea');area.value=text;area.setAttribute('readonly','');area.style.position='fixed';area.style.left='-9999px';area.style.top='0';
+  document.body.appendChild(area);area.focus();area.select();const ok=document.execCommand('copy');area.remove();if(!ok)throw Error('浏览器拒绝复制');
+ }
+}
+async function copyNodeLink(n,button){
+ const label=button.textContent;button.disabled=true;button.textContent='复制中…';
+ try{await copyText(await getNodeLink(n));msg('节点“'+n.name+'”链接已复制')}
+ catch(e){msg('复制失败：'+e.message,true)}
+ finally{button.disabled=false;button.textContent=label}
+}
+async function exportNodeLink(n,button){
+ const label=button.textContent;button.disabled=true;button.textContent='导出中…';
+ try{const link=await getNodeLink(n);downloadText(link+'\n','fastacl-'+safeNodeName(n)+'.txt');msg('节点“'+n.name+'”已导出')}
+ catch(e){msg('导出失败：'+e.message,true)}
+ finally{button.disabled=false;button.textContent=label}
+}
+async function openNodeEdit(n){
+ if(busy)return msg('上一项配置仍在应用，请等待完成后再编辑节点',true);
+ try{
+  const d=await api('node_detail',{id:n.id});
+  editingNode=n;
+  $('node-edit-name').value=d.name||n.name;
+  $('node-edit-json').value=JSON.stringify(d.outbound||{},null,2);
+  $('node-edit-badge').textContent=String(d.protocol||n.protocol||'').toUpperCase();
+  const warning=$('node-edit-note');
+  if(d.subscription_name){warning.textContent='此节点来自订阅“'+d.subscription_name+'”，订阅更新后可能覆盖手动修改。';warning.classList.remove('hidden')}
+  else{warning.textContent='';warning.classList.add('hidden')}
+  $('node-edit-modal').classList.remove('hidden');
+  $('node-edit-name').focus();
+ }catch(e){msg(e.message,true)}
+}
+function closeNodeEdit(){
+ $('node-edit-modal').classList.add('hidden');
+ $('node-edit-name').value='';
+ $('node-edit-json').value='';
+ editingNode=null;
+}
+async function saveNodeEdit(){
+ if(!editingNode||busy)return;
+ let outbound;
+ try{outbound=JSON.parse($('node-edit-json').value)}catch(e){return msg('节点参数不是有效 JSON：'+e.message,true)}
+ if(!outbound||typeof outbound!=='object'||Array.isArray(outbound))return msg('节点参数必须是 JSON 对象',true);
+ const button=$('node-edit-save'),label=button.textContent;button.disabled=true;button.textContent='校验并应用…';busy=true;
+ try{
+  await api('update_node',{data:JSON.stringify({id:editingNode.id,name:$('node-edit-name').value,outbound})});
+  closeNodeEdit();await load();msg('节点参数已保存并应用')
+ }catch(e){msg(e.message,true)}
+ finally{button.disabled=false;button.textContent=label;busy=false}
+}
+async function exportNodes(){
+ if(busy)return msg('上一项配置仍在应用，请稍后导出',true);
+ const button=$('node-export'),label=button.textContent;button.disabled=true;button.textContent='正在导出…';
+ try{
+  const j=await api('node_export');
+  const blob=new Blob([j.text+'\n'],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  const d=new Date(),stamp=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  a.href=url;a.download='fastacl-nodes-'+stamp+'.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  msg('已导出 '+j.count+' 个节点；文件包含节点凭据，请妥善保存')
+ }catch(e){msg(e.message,true)}
+ finally{button.disabled=false;button.textContent=label}
+}
+let currentView='overview',nodeView='nodes',settingView='dns';const validViews=new Set(['overview','devices','nodes','wifi','settings']);
+function syncSubtab(group,view){document.querySelectorAll('[data-f25-subnav="'+group+'"] button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset[group==='nodes'?'f25NodeView':'f25SettingView']===view)))}
+function applyView(view,updateHash=true){if(!validViews.has(view))view='overview';currentView=view;document.querySelectorAll('[data-f25-tab]').forEach(card=>{let show=card.dataset.f25Tab===view;if(show&&view==='nodes')show=card.dataset.f25Subview===nodeView;if(show&&view==='settings')show=card.dataset.f25Subview===settingView;card.hidden=!show});document.querySelectorAll('.f25-tabs>[data-f25-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.f25View===view)));document.querySelectorAll('[data-f25-subnav]').forEach(box=>box.hidden=box.dataset.f25Subnav!==view);syncSubtab('nodes',nodeView);syncSubtab('settings',settingView);if(updateHash){const hash=view==='overview'?'':('#'+view);try{history.replaceState(null,'',location.pathname+location.search+hash)}catch(e){}}}
+function goView(view){applyView(view)}
+function setupCollapse(id,key){const panel=$(id);if(!panel)return;try{const saved=localStorage.getItem(key);if(saved!==null)panel.open=saved==='1'}catch(e){}panel.addEventListener('toggle',()=>{try{localStorage.setItem(key,panel.open?'1':'0')}catch(e){}})}
+function setupLayout(){document.querySelectorAll('.f25-tabs>[data-f25-view]').forEach(b=>b.onclick=()=>goView(b.dataset.f25View));document.querySelectorAll('[data-f25-go]').forEach(b=>b.onclick=()=>goView(b.dataset.f25Go));document.querySelectorAll('[data-f25-node-view]').forEach(b=>b.onclick=()=>{nodeView=b.dataset.f25NodeView;applyView('nodes',false)});document.querySelectorAll('[data-f25-setting-view]').forEach(b=>b.onclick=()=>{settingView=b.dataset.f25SettingView;applyView('settings',false)});let initial=String(location.hash||'').replace(/^#/,'');if(!validViews.has(initial)){try{initial=localStorage.getItem('f253-workspace-view')||'overview'}catch(e){initial='overview'}}applyView(initial,false);document.querySelectorAll('.f25-tabs [data-f25-view]').forEach(b=>b.addEventListener('click',()=>{try{localStorage.setItem('f253-workspace-view',b.dataset.f25View)}catch(e){}}));window.addEventListener('hashchange',()=>{const view=String(location.hash||'').replace(/^#/,'');if(validViews.has(view)&&view!==currentView)applyView(view,false)})}
 function splitFields(x,f,node,path){
  const panel=el('div','split-panel'),controls=el('div','split-controls'),editors=el('div','split-editors');
  const mode=document.createElement('select'),rules=document.createElement('textarea');
@@ -304,15 +639,26 @@ function splitFields(x,f,node,path){
 function devicePayload(r){return{mac:r.d.mac,name:r.name.value,ip:r.ip.value,node:r.node.value,preproxy:r.node.value?r.pre.value:'',dns:r.dns.value,split_mode:r.split.mode.value,split_rules:r.split.rules.value,platforms:r.split.platforms.value,dns_split:r.split.ds.value,block_domains:r.split.blocked.value}}
 function renderDevices(){let stats=$('dns-stats');if(!stats){stats=el('div','note');stats.id='f25-dns-stats';$('devices').before(stats)}const st=state.dns_stats||{};stats.textContent='DNS 查询统计（本次配置加载后）：直连查询 '+(st.direct||0)+' · 代理 '+(st.proxy||0)+' · 已拦截 '+(st.blocked||0)+' · 解析失败 '+(st.errors||0);rows=[];$('devices').replaceChildren();const q=$('search').value.trim().toLowerCase(),all=state.devices||[],numbers=new Map(all.map((d,i)=>[d.mac,i+1])),visible=all.filter(d=>[d.name,d.hostname,d.mac,d.ip,d.fixed_ip].join(' ').toLowerCase().includes(q)),online=all.filter(d=>d.online).length,proxied=all.filter(d=>d.mode==='proxy').length;for(const [id,value] of [['total',all.length],['online',online],['offline',all.length-online],['proxy',proxied],['direct',all.length-proxied]])$( 'stat-'+id).textContent=value;$('device-total').textContent=all.length+' 台设备';$('device-matches').textContent=q?'当前搜索匹配 '+visible.length+' / '+all.length+' 台 · 编号保留原列表顺序':'当前显示 '+visible.length+' 台 · 在线状态以最近刷新为准';visible.forEach(d=>{const box=el('div','item device-row'),h=el('div','head'),left=el('div'),ck=document.createElement('input');ck.type='checkbox';const deviceTitle=el('div','device-title');deviceTitle.append(el('span','device-number',String(numbers.get(d.mac)).padStart(2,'0')),el('span','title',d.name||d.mac));const presence=el('div','device-presence');presence.append(el('span','device-mac',d.mac+' · '),el('span','device-online '+(d.online?'is-online':'is-offline'),d.online?'在线':'离线'));left.append(deviceTitle,presence);h.append(left,ck);const f=el('div','fields'),name=document.createElement('input'),ip=document.createElement('input'),node=nodeSel(d.mode==='proxy'?d.node:'',false),pre=nodeSel(d.preproxy||'',true),dns=dnsSel(d.mode==='proxy'?'proxy':'direct',d.dns||'inherit',false),path=dnsPath(d.mode==='proxy'?'proxy':'direct');name.value=d.name||'';name.placeholder='例如：客厅手机 / 工位 01';name.maxLength=80;ip.value=d.fixed_ip||d.ip||'';const nameField=field('设备备注名',name),nameSave=el('button','cbi-button device-name-save','保存备注');nameSave.type='button';nameSave.onclick=async()=>{nameSave.disabled=true;try{const j=await api('device_name',{mac:d.mac,name:name.value});d.custom_name=j.name||'';d.name=j.name||d.hostname||d.mac;deviceTitle.querySelector('.title').textContent=d.name;msg(j.name?'设备备注已保存':'设备备注已清除')}catch(e){msg(e.message,true)}finally{nameSave.disabled=false}};nameField.append(nameSave);f.append(nameField,field('固定 IP',ip),field('出口节点',node),field('前置',pre),field('DNS 查询路径',path,true),field('DNS 服务商',dns,true));const split=splitFields(d,f,node,path);const save=el('button','cbi-button cbi-button-apply','快速保存'),bar=el('div','row-actions'),test=el('button','cbi-button','检测绑定出口'),result=el('div','probe-result note','未检测（使用已保存配置）');bar.append(save,test);test.onclick=()=>probeExit('device',d.mac,test,result);box.append(h,f,bar,result);$('devices').append(box);const r={d,ck,name,ip,node,pre,dns,split};node.onchange=()=>{const s=dnsSel(node.value?'proxy':'direct','inherit',false);dns.replaceWith(s);r.dns=s;split.update()};save.onclick=()=>store({devices:[devicePayload(r)]});rows.push(r)});if(!rows.length)$('devices').append(el('div','note','没有匹配设备'))}
 function wifiPayload(w,node,pre,dns){return{action:'update',id:w.id,node:node.value,preproxy:node.value?pre.value:'',dns:dns.value}}
+function renderMainLan(main){
+ main=main||{};const selected=main.mode==='proxy'?(main.node||''):'',n=nodeSel(selected,false),p=nodeSel(main.preproxy||'',true),fields=$('main-lan-fields'),path=$('main-lan-path'),dns=$('main-lan-dns');
+ fields.querySelectorAll('.split-panel').forEach(e=>e.remove());
+ $('main-lan-node').replaceChildren(...n.childNodes);$('main-lan-pre').replaceChildren(...p.childNodes);$('main-lan-node').value=selected;$('main-lan-pre').value=main.preproxy||'';
+ setDnsPath(path,selected?'proxy':'direct');const ds=dnsSel(selected?'proxy':'direct',main.dns||'inherit',false);dns.replaceChildren(...ds.childNodes);dns.value=main.dns||'inherit';
+ const split=splitFields(main,fields,$('main-lan-node'),path);mainLanControls={node:$('main-lan-node'),pre:$('main-lan-pre'),dns,path,split};
+ const statePill=$('main-lan-state');statePill.textContent=selected?'已分配节点':'直连';statePill.classList.toggle('proxy',!!selected);
+ const sync=()=>{const node=(state.nodes||[]).find(x=>x.id===$('main-lan-node').value),previous=dns.value||'inherit';$('main-lan-pre').disabled=!node;if(!node)$('main-lan-pre').value='';setDnsPath(path,node?'proxy':'direct');const next=dnsSel(node?'proxy':'direct',previous,false);dns.replaceChildren(...next.childNodes);dns.value=previous;if(!dns.value)dns.value='inherit';split.update();statePill.textContent=node?'已分配节点':'直连';statePill.classList.toggle('proxy',!!node)};
+ $('main-lan-node').onchange=sync;sync();
+}
 function renderWifiCreate(){const n=nodeSel('',false),p=nodeSel('',true);$('wnode').replaceChildren(...n.childNodes);$('wpre').replaceChildren(...p.childNodes);$('wnode').value='';$('wpre').value='';const fill=()=>{setDnsPath($('wpath'),$('wnode').value?'proxy':'direct');const d=dnsSel($('wnode').value?'proxy':'direct','inherit',false);$('wdns').replaceChildren(...d.childNodes)};$('wnode').onchange=fill;fill()}
 function updateWifiBulk(){
  const list=state?.wifi?.managed||[],ids=new Set(list.map(w=>w.id));for(const id of wifiSelected)if(!ids.has(id))wifiSelected.delete(id);
  const all=$('wifi-select-all');all.checked=list.length>0&&wifiSelected.size===list.length;all.indeterminate=wifiSelected.size>0&&wifiSelected.size<list.length;all.disabled=!list.length;
- $('wifi-selected-count').textContent='已选 '+wifiSelected.size+' / '+list.length+' 个';for(const key of ['wifi-delete-selected','wifi-hide-selected','wifi-show-selected'])$(key).disabled=!wifiSelected.size;
+ $('wifi-selected-count').textContent='已选 '+wifiSelected.size+' / '+list.length+' 个';for(const key of ['wifi-delete-selected','wifi-hide-selected','wifi-show-selected']){$(key).disabled=!wifiSelected.size;$(key).hidden=!wifiSelected.size}
  $('hide-all').disabled=$('show-all').disabled=!list.length;$('wifi-clear-all').disabled=!list.length;
 }
 function renderWifis(){
  const inf=state.wifi||{managed:[],counts:{'5g':0,'2g':0},max5:14,max2:8};$('wifi-existing-count').textContent=(inf.managed||[]).length+' 个';$('wifi-count').textContent='5G '+(inf.counts['5g']||0)+'/'+inf.max5+' · 2.4G '+(inf.counts['2g']||0)+'/'+inf.max2;$('wifis').replaceChildren();
+ renderMainLan(inf.main||{});
  (inf.managed||[]).forEach(w=>{
   const box=el('div','item'),h=el('div','head'),left=el('div'),checkLabel=el('label','wifi-choice'),cb=document.createElement('input');
   left.append(el('div','title',w.ssid||w.id),el('div','meta',w.subnet+' · '+w.band+' · '+(w.hidden?'已隐藏':'广播中')));cb.type='checkbox';cb.checked=wifiSelected.has(w.id);cb.setAttribute('aria-label','选择 '+(w.ssid||w.id));cb.onchange=()=>{cb.checked?wifiSelected.add(w.id):wifiSelected.delete(w.id);updateWifiBulk()};checkLabel.append(cb,document.createTextNode('选择'));h.append(left,checkLabel);
@@ -330,18 +676,27 @@ function updateDataplaneFields(){const plan=$('dataplane').value;for(const id of
 function renderDataplane(){const plan=state.dataplane==='tun'?'tun':'singbox';$('dataplane').value=plan;$('tun-interface').value=state.tun_interface||'fastacl-tun0';$('tun-address').value=state.tun_address||'172.19.0.1/30';$('tun-mtu').value=state.tun_mtu||9000;$('tun-stack').value=state.tun_stack||'gvisor';$('dataplane-state').textContent=(state.runtime&&state.runtime.dataplane)==='tun'?'TUN':'TPROXY';updateDataplaneFields()}
 function renderSubLogs(){const root=$('sub-logs');root.replaceChildren();const names=new Map((state.subscriptions||[]).map(s=>[s.id,s.name]));for(const log of (Array.isArray(state.subscription_history)?state.subscription_history:[])){const row=el('div','item'),title=el('div',log.ok?'good':'bad',new Date(log.attempt*1000).toLocaleString()+' · '+(names.get(log.id)||'已删除订阅')+' · '+(log.ok?'成功':'失败'));row.append(title,el('div','note',log.ok?'导入 '+log.count+' 个节点 · 耗时 '+Math.max(0,(log.finished||log.attempt)-log.attempt)+' 秒':log.error||'更新失败'));root.append(row)}if(!root.childNodes.length)root.append(el('p','note','暂无更新记录；下次更新订阅后显示。'))}
 function renderSubs(){renderSubLogs();const list=state.subscriptions||[],root=$('sub-list');root.replaceChildren();$('sub-count').textContent=list.length+' 个';$('sub-update').disabled=state.subscription_running===true;$('sub-update').textContent=state.subscription_running?'更新中…':'更新全部';list.forEach((s,i)=>{const row=el('div','subscription-row'),number=el('span','subscription-number',String(i+1).padStart(2,'0')),identity=el('div','subscription-identity'),period=el('div','subscription-period','每 '+s.interval_hours+' 小时'),last=el('div','subscription-result'),actions=el('div','subscription-actions'),update=el('button','cbi-button subscription-update','更新'),remove=el('button','cbi-button danger','删除'),st=s.status||{};identity.append(el('div','title',s.name||s.id),el('div','meta',s.enabled===false?'已停用':'自动更新已启用'));const when=Number(st.finished||st.attempt||0);if(when>0&&Number.isFinite(when)){last.append(el('div','subscription-result-state '+(st.ok?'good':'bad'),st.ok?'成功 · '+Number(st.count||0)+' 个节点':'更新失败'),el('div','meta',new Date(when*1000).toLocaleString()));if(st.ok===false&&st.error)last.append(el('div','meta',st.error))}else last.append(el('div','meta','尚未更新'));update.type=remove.type='button';update.disabled=state.subscription_running===true;update.onclick=async()=>{update.disabled=true;try{await sub({action:'update',id:s.id})}finally{update.disabled=state.subscription_running===true}};remove.onclick=()=>confirm('删除订阅“'+(s.name||s.id)+'”？')&&sub({action:'remove',id:s.id});actions.append(update,remove);row.append(number,identity,period,last,actions);root.append(row)});if(!list.length)root.append(el('div','subscription-empty','暂无订阅，在上方添加 HTTPS 订阅地址。'))}
-function render(){health();renderNodes();renderBatch();renderDevices();renderWifis();renderDns();renderDataplane();renderSubs()}
+function render(){health();renderNodes();renderBatch();renderDevices();renderWifis();renderDns();renderDataplane();renderSubs();renderOverview()}
 async function load(){try{state=await api('status');render()}catch(e){msg(e.message,true)}}
 async function store(data){if(busy)return false;busy=true;const t=performance.now();try{const j=await api('save',{data:JSON.stringify(data)});await load();msg((j.message||'完成')+' · '+((performance.now()-t)/1000).toFixed(2)+'s');return true}catch(e){msg(e.message,true);return false}finally{busy=false}}
 let wifiProgress=null;
 async function wifi(data){if(busy){msg('上一项操作尚未完成，请等待完成提示');return false}busy=true;const t=performance.now(),create=data.action==='create',label=create?'正在建立 WiFi':data.action==='update'?'正在分配节点':'正在应用 WiFi 设置',button=$('wcreate'),original=button.textContent;const controls=['wcreate','assign-go','assign-unbind','import'].map(id=>$(id)),disabled=controls.map(e=>e.disabled);controls.forEach(e=>e.disabled=true);let hint=$('wifi-progress');if(!hint){hint=el('div','note');hint.id='f25-wifi-progress';hint.setAttribute('role','status');hint.setAttribute('aria-live','polite');button.parentElement.after(hint)}const progress=()=>{const seconds=((performance.now()-t)/1000).toFixed(1),text=label+'，已等待 '+seconds+' 秒。'+(create?'正在保存并应用无线配置，请等待完成提示后再分配节点。':'请勿重复操作。');msg(text);$('msg').className='msg pending';hint.textContent=text;if(create)button.textContent='建立中 · '+seconds+'s'};progress();wifiProgress=setInterval(progress,250);try{const j=await api('wifi',{data:JSON.stringify(data)});clearInterval(wifiProgress);wifiProgress=null;const done=(j.message||(create?'WiFi 建立完成':'操作完成'))+' · 用时 '+((performance.now()-t)/1000).toFixed(2)+' 秒';hint.textContent=create?'WiFi 建立完成，现在可以导入或分配节点。'+done:done;await load();msg(create?'WiFi 建立完成，可以分配节点。'+done:done);return true}catch(e){clearInterval(wifiProgress);wifiProgress=null;const text=(create?'WiFi 建立未确认完成：':'操作未完成：')+e.message;hint.textContent=text;msg(text,true);return false}finally{if(wifiProgress){clearInterval(wifiProgress);wifiProgress=null}busy=false;controls.forEach((e,i)=>e.disabled=disabled[i]);button.textContent=original}}
+async function saveMainLan(){
+ if(busy)return msg('上一项配置仍在应用，请稍后保存',true);
+ const button=$('main-lan-save'),label=button.textContent,node=$('main-lan-node').value,pre=node&&!$('main-lan-pre').disabled?$('main-lan-pre').value:'',split=mainLanControls&&mainLanControls.split;
+ const payload={action:'lan_update',node,preproxy:pre,dns:mainLanControls?mainLanControls.dns.value:'inherit',split_mode:split?split.mode.value:'all',split_rules:split?split.rules.value:'',platforms:split?split.platforms.value:'',dns_split:split?split.ds.value:'0',block_domains:split?split.blocked.value:''};
+ button.disabled=true;button.textContent='正在应用…';busy=true;
+ try{await api('wifi',{data:JSON.stringify(payload)});await load();msg(node?'主 WiFi / 有线 LAN 默认出口已更新':'主 WiFi / 有线 LAN 已设为直连')}
+ catch(e){msg('主 WiFi 设置失败：'+e.message,true)}
+ finally{button.disabled=false;button.textContent=label;busy=false}
+}
 
 function assignTargets(){const s=$('assign-target');s.replaceChildren();if($('assign-type').value==='wifi')(state.wifi&&state.wifi.managed||[]).forEach(w=>opt(s,w.id,(w.ssid||w.id)+' · '+w.subnet));else(state.devices||[]).forEach(d=>opt(s,d.mac,(d.name||d.mac)+' · '+(d.fixed_ip||d.ip||'')));if(!s.options.length)opt(s,'','没有目标')}
-function openAssign(n){if(busy){msg('WiFi 或配置正在应用，请等待完成提示后再分配节点');return}assignNode=n;$('assign-node').textContent='['+(n.protocol||'').toUpperCase()+'] '+n.name;$('assign-type').value=(state.wifi&&state.wifi.managed&&state.wifi.managed.length)?'wifi':'device';assignTargets();const p=nodeSel('',true);$('assign-pre').replaceChildren(...p.childNodes);$('assign-pre').value='';const chain=n.protocol==='socks'||n.protocol==='http';$('assign-pre').disabled=!chain;$('assign-note').textContent=chain?'SOCKS/HTTP 可选前置代理':'此协议直接作为出口';const d=dnsSel('proxy','inherit',false);$('assign-dns').replaceChildren(...d.childNodes);$('assign-dns').value='inherit';$('assign-modal').classList.remove('hidden')}
+function openAssign(n){if(busy){msg('WiFi 或配置正在应用，请等待完成提示后再分配节点');return}assignNode=n;$('assign-node').textContent='['+(n.protocol||'').toUpperCase()+'] '+n.name;$('assign-type').value=(state.wifi&&state.wifi.managed&&state.wifi.managed.length)?'wifi':'device';assignTargets();const p=nodeSel('',true);$('assign-pre').replaceChildren(...p.childNodes);$('assign-pre').value='';$('assign-pre').disabled=false;$('assign-note').textContent='可选前置代理，应用时会校验完整链路';const d=dnsSel('proxy','inherit',false);$('assign-dns').replaceChildren(...d.childNodes);$('assign-dns').value='inherit';$('assign-modal').classList.remove('hidden')}
 function closeAssign(){$('assign-modal').classList.add('hidden');assignNode=null}
 async function doAssign(unbind){if(!assignNode||!$('assign-target').value){msg('没有可分配目标',true);return}const type=$('assign-type').value,target=$('assign-target').value,node=unbind?'':assignNode.id,pre=unbind?'':($('assign-pre').disabled?'':$('assign-pre').value),dns=unbind?'inherit':$('assign-dns').value;let ok=false;if(type==='wifi')ok=await wifi({action:'update',id:target,node,preproxy:pre,dns});else{const d=(state.devices||[]).find(x=>x.mac===target);if(!d)return msg('设备不存在',true);ok=await store({devices:[unbind?{mac:d.mac,remove:true}:{mac:d.mac,name:d.name||'',ip:d.fixed_ip||d.ip,node,preproxy:pre,dns}]})}if(ok)closeAssign()}
 async function sub(data){try{await api('subscription',{data:JSON.stringify(data)});msg(data.action==='update'?'订阅更新已启动':'订阅已保存');await load()}catch(e){msg(e.message,true)}}
-$('refresh').onclick=load;$('search').oninput=()=>state&&renderDevices();$('import-open').onclick=()=>$('import-box').classList.remove('hidden');$('import-close').onclick=()=>$('import-box').classList.add('hidden');
+$('refresh').onclick=load;$('search').oninput=()=>{if(state){if($('search').value.trim()&&currentView!=='devices')applyView('devices');renderDevices()}};$('import-open').onclick=()=>$('import-box').classList.remove('hidden');$('import-close').onclick=()=>$('import-box').classList.add('hidden');$('node-export').onclick=exportNodes;$('main-lan-save').onclick=saveMainLan;$('node-edit-save').onclick=saveNodeEdit;$('node-edit-close').onclick=closeNodeEdit;$('node-edit-modal').onclick=e=>{if(e.target===$('node-edit-modal'))closeNodeEdit()};
 $('import').onclick=async()=>{const links=$('links').value;if(!links.trim())return msg('请先粘贴节点',true);const button=$('import');if(button.disabled)return;button.disabled=true;const label=button.textContent,deadline=Date.now()+60000;button.textContent='正在导入…';try{let j;for(;;){try{j=await api('import',{links});break}catch(e){if(!e.busy||Date.now()>=deadline)throw e;button.textContent='等待配置完成…';msg('上一项配置仍在应用，节点导入正在等待，请勿重复点击');await new Promise(resolve=>setTimeout(resolve,1000));button.textContent='正在导入…'}}if($('links').value===links)$('links').value='';await load();msg('成功导入 '+j.count+' 个节点')}catch(e){msg(e.busy?'上一项配置尚未完成，导入内容已保留，请稍后重试':e.message,true)}finally{button.disabled=false;button.textContent=label}};
 
 $('select-all').onclick=()=>{visibleNodes.forEach(n=>selected.add(n.id));renderNodes()};$('clear-selected').onclick=()=>{selected.clear();renderNodes()};$('delete-selected').onclick=async()=>{if(!selected.size)return msg('请先选择节点',true);if(!confirm('删除所选未绑定节点？正在使用的会自动跳过。'))return;try{const j=await api('delete_nodes',{data:JSON.stringify({ids:[...selected]})});selected.clear();await load();const x=(j.skipped||[]).map(v=>v.id+'：'+v.reason).join('\n');msg(j.message+(x?'\n'+x:''),(j.skipped||[]).length>0)}catch(e){msg(e.message,true)}};
@@ -355,7 +710,7 @@ $('wifi-hide-selected').onclick=()=>wifi({action:'hide_selected',ids:[...wifiSel
 $('wifi-clear-all').onclick=async()=>{const ids=(state.wifi.managed||[]).map(w=>w.id);if(!ids.length)return;if(!confirm('确认清除全部 '+ids.length+' 个附加 WiFi？\n将删除这些 WiFi 及对应的网络、DHCP 和代理绑定配置，连接设备会断开。\n主 WiFi 保留。此操作无法撤销。'))return;if(await wifi({action:'remove_all',ids})){wifiSelected.clear();renderWifis()}};
 $('wifi-show-selected').onclick=()=>wifi({action:'hide_selected',ids:[...wifiSelected],hidden:false});
 $('node-search').oninput=()=>{nodeQuery=$('node-search').value.trim().toLowerCase();nodePage=0;renderNodes()};$('node-region').onchange=()=>{nodeRegion=$('node-region').value;nodePage=0;renderNodes()};$('node-prev').onclick=()=>{nodePage--;renderNodes()};$('node-next').onclick=()=>{nodePage++;renderNodes()};const wifiCreatePanel=$('wifi-create-panel');try{wifiCreatePanel.open=localStorage.getItem('f253-wifi-create-panel')==='open'}catch(e){}wifiCreatePanel.addEventListener('toggle',()=>{try{localStorage.setItem('f253-wifi-create-panel',wifiCreatePanel.open?'open':'closed')}catch(e){}});
-setupSections();load();$('sub-log-refresh').onclick=()=>load();
+setupCollapse('main-lan-panel','f253-main-lan-panel');setupCollapse('wifi-existing-panel','f253-wifi-existing-panel');setupLayout();load();$('sub-log-refresh').onclick=()=>load();
 })();
 </script>
 <%+footer%>

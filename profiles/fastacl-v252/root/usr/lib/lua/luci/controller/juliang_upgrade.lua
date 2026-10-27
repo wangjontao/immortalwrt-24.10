@@ -11,7 +11,7 @@ function index()
 	page.acl_depends = {'juliang-center'}
 
 	local status = entry(
-		{'admin', 'juliang', 'upgrade', 'status'},
+		{'admin', 'juliang', 'upgrade_status'},
 		call('upgrade_status'),
 		nil
 	)
@@ -19,7 +19,7 @@ function index()
 	status.acl_depends = {'juliang-center'}
 
 	local action = entry(
-		{'admin', 'juliang', 'upgrade', 'action'},
+		{'admin', 'juliang', 'upgrade_action'},
 		post('upgrade_action'),
 		nil
 	)
