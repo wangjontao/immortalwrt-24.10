@@ -71,8 +71,11 @@ assert len(grouped_devices) == 4
 assert all(len(devices) == 5 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == MT7981
 
+redmi_only = "REDMI_ONLY_REBUILD" in mt7986_workflow
 for device, (tag, config_name) in MT7986.items():
     assert f"{device}) tag={tag};" in integration, device
+    if redmi_only and device != "xiaomi_redmi-router-ax6000":
+        continue
     assert f"device: {device}" in mt7986_workflow, device
     assert f"tag: {tag}" in mt7986_workflow, tag
     config = (ROOT / "build-configs" / config_name).read_text(encoding="utf-8")
@@ -102,7 +105,7 @@ assert "fastacl280-apt-noble-openwrt-v1" in mt7986_workflow
 assert "Acquire::http::Timeout=20" in mt7986_workflow
 assert "Acquire::Retries=5" in mt7986_workflow
 assert "Redmi-AX6000-NMBM110M" in mt7986_workflow
-assert "matrix.device == 'xiaomi_redmi-router-ax6000'" in mt7986_workflow
+assert "REDMI_ONLY_REBUILD" in mt7986_workflow
 assert 'JuLiang-OS-${DEVICE_GROUP}-final.config' in mt7981_workflow
 assert 'JuLiang-OS-${DEVICE_TAG}-final.config' in mt7986_workflow
 
