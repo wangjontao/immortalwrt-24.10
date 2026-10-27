@@ -2,7 +2,19 @@ name: MT7986 Series FastACL 2.8.0 Build
 run-name: 'FastACL 2.8.0 - native sing-box for S20L S20P JDCloud and Redmi AX6000'
 
 'on':
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      device:
+        description: Build target
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - S20L
+          - S20P
+          - JDCloud-RE-CP-03
+          - Redmi-AX6000-NMBM110M
   push:
     branches: ['2.8.0']
     paths:
@@ -96,6 +108,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.label }} FastACL 2.8.0
+    if: github.event_name == 'push' || github.event.inputs.device == 'all' || github.event.inputs.device == matrix.tag
     strategy:
       fail-fast: false
       max-parallel: 4

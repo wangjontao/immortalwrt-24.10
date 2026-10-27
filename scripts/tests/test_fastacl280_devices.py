@@ -101,6 +101,8 @@ assert "find-fastacl280-manifest.py" in mt7986_workflow
 assert "fastacl280-apt-noble-openwrt-v1" in mt7986_workflow
 assert "Acquire::http::Timeout=20" in mt7986_workflow
 assert "Acquire::Retries=5" in mt7986_workflow
+assert "github.event.inputs.device == matrix.tag" in mt7986_workflow
+assert "Redmi-AX6000-NMBM110M" in mt7986_workflow
 assert 'JuLiang-OS-${DEVICE_GROUP}-final.config' in mt7981_workflow
 assert 'JuLiang-OS-${DEVICE_TAG}-final.config' in mt7986_workflow
 
