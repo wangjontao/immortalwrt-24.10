@@ -44,7 +44,7 @@ assert 'data.interfaces and data.interfaces[1]' in controller
 assert 'traffic.day' in controller
 assert 'traffic.month' in controller
 assert 'traffic_totals=traffic_totals()' in controller
-assert 'WAN 累计流量' in view
+assert '<h3>流量统计</h3>' in view
 assert 'linear-gradient(118deg,#d9ecff 0%,#d9f5ef 52%,#ebe7ff 100%)' in view
 assert 'linear-gradient(118deg,#d9ecff 0%,#d9f5ef 52%,#ebe7ff 100%)' in console_view
 assert 'color:#c93e4a' in view
