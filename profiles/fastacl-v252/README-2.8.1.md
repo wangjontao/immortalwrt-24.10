@@ -37,6 +37,8 @@ fixes validated on the router.
   `key=value` status records.
 - Build image discovery follows the generated `juliang-os` filename prefix
   instead of assuming the upstream `immortalwrt` name.
+- Kernel validation checks the native nftables `NFT_TPROXY` dependency and no
+  longer requires the unused legacy iptables `NETFILTER_XT_TARGET_TPROXY`.
 - BBR TCP acceleration has an independent ACL and is delegated to the
   restricted `admin` account without granting general system access.
 

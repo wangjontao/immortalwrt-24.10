@@ -14,6 +14,9 @@ mt7986_workflow = (
     ROOT / ".github/workflows/JuLiangTK-MT7986-FastACL281.yml"
 ).read_text(encoding="utf-8")
 package = (ROOT / "profiles/fastacl-v252/package-Makefile").read_text(encoding="utf-8")
+kernel_check = (
+    ROOT / "profiles/fastacl-v252/check-kernel.sh"
+).read_text(encoding="utf-8")
 
 MT7981 = {
     "philips_hy3000",
@@ -53,6 +56,8 @@ assert "+nftables-json" in package and "+nftables " not in package
 dependencies = (ROOT / "profiles/fastacl-v252/dependencies.config").read_text(encoding="utf-8")
 assert "CONFIG_PACKAGE_nftables-json=y" in dependencies
 assert "CONFIG_PACKAGE_nftables=y" not in dependencies
+assert "TUN NFT_TPROXY" in kernel_check
+assert "NETFILTER_XT_TARGET_TPROXY" not in kernel_check
 
 for device in MT7981:
     assert f"{device}) tag=" in integration, device

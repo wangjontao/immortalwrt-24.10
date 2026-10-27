@@ -235,6 +235,9 @@ class TunDataplaneTests(unittest.TestCase):
         self.assertIn("option dataplane 'singbox'", config_text)
         self.assertIn('+juliangtk-sing-box', package)
         self.assertNotIn('+juliangtk-dae', package)
+        kernel_check = (ROOT / 'check-kernel.sh').read_text(encoding='utf-8')
+        self.assertIn('TUN NFT_TPROXY', kernel_check)
+        self.assertNotIn('NETFILTER_XT_TARGET_TPROXY', kernel_check)
 
     def test_firewall_marks_only_proxy_sources_for_tun(self):
         cfg = config('tun')
