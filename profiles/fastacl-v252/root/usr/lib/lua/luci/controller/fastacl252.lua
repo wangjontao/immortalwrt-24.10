@@ -60,6 +60,9 @@ function index()
   e=gate(entry({'admin','services','fastacl252_status'},call('status'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_save'},post('save'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_import'},post('import_nodes'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_node_export'},call('node_export'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_node_detail'},post('node_detail'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_update_node'},post('update_node'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_subscription'},post('subscription'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_delete_node'},post('delete_node'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_rename_node'},post('rename_node'),nil)); e.leaf=true
@@ -88,7 +91,7 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.6.6',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({dns_stats=dns_stats,ok=true,version='2.6.7',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -110,7 +113,6 @@ function save()
     local c=env.read(u); enabled=c.enabled
     if request.direct_dns then assert(provider_ok(request.direct_dns,'direct'),'国内直连 DNS 选择无效'); c.direct_dns=request.direct_dns end
     if request.proxy_dns then assert(provider_ok(request.proxy_dns,'proxy'),'代理出口 DNS 选择无效'); c.proxy_dns=request.proxy_dns end
-
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'设备数量过多')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
     local before={}; local changed={}
@@ -227,23 +229,24 @@ function wifi_action()
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor(); local manager=require 'fastacl252_wifi'; local result; local detail=''
 
-  if req.action=='update' then
+  if req.action=='update' or req.action=='lan_update' then
     local original=fs.readfile('/etc/config/fastacl252'); local committed=false
     local ok,err=pcall(function()
       local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交配置')
-      manager.update(u,req); require('fastacl252_env').read(u)
+      if req.action=='lan_update' then manager.update_main(u,req) else manager.update(u,req) end
+      require('fastacl252_env').read(u)
       assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); committed=true; fs.chmod('/etc/config/fastacl252','600')
       if u:get('fastacl252','main','enabled')=='1' then
         local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'应用层快速切换失败：'..(d~='' and d or '未知错误'))
       end
-      result={id=req.id,path='hot'}
+      result=req.action=='lan_update' and {id='main-lan',path='hot'} or {id=req.id,path='hot'}
     end)
     if not ok then
       u:revert('fastacl252')
       if committed and original then fs.writefile('/etc/config/fastacl252',original); apply_now('hot-apply') end
     end
     release_lock(fs)
-    reply(ok and {ok=true,result=result,message='节点已应用层快速切换；network / WiFi / firewall 均未重载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+    reply(ok and {ok=true,result=result,message=req.action=='lan_update' and '主 WiFi / 有线 LAN 默认出口已快速应用。' or '节点已应用层快速切换；network / WiFi / firewall 均未重载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
     return
   end
 
@@ -354,6 +357,99 @@ function device_name()
   reply({ok=ok,name=ok and name or nil,error=not ok and tostring(err) or nil})
 end
 
+-- Node credentials stay out of the frequently polled status response.
+function node_detail()
+  local h=require'luci.http';local policy=require'fastacl252';local json=require'luci.jsonc'
+  local function enc(s)
+    return tostring(s or ''):gsub('[^%w_.~-]',function(c)return string.format('%%%02X',c:byte())end)
+  end
+  local id=h.formvalue('id')
+  if not policy.id(id) then reply({ok=false,error='节点 ID 无效'});return end
+  local ok,result=pcall(function()
+    local u=require('uci').cursor()
+    assert(u:get('fastacl252',id)=='node','节点不存在')
+    local raw=u:get('fastacl252',id,'outbound')
+    local outbound=raw and json.parse(raw)
+    assert(type(outbound)=='table','节点参数损坏')
+    local owner=u:get('fastacl252',id,'owner') or ''
+    local subscription_name
+    if owner~='' and u:get('fastacl252',owner)=='subscription' then
+      subscription_name=u:get('fastacl252',owner,'name') or owner
+    end
+    local node={name=u:get('fastacl252',id,'name') or id,protocol=u:get('fastacl252',id,'protocol') or '',outbound=outbound}
+    node.link=require('fastacl252_uri').node(node)
+    if node.protocol~='vmess' and node.name~='' then node.link=node.link..'#'..enc(node.name) end
+    node.id=id;node.owner=owner;node.subscription_name=subscription_name
+    return node
+  end)
+  if ok then result.ok=true;reply(result)
+  else reply({ok=false,error=tostring(result)}) end
+end
+
+function node_export()
+  local json=require'luci.jsonc'
+  local function enc(s)
+    return tostring(s or ''):gsub('[^%w_.~-]',function(c)return string.format('%%%02X',c:byte())end)
+  end
+  local ok,result=pcall(function()
+    local u=require('uci').cursor();local lines={};local compiler=require('fastacl252_uri')
+    u:foreach('fastacl252','node',function(sec)
+      if sec.retired~='1' then
+        local outbound=json.parse(sec.outbound or '')
+        assert(type(outbound)=='table','节点“'..tostring(sec.name or sec['.name'])..'”参数损坏')
+        local name=sec.name or sec['.name']
+        local link=compiler.node({name=name,protocol=sec.protocol or outbound.type,outbound=outbound})
+        if sec.protocol~='vmess' and name and name~='' then link=link..'#'..enc(name) end
+        lines[#lines+1]=link
+      end
+    end)
+    assert(#lines>0,'没有可导出的节点')
+    return {text=table.concat(lines,'\n'),count=#lines}
+  end)
+  if ok then result.ok=true;reply(result)
+  else reply({ok=false,error=ok and result or tostring(result)}) end
+end
+
+function update_node()
+  local h=require'luci.http';local fs=require'nixio.fs';local json=require'luci.jsonc'
+  local raw=h.formvalue('data') or ''
+  if #raw>131072 then reply({ok=false,error='节点参数过大'});return end
+  local data=json.parse(raw)
+  if type(data)~='table' or type(data.outbound)~='table' then
+    reply({ok=false,error='节点参数格式错误'});return
+  end
+  local policy=require'fastacl252';local id=data.id
+  if not policy.id(id) then reply({ok=false,error='节点 ID 无效'});return end
+  local name=type(data.name)=='string' and data.name:gsub('^%s+',''):gsub('%s+$','') or ''
+  if name=='' or #name>240 then reply({ok=false,error='节点名称不能为空或超过 240 字节'});return end
+  if not acquire_lock(fs) then return end
+  local u=require('uci').cursor();local original=fs.readfile('/etc/config/fastacl252')
+  local committed=false;local detail='';local normalized
+  local ok,err=pcall(function()
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    assert(u:get('fastacl252',id)=='node','节点不存在')
+    normalized=require('fastacl252_import').native(data.outbound,name)
+    require('fastacl252_nodes').rename(u,id,name)
+    assert(u:set('fastacl252',id,'protocol',normalized.protocol),'保存节点协议失败')
+    assert(u:set('fastacl252',id,'outbound',json.stringify(normalized.outbound)),'保存节点参数失败')
+    require('fastacl252_uri').node({name=name,protocol=normalized.protocol,outbound=normalized.outbound})
+    require('fastacl252_nodes').check({normalized})
+    assert(u:commit('fastacl252'),'保存节点失败');committed=true;fs.chmod('/etc/config/fastacl252','600')
+    if u:get('fastacl252','main','enabled')=='1' then
+      local aok,d=apply_now('hot-apply');detail=d;assert(aok,'节点参数已保存，但热应用失败：'..(d~='' and d or '未知错误'))
+    end
+  end)
+  if not ok then
+    u:revert('fastacl252')
+    if committed and original then
+      fs.writefile('/etc/config/fastacl252',original);fs.chmod('/etc/config/fastacl252','600')
+      if u:get('fastacl252','main','enabled')=='1' then apply_now('hot-apply') end
+    end
+  end
+  release_lock(fs)
+  reply(ok and {ok=true,message='节点参数已保存并应用',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+end
+
 function rename_node()
   local h=require'luci.http';local fs=require'nixio.fs'
   if not acquire_lock(fs) then return end
@@ -369,7 +465,8 @@ function rename_node()
 end
 
 function delete_node()
-  local fs=require 'nixio.fs'; local h=require('luci.http'); local id=h.formvalue('id'); local force=h.formvalue('force')=='1' or h.formvalue('force')=='true'; local policy=require 'fastacl252'
+  local fs=require 'nixio.fs'; local h=require('luci.http'); local id=h.formvalue('id')
+  local force=h.formvalue('force')=='1' or h.formvalue('force')=='true'; local policy=require 'fastacl252'
   if not policy.id(id) then reply({ok=false,error='节点 ID 无效'}); return end
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor(); local ok,err=pcall(function()

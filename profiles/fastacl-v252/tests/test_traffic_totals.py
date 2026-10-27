@@ -52,7 +52,7 @@ assert 'color:#d94747' in wireless_view
 assert 'linear-gradient(135deg,#eaf3ff 0%,#e3f8f1 52%,#f2ecff 100%)' in login_css
 assert 'id="juliang-brand-gradient"' in menu_cleanup
 assert '<span class="juliang-brand-name">网络服务</span>' in menu_cleanup
-assert '266-network-service-brand-1' in menu_cleanup
+assert '267-management-1' in menu_cleanup
 for element in ('today-up', 'today-down', 'month-up', 'month-down'):
     assert f'id="jc-{element}"' in view
 assert '每 30 秒更新' in view

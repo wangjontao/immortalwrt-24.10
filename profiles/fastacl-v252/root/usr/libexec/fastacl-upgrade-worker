@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -e
 
 STATE_DIR=/tmp/fastacl-upgrade
 STATUS_FILE="$STATE_DIR/status"
@@ -22,15 +22,18 @@ write_status() {
 	{
 		printf 'state=%s\n' "$state"
 		printf 'updated=%s\n' "$(date +%s)"
-		while [ "$#" -gt 0 ]; do
-			printf '%s=%s\n' "$1" "$2"
-			shift 2
-		done
+                for item in "$@"; do
+                        case "$item" in
+                                *=*) printf '%s\n' "$item" ;;
+                        esac
+                done
 	} > "$STATUS_FILE.tmp"
 	mv "$STATUS_FILE.tmp" "$STATUS_FILE"
 }
 
 load_config() {
+        IPKG_INSTROOT="${IPKG_INSTROOT:-}"
+        export IPKG_INSTROOT
 	. /lib/functions.sh
 	config_load fastacl-upgrade
 	config_get UPGRADE_ENABLED settings enabled 1

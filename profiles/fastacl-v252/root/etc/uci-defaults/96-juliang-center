@@ -11,6 +11,8 @@ uci add_list rpcd.juliang_operator.read='juliang-center'
 uci add_list rpcd.juliang_operator.write='juliang-center'
 uci add_list rpcd.juliang_operator.read='juliang-fastacl252'
 uci add_list rpcd.juliang_operator.write='juliang-fastacl252'
+uci add_list rpcd.juliang_operator.read='juliang-bbr'
+uci add_list rpcd.juliang_operator.write='juliang-bbr'
 uci commit rpcd
 found=0
 for sec in $(uci -q show dropbear 2>/dev/null | sed -n "s/^dropbear\.\([^.=]*\)=dropbear$/\1/p"); do
