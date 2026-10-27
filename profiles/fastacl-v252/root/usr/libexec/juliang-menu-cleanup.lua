@@ -34,7 +34,7 @@ local brand_css=[=[<style id="juliang-brand-gradient">
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name{display:block;width:100%;white-space:nowrap;text-align:center;color:inherit!important;letter-spacing:0;text-shadow:0 1px 3px rgba(7,42,91,.26)}
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name:first-child{line-height:1.2;font-weight:700}
 #mainmenu .sidenav-header .juliang-brand-card>.juliang-brand-name:last-child{line-height:1.4}
-@media(forced-colors:active){#mainmenu .sidenav-header .juliang-brand-card{color:CanvasText!important;background:Canvas;border-color:CanvasText;box-shadow:none}}
+@media(forced-colors:active){ #mainmenu .sidenav-header .juliang-brand-card{color:CanvasText!important;background:Canvas;border-color:CanvasText;box-shadow:none}}
 </style>]=]
 for _,path in ipairs({'/usr/share/ucode/luci/template/themes/argon/header.ut','/usr/lib/lua/luci/view/themes/argon/header.htm'}) do
  local text=fs.readfile(path)

@@ -43,4 +43,6 @@ assert header.count('id="juliang-menu-revision"')==1 and '266-network-service-br
 assert '<span class="juliang-brand-name">JuLiang</span><span class="juliang-brand-name">网络服务</span>' in header
 assert 'juliang-brand-card' in header
 assert header.count('id="juliang-brand-gradient"')==1
+assert '@media(forced-colors:active){#mainmenu' not in header
+assert '@media(forced-colors:active){ #mainmenu' in header
 print('PASS idempotent first-boot menu migration, compatibility payload and session menu invalidation')
