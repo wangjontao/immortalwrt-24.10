@@ -86,7 +86,9 @@ function probe()
   else error('检测类型无效') end
   local link=''
   if mode=='proxy' then
-   local compiler=require'fastacl252_dae';link=compiler.link(assert(c.nodes[x.node],'绑定节点不存在'))
+   local relay_ok,compiler=pcall(require,'fastacl252_relay')
+   if not relay_ok then compiler=require'fastacl252_dae' end
+   link=compiler.link(assert(c.nodes[x.node],'绑定节点不存在'))
    if x.preproxy and x.preproxy~='' then link=link..' -> '..compiler.link(assert(c.nodes[x.preproxy],'前置节点不存在')) end
   end
   assert(fs.writefile('/tmp/fastacl252-probe.lock/spec.json',json.stringify({link=link})),'写入检测配置失败');fs.chmod('/tmp/fastacl252-probe.lock/spec.json','600')
