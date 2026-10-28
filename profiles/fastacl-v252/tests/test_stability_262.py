@@ -83,7 +83,7 @@ assert (PROFILE / 'www/luci-static/resources/view/wan-watchdog.js').is_file()
 
 pkg = (ROOT / 'package-Makefile').read_text(encoding='utf-8')
 assert 'PKG_VERSION:=2.6.7' in pkg
-assert 'PKG_RELEASE:=1' in pkg
+assert 'PKG_RELEASE:=2' in pkg
 assert '/usr/bin/wan-watchdog' in pkg
 assert '/etc/init.d/wan-watchdog' in pkg
 assert '/etc/config/wan-watchdog' in pkg

@@ -491,6 +491,18 @@ function delete_node()
   release_lock(fs); reply({ok=ok,error=not ok and tostring(err) or nil})
 end
 
+-- FASTACL_CHAIN_PROBE_V1
+function probe_fronts(c,id)
+ local fronts={};local seen={}
+ local function add(value)
+  if value and value~='' and not seen[value] then seen[value]=true;fronts[#fronts+1]=value end
+ end
+ for _,d in ipairs(c.devices or {}) do if d.node==id then add(d.preproxy) end end
+ for _,w in ipairs(c.wifis or {}) do if w.node==id then add(w.preproxy) end end
+ local lan=c.lan_default or {};if lan.node==id then add(lan.preproxy) end
+ return fronts[1],#fronts
+end
+
 -- Read-only saved-node/assigned-exit probe. Never changes client bindings.
 function probe()
  local h=require'luci.http'; local fs=require'nixio.fs'; local sys=require'luci.sys';local json=require'luci.jsonc'
@@ -498,7 +510,17 @@ function probe()
  local result
  local ok,err=pcall(function()
   local c=require('fastacl252_env').read();local kind=h.formvalue('kind');local target=h.formvalue('id');local x;local mode='proxy'
-  if kind=='node' then assert(require('fastacl252').id(target) and c.nodes[target],'节点不存在');x={node=target}
+  if kind=='node' then
+   assert(require('fastacl252').id(target) and c.nodes[target],'节点不存在')
+   local pre=h.formvalue('preproxy') or ''
+   if pre=='' then
+    local inferred,count=probe_fronts(c,target)
+    assert(count<=1,'该节点存在多个不同前置链路，请在对应设备或 WiFi 行检测出口')
+    pre=inferred or ''
+   end
+   assert(pre=='' or c.nodes[pre],'前置节点不存在')
+   assert(pre=='' or pre~=target,'前置节点不能与出口节点相同')
+   x={node=target,preproxy=pre}
   elseif kind=='device' then
    local mac=assert(require('fastacl252').mac(target),'设备 MAC 无效')
    for _,d in ipairs(c.devices) do if d.mac==mac then x=d;mode=d.mode;break end end
@@ -512,10 +534,12 @@ function probe()
   assert(fs.writefile('/tmp/fastacl252-probe.lock/spec.json',json.stringify({link=link})),'写入检测配置失败');fs.chmod('/tmp/fastacl252-probe.lock/spec.json','600')
   local data=sys.exec('/usr/libexec/fastacl252-exit-probe -probe-file /tmp/fastacl252-probe.lock/spec.json 2>/dev/null')
   result=json.parse(data);assert(type(result)=='table','检测程序未返回结果')
-  result.kind=kind;result.mode=mode;result.scope='saved_exit';result.note=kind=='device' and '路由器侧检测已保存的绑定出口，不代表手机实机连通性' or '路由器侧节点出口检测'
+  result.kind=kind;result.mode=mode;result.scope='saved_exit';result.preproxy=x.preproxy or ''
+  if result.preproxy~='' and c.nodes[result.preproxy] then result.preproxy_name=c.nodes[result.preproxy].name or result.preproxy end
+  result.note=kind=='device' and '路由器侧检测已保存的绑定出口，不代表手机实机连通性' or '路由器侧节点出口检测'
  end)
  fs.remove('/tmp/fastacl252-probe.lock/spec.json');fs.rmdir('/tmp/fastacl252-probe.lock')
- if ok then reply(result) else reply({ok=false,error='出口检测失败，请检查设备绑定和节点状态'}) end
+ if ok then reply(result) else reply({ok=false,error='出口检测失败：'..tostring(err)}) end
 end
 
 function wireless_status()

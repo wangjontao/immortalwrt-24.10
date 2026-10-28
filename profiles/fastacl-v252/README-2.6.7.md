@@ -1,5 +1,12 @@
 # FastACL V2.6.7
 
+## 2.6.7-r2
+
+- Node exit probes reuse an unambiguous saved front-proxy chain.
+- Successful chain probes report the detected public exit and front-node name.
+- A node used with multiple different front proxies requires probing from the
+  corresponding device or WiFi row instead of guessing a chain.
+
 V2.6.7 brings the FastACL 2.8.1 management and LuCI fixes to the dae/eBPF line.
 It retains the FastACL 2.6.x dataplane while adding persistent WAN traffic totals,
 five fixed workspaces, node tools and a primary-LAN default exit.
