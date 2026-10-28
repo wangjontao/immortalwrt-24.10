@@ -17,6 +17,8 @@ fixes validated on the router.
 - Notifications dismiss automatically after three seconds.
 - Nodes can be edited, copied, exported individually, or exported as a complete
   backup.
+- Node exit probes reuse an unambiguous saved front-proxy chain and report the
+  front node name with the detected public exit.
 
 ## Assignment
 

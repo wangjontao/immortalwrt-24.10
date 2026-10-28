@@ -20,6 +20,7 @@ lua.globals().pyb64encode=lambda v:base64.b64encode(v.encode()).decode()
 lua.execute("package.preload['luci.jsonc']=function()return {stringify=pyencode}end; package.preload['nixio']=function()return {bin={b64encode=pyb64encode}}end; package.preload['luci.sys']=function()return {exec=function()return '' end}end; package.preload['luci.util']=function()return {} end")
 policy=lua.eval("require('fastacl252')")
 env=lua.eval("require('fastacl252_env')")
+controller=lua.eval("require('luci.controller.fastacl252')")
 for identity in ('CLX S20L','CLX S20P','Xiaomi Redmi Router AX6000','JDCloud RE-CP-03'):
  assert env.capacity(lua.table_from({'capacity_profile':'auto'}),4,1024000,identity)[0]=='high'
 assert env.capacity(lua.table_from({'capacity_profile':'auto'}),4,1024000,'Generic MT7986A')[0]=='quad'
@@ -35,6 +36,11 @@ def compile(x):
  return cfg,json.loads(encoded),from_lua(policy.firewall(to_lua(x),'nft'))['nft']
 c['wifis'][0]['platforms']='youtube,tiktok'
 original,relay,rules=compile(c)
+c['nodes']['front']=dict(protocol='socks',outbound=dict(type='socks',server='203.0.113.3',server_port=1080))
+c['devices'][0]['preproxy']='front';c['wifis'][0]['preproxy']='front'
+front,count=controller.probe_fronts(to_lua(c),'us');assert front=='front' and count==1
+changed=copy.deepcopy(c);changed['wifis'][0]['preproxy']='jp'
+front,count=controller.probe_fronts(to_lua(changed),'us');assert front in ('front','jp') and count==2
 for mutate in [lambda x:x['wifis'][0].update(node='jp'),lambda x:x['devices'][0].update(node='jp'),lambda x:x['wifis'][0].update(dns='google')]:
  changed=copy.deepcopy(c);mutate(changed);next_cfg,next_relay,next_rules=compile(changed)
  assert next_rules==rules,'Changing an existing exit rewrote nft rules'

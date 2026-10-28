@@ -21,7 +21,7 @@ state={'ok':True,'version':VERSION+' · 本地演示','enabled':True,'direct_dns
  'network':'lan','router_ip':'192.168.7.1','runtime':{'engine':'running','firewall':True,'backend':'nft','switch':'hot','request':'hot'},'job':'0','apply_log':'','subscription_running':False,
  'nodes':[{'id':'us','name':'美国出口 A','protocol':'socks'},{'id':'jp','name':'日本出口 B','protocol':'http'},{'id':'front','name':'前置节点','protocol':'vless'}],
  'subscriptions':[],
- 'devices':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','fixed_ip':'192.168.7.101','bound':True,'online':True,'mode':'proxy','node':'us','preproxy':'','dns':'inherit'},
+ 'devices':[{'mac':'02:00:00:00:00:01','name':'手机 A','ip':'192.168.7.101','fixed_ip':'192.168.7.101','bound':True,'online':True,'mode':'proxy','node':'us','preproxy':'front','dns':'inherit'},
             {'mac':'02:00:00:00:00:02','name':'手机 B','ip':'192.168.7.102','bound':False,'online':True,'mode':'direct','dns':'inherit'},
             {'mac':'02:00:00:00:00:03','name':'电脑 C','ip':'192.168.7.103','bound':True,'online':False,'mode':'direct','dns':'alidns'}],
  'wifi':{'radios':{'5g':['radio1'],'2g':['radio0']},'managed':[],'main':{'mode':'direct','node':'','preproxy':'','dns':'inherit'},'counts':{'5g':0,'2g':0},'max5':14,'max2':8}}
@@ -68,7 +68,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.endswith('/fastacl252_update_node'):
             data=json.loads(form['data'][0]);node=next(n for n in state['nodes'] if n['id']==data['id']);node['name']=data.get('name',node['name']);node['outbound']=data.get('outbound',{});self.reply({'ok':True});return
         if self.path.endswith('/fastacl252_probe'):
-            self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'note':'绑定出口检测，非手机实机检测'});return
+            preproxy=form.get('preproxy',[''])[0]
+            if form.get('kind',[''])[0]=='node' and form.get('id',[''])[0]=='us':
+                preproxy='front'
+            name=next((n['name'] for n in state['nodes'] if n['id']==preproxy),'')
+            self.reply({'ok':True,'ip':'203.0.113.9','country':'JP','elapsed_ms':123,'proxy':True,'preproxy':preproxy,'preproxy_name':name,'note':'绑定出口检测，非手机实机检测'});return
         if self.path.endswith('/fastacl252_save'):
             data=json.loads(form['data'][0]);state['direct_dns']=data.get('direct_dns',state['direct_dns']);state['proxy_dns']=data.get('proxy_dns',state['proxy_dns'])
             for d in data.get('devices',[]):

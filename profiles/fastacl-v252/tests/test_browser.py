@@ -52,6 +52,9 @@ try:
         expect(page.locator(".node-row").first.locator(".title")).to_have_text(
             "Renamed first node"
         )
+        first.get_by_role("button", name="检测出口", exact=True).click()
+        expect(first.locator(".probe-result")).to_contain_text("代理出口：203.0.113.9")
+        expect(first.locator(".probe-result")).to_contain_text("经前置 前置节点")
         expect(page.get_by_role("button", name="导出全部", exact=True)).to_be_visible()
         page.screenshot(path=str(OUT / "ui-nodes-2.8.1.png"), full_page=True)
 
