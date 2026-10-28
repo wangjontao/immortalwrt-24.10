@@ -33,5 +33,7 @@
   {"device": "cudy_tr3000-v1-ubootmod", "board": "cudy,tr3000-v1-ubootmod", "label": "Cudy TR3000 ubootmod"},
   {"device": "clx_s20l", "board": "clx,s20l", "label": "CLX S20L"},
   {"device": "clx_s20p", "board": "clx,s20p", "label": "CLX S20P"},
-  {"device": "jdcloud_re-cp-03", "board": "jdcloud,re-cp-03", "label": "JDCloud RE-CP-03 AX6000"}
+  {"device": "jdcloud_re-cp-03", "board": "jdcloud,re-cp-03", "label": "JDCloud RE-CP-03 AX6000"},
+  {"device": "glinet_gl-mt6000", "board": "glinet,gl-mt6000", "label": "GL.iNet GL-MT6000"},
+  {"device": "netcore_n60-pro", "board": "netcore,n60-pro", "label": "Netcore N60 Pro"}
 ]

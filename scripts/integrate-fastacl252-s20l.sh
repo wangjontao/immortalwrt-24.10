@@ -6,6 +6,8 @@ case "$device" in
   clx_s20l) tag=S20L; dts=mt7986a-clx-s20l; compatible=clx,s20l ;;
   clx_s20p) tag=S20P; dts=mt7986a-clx-s20p; compatible=clx,s20p ;;
   jdcloud_re-cp-03) tag=JDCloud-RE-CP-03; dts=mt7986a-jdcloud-re-cp-03; compatible=jdcloud,re-cp-03 ;;
+  glinet_gl-mt6000) tag=GL-iNet-GL-MT6000; dts=mt7986a-glinet-gl-mt6000; compatible=glinet,gl-mt6000 ;;
+  netcore_n60-pro) tag=Netcore-N60-Pro; dts=mt7986a-netcore-n60-pro; compatible=netcore,n60-pro ;;
   xiaomi_redmi-router-ax6000) tag=Redmi-AX6000-NMBM110M; dts=mt7986a-xiaomi-redmi-router-ax6000; compatible=xiaomi,redmi-router-ax6000 ;;
   xiaomi_redmi-router-ax6000-ubootmod) tag=Redmi-AX6000-ubootmod; dts=mt7986a-xiaomi-redmi-router-ax6000-ubootmod; compatible=xiaomi,redmi-router-ax6000-ubootmod ;;
   philips_hy3000) tag=PHILIPS-HY3000; dts=mt7981b-philips-hy3000; compatible=philips,hy3000 ;;
