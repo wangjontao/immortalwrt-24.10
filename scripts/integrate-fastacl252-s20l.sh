@@ -30,6 +30,18 @@ case "$device" in
   clt_r30b1) tag=CLT-R30B1; dts=mt7981b-clt-r30b1; compatible=clt,r30b1; dts_identity=mt7981b-clt-r30b1-base.dtsi ;;
   cmcc_a10-stock) tag=CMCC-A10-Stock; dts=mt7981b-cmcc-a10-stock; compatible=cmcc,a10-stock ;;
   livinet_zr-3020) tag=Livinet-ZR-3020; dts=mt7981b-livinet-zr-3020; compatible=livinet,zr-3020 ;;
+  cetron_ct3003-ubootmod) tag=Cetron-CT3003-Ubootmod; dts=mt7981b-cetron-ct3003-ubootmod; compatible=cetron,ct3003-ubootmod ;;
+  cmcc_rax3000me) tag=CMCC-RAX3000Me; dts=mt7981b-cmcc-rax3000me; compatible=cmcc,rax3000me ;;
+  asus_rt-ax52) tag=ASUS-RT-AX52; dts=mt7981b-asus-rt-ax52; compatible=asus,rt-ax52 ;;
+  glinet_gl-mt3000) tag=GL-iNet-GL-MT3000; dts=mt7981b-glinet-gl-mt3000; compatible=glinet,gl-mt3000 ;;
+  huasifei_wh3000-emmc) tag=Huasifei-WH3000-eMMC; dts=mt7981b-huasifei-wh3000-emmc; compatible=huasifei,wh3000-emmc ;;
+  huasifei_wh3000-pro) tag=Huasifei-WH3000-Pro; dts=mt7981b-huasifei-wh3000-pro; compatible=huasifei,wh3000-pro ;;
+  umi_uax3000e) tag=UMI-UAX3000E; dts=mt7981b-umi-uax3000e; compatible=umi,uax3000e ;;
+  zbtlink_zbt-z8102ax) tag=ZBT-Z8102AX; dts=mt7981b-zbtlink-zbt-z8102ax; compatible=zbtlink,zbt-z8102ax ;;
+  zbtlink_zbt-z8103ax) tag=ZBT-Z8103AX; dts=mt7981b-zbtlink-zbt-z8103ax; compatible=zbtlink,zbt-z8103ax ;;
+  cudy_tr3000-v1) tag=Cudy-TR3000; dts=mt7981b-cudy-tr3000-v1; compatible=cudy,tr3000-v1 ;;
+  cudy_tr3000-v1-256mb) tag=Cudy-TR3000-256MB; dts=mt7981b-cudy-tr3000-v1-256mb; compatible=cudy,tr3000-v1-256mb ;;
+  cudy_tr3000-v1-ubootmod) tag=Cudy-TR3000-Ubootmod; dts=mt7981b-cudy-tr3000-v1-ubootmod; compatible=cudy,tr3000-v1-ubootmod ;;
   *) echo "Unsupported FastACL device: $device" >&2; exit 1 ;;
 esac
 if [ -z "$dts_identity" ]; then

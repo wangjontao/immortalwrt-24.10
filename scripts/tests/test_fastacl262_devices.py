@@ -37,11 +37,31 @@ DEVICES = {
 
 assert len(DEVICES) == 20
 
-for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
+EXTRA_DEVICES_267 = {
+    'cetron_ct3003-ubootmod': ('Cetron-CT3003-Ubootmod', 'mt7981b-cetron-ct3003-ubootmod', 'cetron,ct3003-ubootmod', 'Cetron CT3003 ubootmod', None),
+    'cmcc_rax3000me': ('CMCC-RAX3000Me', 'mt7981b-cmcc-rax3000me', 'cmcc,rax3000me', 'CMCC RAX3000Me', None),
+    'asus_rt-ax52': ('ASUS-RT-AX52', 'mt7981b-asus-rt-ax52', 'asus,rt-ax52', 'ASUS RT-AX52', None),
+    'glinet_gl-mt3000': ('GL-iNet-GL-MT3000', 'mt7981b-glinet-gl-mt3000', 'glinet,gl-mt3000', 'GL.iNet GL-MT3000', None),
+    'huasifei_wh3000-emmc': ('Huasifei-WH3000-eMMC', 'mt7981b-huasifei-wh3000-emmc', 'huasifei,wh3000-emmc', 'Huasifei WH3000 eMMC', None),
+    'huasifei_wh3000-pro': ('Huasifei-WH3000-Pro', 'mt7981b-huasifei-wh3000-pro', 'huasifei,wh3000-pro', 'Huasifei WH3000 Pro', None),
+    'umi_uax3000e': ('UMI-UAX3000E', 'mt7981b-umi-uax3000e', 'umi,uax3000e', 'UMI UAX3000E', None),
+    'zbtlink_zbt-z8102ax': ('ZBT-Z8102AX', 'mt7981b-zbtlink-zbt-z8102ax', 'zbtlink,zbt-z8102ax', 'ZBT Z8102AX', None),
+    'zbtlink_zbt-z8103ax': ('ZBT-Z8103AX', 'mt7981b-zbtlink-zbt-z8103ax', 'zbtlink,zbt-z8103ax', 'ZBT Z8103AX', None),
+    'cudy_tr3000-v1': ('Cudy-TR3000', 'mt7981b-cudy-tr3000-v1', 'cudy,tr3000-v1', 'Cudy TR3000 v1', None),
+    'cudy_tr3000-v1-256mb': ('Cudy-TR3000-256MB', 'mt7981b-cudy-tr3000-v1-256mb', 'cudy,tr3000-v1-256mb', 'Cudy TR3000 256MB', None),
+    'cudy_tr3000-v1-ubootmod': ('Cudy-TR3000-Ubootmod', 'mt7981b-cudy-tr3000-v1-ubootmod', 'cudy,tr3000-v1-ubootmod', 'Cudy TR3000 ubootmod', None),
+}
+
+assert len(EXTRA_DEVICES_267) == 12
+
+
+def validate_device(device, details, legacy_workflow):
+    tag, dts, compatible, label, identity_dts = details
     assert f'{device}) tag={tag}; dts={dts}; compatible={compatible}' in script
-    assert f'- device: {device}' in workflow
-    assert f'tag: {tag}' in workflow
-    assert f'label: {label}' in workflow
+    if legacy_workflow:
+        assert f'- device: {device}' in workflow
+        assert f'tag: {tag}' in workflow
+        assert f'label: {label}' in workflow
     assert f'define Device/{device}' in image_makefile
     assert f'TARGET_DEVICES += {device}' in image_makefile
     dts_path = ROOT / 'target/linux/mediatek/dts' / f'{dts}.dts'
@@ -58,6 +78,13 @@ for device, (tag, dts, compatible, label, identity_dts) in DEVICES.items():
         flags=re.MULTILINE,
     )
     assert f'CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y' in rewritten
+
+
+for device, details in DEVICES.items():
+    validate_device(device, details, legacy_workflow=True)
+
+for device, details in EXTRA_DEVICES_267.items():
+    validate_device(device, details, legacy_workflow=False)
 
 for device in ('cmcc_a10-ubootmod', 'jcg_q30-pro'):
     block = image_makefile.split(f'define Device/{device}', 1)[1].split('endef', 1)[0]
@@ -76,13 +103,14 @@ assert 'mediatek,nmbm;' in zbt_text
 assert 'band@0' in zbt_text and 'band@1' in zbt_text
 
 grouped_devices = []
-for line in grouped_workflow.splitlines():
+for line in grouped_workflow_267.splitlines():
     if line.startswith('            devices: '):
         grouped_devices.append(line.split(':', 1)[1].strip().split())
 assert len(grouped_devices) == 4
-assert all(len(devices) == 5 for devices in grouped_devices)
-assert {device for group in grouped_devices for device in group} == set(DEVICES)
-assert 'max-parallel: 4' in grouped_workflow
+assert all(len(devices) == 8 for devices in grouped_devices)
+assert {device for group in grouped_devices for device in group} == set(DEVICES) | set(EXTRA_DEVICES_267)
+assert 'max-parallel: 4' in grouped_workflow_267
+assert '32-device MT7981 matrix' in grouped_workflow_267
 assert 'integrate-fastacl262-grouped.sh' in grouped_workflow
 assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_263
 assert '${{ github.run_id }}' in grouped_workflow_263
@@ -101,4 +129,4 @@ assert "branches: ['2.6.2']" in workflow
 for path in (ROOT / '.github/workflows').glob('*FastACL262*.yml'):
     assert 'cancel-in-progress: false' in path.read_text(encoding='utf-8'), path
 
-print('FastACL 2.6.2 MT7981 device matrix and DTS identities: OK')
+print('FastACL 2.6.7 32-device MT7981 matrix and DTS identities: OK')

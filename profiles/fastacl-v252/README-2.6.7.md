@@ -85,7 +85,7 @@ five fixed workspaces, node tools and a primary-LAN default exit.
 
 ## Scope
 
-- First online-upgrade release supports the 20 MT7981 models and the CLX S20L, CLX S20P and JDCloud RE-CP-03 AX6000.
+- First online-upgrade release supports the 32 MT7981 models and the CLX S20L, CLX S20P and JDCloud RE-CP-03 AX6000.
 - Redmi AX6000 NMBM 110MiB remains excluded until its partition layout can be identified safely at runtime.
 - Single-rootfs devices have no automatic firmware rollback. Configuration is backed up by the normal sysupgrade flow.
 
