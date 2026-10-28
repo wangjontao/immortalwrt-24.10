@@ -74,6 +74,13 @@ jobs:
           git -C package/homeproxy checkout "$HOMEPROXY_COMMIT"
           rm -rf package/homeproxy/.git
 
+          # The default feeds already ship npc / luci-app-nps. Two definitions of
+          # the same PACKAGE_npc symbol make kconfig report a recursive
+          # dependency, so drop the feed copies before adding ours.
+          rm -rf package/npc package/luci-app-nps package/luci-app-npc
+          rm -rf feeds/*/npc feeds/*/luci-app-nps feeds/*/luci-app-npc
+          rm -rf package/feeds/*/npc package/feeds/*/luci-app-nps package/feeds/*/luci-app-npc
+
           git clone https://github.com/djylb/nps-openwrt.git /tmp/nps
           git -C /tmp/nps checkout "$NPS_COMMIT"
           cp -a /tmp/nps/npc package/
@@ -154,9 +161,19 @@ jobs:
           chmod 755 files/etc/uci-defaults/90-juliang files/etc/init.d/juliang-wifi
           sh -n files/etc/uci-defaults/90-juliang
           sh -n files/etc/init.d/juliang-wifi
-          grep -q 'set -e' files/etc/uci-defaults/90-juliang && { echo '90-juliang must not use set -e'; exit 1; } || true
-          ./scripts/diffconfig.sh | tee JuLiang-RAX3000M.config
+          if grep -Eq '^[[:space:]]*set -e' files/etc/uci-defaults/90-juliang; then echo '90-juliang must not use set -e'; exit 1; fi
+          # Fail here, not after 90 minutes of compiling, if the profile or a
+          # required package did not survive defconfig.
+          grep -q '^CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000m=y' .config \
+            || { echo 'FATAL: cmcc_rax3000m profile not selected'; exit 1; }
+          for p in luci-theme-argon luci-app-ttyd luci-app-passwall2 luci-app-homeproxy \
+                   luci-app-nps npc sqm-scripts firewall4 dnsmasq-full; do
+            grep -q "^CONFIG_PACKAGE_${p}=y" .config \
+              || { echo "FATAL: ${p} not selected in .config"; exit 1; }
+          done
+          echo 'config sanity: OK'
 
+          ./scripts/diffconfig.sh | tee JuLiang-RAX3000M.config
       - name: Restore downloads
         uses: actions/cache/restore@v4
         with:
