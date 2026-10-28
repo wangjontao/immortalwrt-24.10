@@ -23,8 +23,11 @@ with tempfile.TemporaryDirectory() as directory:
         'jcg_q30-pro', 'xiaomi_mi-router-ax3000t', 'xiaomi_mi-router-ax3000t-mtkuboot',
         'xiaomi_mi-router-ax3000t-ubootmod', 'xiaomi_mi-router-wr30u-stock',
         'xiaomi_mi-router-wr30u-ubootmod', 'nokia_ea0326gmp', 'sl_3000-emmc',
-        'zbtlink_zbt-z8103ax-c', 'clt_r30b1'
-    }]) == 20
+        'zbtlink_zbt-z8103ax-c', 'clt_r30b1', 'cetron_ct3003-ubootmod', 'cmcc_rax3000me',
+        'asus_rt-ax52', 'glinet_gl-mt3000', 'huasifei_wh3000-emmc', 'huasifei_wh3000-pro',
+        'umi_uax3000e', 'zbtlink_zbt-z8102ax', 'zbtlink_zbt-z8103ax', 'cudy_tr3000-v1',
+        'cudy_tr3000-v1-256mb', 'cudy_tr3000-v1-ubootmod'
+    }]) == 32
     assert module.sha256(image) == 'c3bf47ea1f4a4a605470313cacb3a44f4a461f68c6faeab07e737610cb5ac835'
 
 print('FastACL update manifest generation: OK')
