@@ -1,3 +1,0 @@
-#!/bin/sh
-/etc/init.d/setup-20wifi-firstboot enable
-exit 0

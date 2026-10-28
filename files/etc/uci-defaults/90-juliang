@@ -1,0 +1,150 @@
+#!/bin/sh
+# JuLiang OS first-boot defaults for the immortalwrt 24.10 tree.
+#
+# Runs once from /etc/uci-defaults. Deliberately has no "set -e": a single
+# failing uci call must not skip the rest of the configuration, which is exactly
+# how an earlier build ended up with no LAN address and no wireless.
+# Wireless is applied by /etc/init.d/juliang-wifi (S95), after the radios and
+# netifd are up.
+
+LOG='/etc/juliang-firstboot.log'
+: > "$LOG" 2>/dev/null || true
+
+log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG" 2>/dev/null; }
+u()   { uci "$@" >> "$LOG" 2>&1 || log "FAILED: uci $*"; }
+try() { "$@" >> "$LOG" 2>&1 || log "FAILED: $*"; }
+
+LAN_IP='192.168.7.1'
+HOSTNAME='JuLiang-OS'
+LIVE_NET='jfa25w1'
+LIVE_DEV='live_dev'
+LIVE_BR='br-live'
+LIVE_IP='172.16.1.1'
+
+log 'JuLiang first boot starting'
+
+# --- identity -------------------------------------------------------------
+u set system.@system[0].hostname="$HOSTNAME"
+u -q delete system.@system[0].description
+u set system.@system[0].description='JuLiang OS'
+u set system.@system[0].timezone='CST-8'
+u set system.@system[0].zonename='Asia/Shanghai'
+u set system.@system[0].ttylogin='0'
+u set system.@system[0].log_size='128'
+
+if [ -n "$(uci -q get system.ntp)" ]; then
+    u -q delete system.ntp.server
+    u add_list system.ntp.server='ntp1.aliyun.com'
+    u add_list system.ntp.server='ntp.tencent.com'
+    u add_list system.ntp.server='ntp.ntsc.ac.cn'
+    u set system.ntp.enabled='1'
+    u set system.ntp.enable_server='1'
+fi
+
+if [ -n "$(uci -q get luci.main)" ]; then
+    u set luci.main.mediaurlbase='/luci-static/argon'
+fi
+
+# --- LAN ------------------------------------------------------------------
+[ -z "$(uci -q get network.lan)" ] && u set network.lan='interface'
+u set network.lan.ipaddr="$LAN_IP"
+u set network.lan.netmask='255.255.255.0'
+u -q delete network.lan.ip6assign
+u set network.lan.delegate='0'
+
+# --- live WiFi network ----------------------------------------------------
+u -q delete network.$LIVE_DEV
+u set network.$LIVE_DEV='device'
+u set network.$LIVE_DEV.name="$LIVE_BR"
+u set network.$LIVE_DEV.type='bridge'
+u set network.$LIVE_DEV.bridge_empty='1'
+
+u -q delete network.$LIVE_NET
+u set network.$LIVE_NET='interface'
+u set network.$LIVE_NET.device="$LIVE_BR"
+u set network.$LIVE_NET.proto='static'
+u set network.$LIVE_NET.ipaddr="$LIVE_IP"
+u set network.$LIVE_NET.netmask='255.255.255.0'
+u set network.$LIVE_NET.delegate='0'
+
+u -q delete dhcp.$LIVE_NET
+u set dhcp.$LIVE_NET='dhcp'
+u set dhcp.$LIVE_NET.interface="$LIVE_NET"
+u set dhcp.$LIVE_NET.start='100'
+u set dhcp.$LIVE_NET.limit='150'
+u set dhcp.$LIVE_NET.leasetime='12h'
+u set dhcp.$LIVE_NET.ra='disabled'
+u set dhcp.$LIVE_NET.dhcpv6='disabled'
+u set dhcp.$LIVE_NET.ndp='disabled'
+u add_list dhcp.$LIVE_NET.dhcp_option="3,$LIVE_IP"
+u add_list dhcp.$LIVE_NET.dhcp_option="6,$LIVE_IP"
+
+u set dhcp.lan.dhcpv6='disabled'
+u set dhcp.lan.ra='disabled'
+u set dhcp.lan.ndp='disabled'
+
+# --- WAN: no IPv6, keep the lease across ifdown ---------------------------
+[ -n "$(uci -q get network.wan)" ] && u set network.wan.norelease='1'
+u -q delete network.wan6
+for zone in $(uci show firewall 2>/dev/null | sed -n "s/^firewall\.\(@zone\[[0-9]*\]\)\.name='wan'$/\1/p"); do
+    u -q del_list "firewall.${zone}.network=wan6"
+done
+
+# --- firewall zone for the live network -----------------------------------
+u -q delete firewall.$LIVE_NET
+u set firewall.$LIVE_NET='zone'
+u set firewall.$LIVE_NET.name="$LIVE_NET"
+u set firewall.$LIVE_NET.input='REJECT'
+u set firewall.$LIVE_NET.output='ACCEPT'
+u set firewall.$LIVE_NET.forward='REJECT'
+u set firewall.$LIVE_NET.masq='1'
+u set firewall.$LIVE_NET.network="$LIVE_NET"
+
+u -q delete firewall.${LIVE_NET}_dhcp
+u set firewall.${LIVE_NET}_dhcp='rule'
+u set firewall.${LIVE_NET}_dhcp.name='Live WiFi DHCP'
+u set firewall.${LIVE_NET}_dhcp.src="$LIVE_NET"
+u set firewall.${LIVE_NET}_dhcp.proto='udp'
+u set firewall.${LIVE_NET}_dhcp.dest_port='67'
+u set firewall.${LIVE_NET}_dhcp.family='ipv4'
+u set firewall.${LIVE_NET}_dhcp.target='ACCEPT'
+
+u -q delete firewall.${LIVE_NET}_dns
+u set firewall.${LIVE_NET}_dns='rule'
+u set firewall.${LIVE_NET}_dns.name='Live WiFi DNS'
+u set firewall.${LIVE_NET}_dns.src="$LIVE_NET"
+u set firewall.${LIVE_NET}_dns.proto='tcp udp'
+u set firewall.${LIVE_NET}_dns.dest_port='53 12553'
+u set firewall.${LIVE_NET}_dns.family='ipv4'
+u set firewall.${LIVE_NET}_dns.target='ACCEPT'
+
+u -q delete firewall.${LIVE_NET}_tproxy
+u set firewall.${LIVE_NET}_tproxy='rule'
+u set firewall.${LIVE_NET}_tproxy.name='Live WiFi TPROXY'
+u set firewall.${LIVE_NET}_tproxy.src="$LIVE_NET"
+u set firewall.${LIVE_NET}_tproxy.proto='tcp udp'
+u set firewall.${LIVE_NET}_tproxy.mark='0x2028'
+u set firewall.${LIVE_NET}_tproxy.family='ipv4'
+u set firewall.${LIVE_NET}_tproxy.target='ACCEPT'
+
+u -q delete firewall.${LIVE_NET}_wan
+u set firewall.${LIVE_NET}_wan='forwarding'
+u set firewall.${LIVE_NET}_wan.src="$LIVE_NET"
+u set firewall.${LIVE_NET}_wan.dest='wan'
+
+for c in system network dhcp firewall luci wireless; do
+    uci commit "$c" >> "$LOG" 2>&1 || log "commit $c failed"
+done
+
+# --- root password --------------------------------------------------------
+HASH="$(cat /etc/dulwifi-root.hash 2>/dev/null || true)"
+if [ -n "$HASH" ]; then
+    try sed -i "s#^root:[^:]*:#root:${HASH}:#" /etc/shadow
+    try chmod 600 /etc/shadow
+    rm -f /etc/dulwifi-root.hash
+else
+    log 'no root hash file, default password kept'
+fi
+
+log 'JuLiang first boot done'
+exit 0

@@ -1,0 +1,77 @@
+#!/bin/sh /etc/rc.common
+# Applies the JuLiang OS wireless layout on every boot, after the radios have
+# been detected and after netifd is up (S95 > S19 wifi, S20 network).
+#
+# Doing this from /etc/uci-defaults cannot work: /etc/config/wireless does not
+# exist until the wifi detect pass has run, so uci set wireless.radio0.<opt>
+# fails and the radios keep the stock configuration.
+
+START=95
+STOP=95
+USE_PROCD=0
+
+LOG='/etc/juliang-wifi.log'
+KEY='66668888'
+
+log() { echo "[$(date +%H:%M:%S)] $*" >> "$LOG" 2>/dev/null; }
+
+radios() { uci -q show wireless 2>/dev/null | sed -n 's/^wireless\.\([^.]*\)=wifi-device$/\1/p'; }
+
+start() {
+    : > "$LOG" 2>/dev/null || true
+    [ -x /sbin/wifi ] || { log 'no /sbin/wifi'; return 0; }
+
+    if [ -z "$(radios)" ]; then
+        /sbin/wifi config >> "$LOG" 2>&1 || log 'wifi config failed'
+    fi
+
+    rl="$(radios)"
+    if [ -z "$rl" ]; then
+        log 'no wifi-device sections, giving up'
+        return 0
+    fi
+    log "radios: $(echo $rl)"
+
+    for r in $rl; do
+        case "$r" in
+            radio0)
+                uci set wireless.$r.band='2g'     || log "set $r band failed"
+                uci set wireless.$r.channel='1'   || log "set $r channel failed"
+                uci set wireless.$r.htmode='HE20' || log "set $r htmode failed"
+                ;;
+            radio1)
+                uci set wireless.$r.band='5g'     || log "set $r band failed"
+                uci set wireless.$r.channel='36'  || log "set $r channel failed"
+                uci set wireless.$r.htmode='HE80' || log "set $r htmode failed"
+                ;;
+        esac
+        uci set wireless.$r.country='US' || log "set $r country failed"
+        uci set wireless.$r.disabled='0' || log "enable $r failed"
+    done
+
+    mk_iface() {
+        name="$1"; dev="$2"; net="$3"; ssid="$4"; iso="$5"
+        uci -q delete wireless.$name
+        uci set wireless.$name='wifi-iface' || return 0
+        uci set wireless.$name.device="$dev"
+        uci set wireless.$name.network="$net"
+        uci set wireless.$name.mode='ap'
+        uci set wireless.$name.ssid="$ssid"
+        uci set wireless.$name.encryption='psk2+ccmp'
+        uci set wireless.$name.key="$KEY"
+        uci set wireless.$name.disabled='0'
+        [ -n "$iso" ] && uci set wireless.$name.isolate='1'
+        return 0
+    }
+
+    case "$rl" in *radio0*) mk_iface main24 radio0 lan     'JuLiang OS-2.4G' '' ;; esac
+    case "$rl" in *radio1*) mk_iface main5  radio1 lan     'JuLiang OS-5G'   '' ;; esac
+    case "$rl" in *radio0*) mk_iface live24 radio0 jfa25w1 'Live-2.4G'       '1' ;; esac
+    case "$rl" in *radio1*) mk_iface live5g radio1 jfa25w1 'Live-5G'         '1' ;; esac
+
+    uci commit wireless >> "$LOG" 2>&1 || log 'commit wireless failed'
+    /sbin/wifi reload >> "$LOG" 2>&1 || log 'wifi reload failed'
+    log 'wireless layout applied'
+}
+
+stop() { :; }
