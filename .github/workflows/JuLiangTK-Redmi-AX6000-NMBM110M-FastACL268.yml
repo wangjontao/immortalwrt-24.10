@@ -172,7 +172,7 @@ jobs:
         run: |
           python3 scripts/tests/test_redmi_110m_layout.py
           sh scripts/integrate-fastacl252-s20l.sh "$DEVICE"
-          grep -q "PKG_RELEASE:=2" package/fastacl252/Makefile
+          grep -q "PKG_RELEASE:=1" package/fastacl252/Makefile
           grep -q 'PKG_VERSION:=2.6.8' package/fastacl252/Makefile
           grep -q "version='2.6.8'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
           grep -q "dae reload" package/fastacl252/files/usr/bin/fastacl252
