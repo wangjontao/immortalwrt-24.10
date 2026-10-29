@@ -71,8 +71,9 @@ class RuntimeTests(unittest.TestCase):
         bindir.mkdir()
         self.env = dict(os.environ, FASTACL_RUNTIME_DIR=str(self.root),
                         PATH=str(bindir) + os.pathsep + os.environ['PATH'],
+                        FASTACL_DNSMASQ_INIT=str(bindir / 'dnsmasq-init'),
                         FASTACL_CHECK_HELPER=str(ROOT / 'root/usr/libexec/fastacl252-check'))
-        for name in ['uci', 'lua', 'nft', 'ss', 'netstat', 'ip', 'dae', 'fastacl252-dns']:
+        for name in ['uci', 'lua', 'nft', 'ss', 'netstat', 'ip', 'dae', 'fastacl252-dns', 'dnsmasq-init']:
             path = bindir / name
             path.write_text(STUB, encoding='utf-8')
             path.chmod(0o755)

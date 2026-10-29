@@ -4,6 +4,7 @@ umask 077
 
 R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
 HEALTH_LOG=${FASTACL_HEALTH_LOG:-/root/fastacl252-health.log}
+DNSMASQ_INIT=${FASTACL_DNSMASQ_INIT:-/etc/init.d/dnsmasq}
 LOCK="${R}-apply.lock"
 SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
 DAE_FD_LIMIT=${FASTACL_DAE_FD_LIMIT:-}
@@ -183,7 +184,7 @@ dns_guard_ready(){
 
 dns_ready(){ dns_alive && listener 12553 && socks_ready && dns_guard_ready; }
 
-dnsmasq_ready(){ /etc/init.d/dnsmasq status >/dev/null 2>&1; }
+dnsmasq_ready(){ "$DNSMASQ_INIT" status >/dev/null 2>&1; }
 
 pid_fd_count(){
   [ -d "/proc/$1/fd" ] && ls "/proc/$1/fd" 2>/dev/null | wc -l
@@ -306,7 +307,7 @@ firewall_apply(){
 ensure_dnsmasq(){
   dnsmasq_ready && return 0
   (
-    /etc/init.d/dnsmasq start >"$R/dnsmasq-start.log" 2>&1 </dev/null &
+    "$DNSMASQ_INIT" start >"$R/dnsmasq-start.log" 2>&1 </dev/null &
   ) || true
   local i=0
   while [ "$i" -lt 10 ]; do
