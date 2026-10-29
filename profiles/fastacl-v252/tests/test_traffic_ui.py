@@ -24,5 +24,7 @@ for gauge in ("cpu", "mem", "temp"):
 assert "conic-gradient" in view and "jc-gauge.high" in view
 assert "cpu_percent" in center and "memory_percent" in center and "temperature_c" in center
 assert "/proc/stat" in center and "/proc/meminfo" in center and "thermal_zone0" in center
+assert "function plot(t,up,down)" in view
+assert "}plot=function(" not in view
 assert "流量统计" not in console
 print("PASS control-center traffic panel samples WAN counters every 3 seconds and keeps a two-minute chart")

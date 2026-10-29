@@ -28,6 +28,8 @@ fixes validated on the router.
 - NPS is relocated to `System -> JuLiang管理`, with old routes kept as aliases.
 - The monitoring center adds CPU, memory and CPU-temperature gauges, a smooth
   gradient traffic chart with interactive history, and a responsive layout.
+- The monitoring controller now defines its chart function in strict mode, so
+  gauges and live traffic update correctly after the first status request.
 - Today/month upload and download totals use `vnstat2` through the independent
   `juliang-traffic` service. The database is stored under `/etc/vnstat` and
   preserved during firmware upgrades.
