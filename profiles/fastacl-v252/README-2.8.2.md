@@ -23,6 +23,8 @@ fixes validated on the router.
   automatically after an interrupted service or firewall refresh.
 - The custom Argon login migration is reapplied on install and boot, supports
   the current template attributes, and no longer pre-fills the `root` username.
+- The Argon sidebar brand is migrated to the two-line `JuLiang / 网络服务`
+  card from the unmodified hostname markup and is rechecked at boot.
 - NPS is relocated to `System -> JuLiang管理`, with old routes kept as aliases.
 - The monitoring center adds CPU, memory and CPU-temperature gauges, a smooth
   gradient traffic chart with interactive history, and a responsive layout.

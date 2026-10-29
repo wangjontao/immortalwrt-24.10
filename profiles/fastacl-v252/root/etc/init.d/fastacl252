@@ -4,6 +4,8 @@ START=96
 STOP=9
 
 start_service(){
+  lua /usr/libexec/juliang-menu-cleanup.lua >/tmp/juliang-menu-cleanup.log 2>&1 ||
+    logger -t juliang-menu-cleanup 'menu migration failed'
   lua /usr/libexec/juliang-login-theme.lua >/tmp/juliang-login-theme.log 2>&1 ||
     logger -t juliang-login-theme 'login theme migration failed'
   [ "$(uci -q get fastacl252.main.enabled)" = 1 ] || return 0

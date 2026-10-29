@@ -42,11 +42,15 @@ for _,path in ipairs({'/usr/share/ucode/luci/template/themes/argon/header.ut','/
   text=text:gsub('JuLtiang','JuLiang')
   -- Keep the brand on two deliberate lines at every sidebar width.
   local brand='<span class="juliang-brand-name">JuLiang</span><span class="juliang-brand-name">网络服务</span>'
+  text=text:gsub('>{{%s*hostname%s*}}</a>', '>'..brand..'</a>')
+  text=text:gsub('><%%=hostname%%></a>', '>'..brand..'</a>')
   for _,label in ipairs({'控制中心','监测中心','网络服务'}) do
    text=text:gsub('>JuLiang%s*'..label..'</a>', '>'..brand..'</a>')
    text=text:gsub('><span[^>]*>JuLiang</span><span[^>]*>'..label..'</span></a>', '>'..brand..'</a>')
   end
-  text=text:gsub('(<a class="brand)(")', '%1 juliang-brand-card%2')
+  if not text:find('class="brand juliang-brand-card"',1,true) then
+   text=text:gsub('(<a[^>]-class="brand)([^"]*")', '%1 juliang-brand-card%2',1)
+  end
   text=text:gsub('<script id="juliang%-menu%-revision">.-</script>','')
   text=text:gsub('<style id="juliang%-brand%-gradient">[%s%S]-</style>','')
   local updated,n=text:gsub('<head>',function() return '<head>\n'..script end,1)

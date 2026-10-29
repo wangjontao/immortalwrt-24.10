@@ -16,7 +16,7 @@ files={
  '/usr/share/luci/menu.d/apps.json':json.dumps({'admin/services/upnp':{'title':'UPnP','action':{'type':'view','path':'upnp/upnp'}},'admin/services/ddns':{'title':'DDNS'},'admin/services/wol':{'title':'WOL'},'admin/services/ksmbd':{'title':'Shares'},'admin/statistics':{'title':'Stats'}}),
  '/usr/lib/lua/luci/controller/nps.lua':'old controller',
  '/usr/libexec/juliang-nps-controller.lua':(ROOT/'root/usr/libexec/juliang-nps-controller.lua').read_text(encoding='utf-8'),
- '/usr/share/ucode/luci/template/themes/argon/header.ut':'<head><script id="juliang-menu-revision">old</script></head><a class="brand">JuLtiang 控制中心</a>',
+ '/usr/share/ucode/luci/template/themes/argon/header.ut':'<head><script id="juliang-menu-revision">old</script></head><a class="brand">{{ hostname }}</a>',
 }
 lua.globals().read=lambda p:files.get(p)
 lua.globals().write=lambda p,s:files.__setitem__(p,s) or True
