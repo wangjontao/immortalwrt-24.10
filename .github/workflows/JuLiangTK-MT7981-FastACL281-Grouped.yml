@@ -1,5 +1,5 @@
 name: MT7981 Series FastACL 2.8.1 Grouped Build
-run-name: 'FastACL 2.8.1 - native sing-box group for the 20-device MT7981 matrix'
+run-name: 'FastACL 2.8.1 - native sing-box group for the 32-device MT7981 matrix'
 
 'on':
   workflow_dispatch: {}
@@ -101,21 +101,21 @@ jobs:
       matrix:
         include:
           - group: hy-rax-360
-            tag: HY-RAX-360
-            label: HY3000 RAX3000M 360T7 AGS21
-            devices: philips_hy3000 cmcc_rax3000m cmcc_rax3000m-emmc qihoo_360t7 aigo_ags21
+            tag: HY-RAX-AX52-CETRON
+            label: HY3000 RAX3000M/Me AX52 CT3003 360T7 AGS21
+            devices: philips_hy3000 cmcc_rax3000m cmcc_rax3000m-emmc cmcc_rax3000me qihoo_360t7 aigo_ags21 asus_rt-ax52 cetron_ct3003-ubootmod
           - group: a10-newland
-            tag: A10-NEWLAND
-            label: A10 KOMI A31 Newland ASR3000
-            devices: cmcc_a10-ubootmod konka_komi-a31 newland_nl-wr8103 newland_nl-wr9103 abt_asr3000
+            tag: A10-NEWLAND-HUASIFEI
+            label: A10 KOMI A31 Newland ASR3000 Huasifei UMI
+            devices: cmcc_a10-ubootmod konka_komi-a31 newland_nl-wr8103 newland_nl-wr9103 abt_asr3000 huasifei_wh3000-emmc huasifei_wh3000-pro umi_uax3000e
           - group: q30-ax3000t
-            tag: Q30-AX3000T
-            label: Q30 AX3000T WR30U
-            devices: jcg_q30-pro xiaomi_mi-router-ax3000t xiaomi_mi-router-ax3000t-mtkuboot xiaomi_mi-router-ax3000t-ubootmod xiaomi_mi-router-wr30u-stock
+            tag: Q30-AX3000T-GLINET-ZBT
+            label: Q30 AX3000T WR30U GL-MT3000 ZBT
+            devices: jcg_q30-pro xiaomi_mi-router-ax3000t xiaomi_mi-router-ax3000t-mtkuboot xiaomi_mi-router-ax3000t-ubootmod xiaomi_mi-router-wr30u-stock glinet_gl-mt3000 zbtlink_zbt-z8102ax zbtlink_zbt-z8103ax
           - group: wr30u-z8103-clt
-            tag: WR30U-Z8103-CLT
-            label: WR30U Nokia SL3000 Z8103 CLT
-            devices: xiaomi_mi-router-wr30u-ubootmod nokia_ea0326gmp sl_3000-emmc zbtlink_zbt-z8103ax-c clt_r30b1
+            tag: WR30U-NOKIA-SL-CUDY
+            label: WR30U Nokia SL3000 Z8103 CLT Cudy TR3000
+            devices: xiaomi_mi-router-wr30u-ubootmod nokia_ea0326gmp sl_3000-emmc zbtlink_zbt-z8103ax-c clt_r30b1 cudy_tr3000-v1 cudy_tr3000-v1-256mb cudy_tr3000-v1-ubootmod
     env:
       DEVICES: ${{ matrix.devices }}
       DEVICE_TAG: ${{ matrix.tag }}

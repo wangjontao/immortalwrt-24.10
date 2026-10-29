@@ -1,5 +1,5 @@
 name: MT7986 Series FastACL 2.8.1 Build
-run-name: 'FastACL 2.8.1 - native sing-box for S20L S20P JDCloud and Redmi AX6000'
+run-name: 'FastACL 2.8.1 - native sing-box for S20L S20P JDCloud GL-MT6000 Redmi and N60 Pro'
 
 'on':
   workflow_dispatch: {}
@@ -110,9 +110,15 @@ jobs:
           - device: jdcloud_re-cp-03
             tag: JDCloud-RE-CP-03
             label: JDCloud Baili RE-CP-03 AX6000
+          - device: glinet_gl-mt6000
+            tag: GL-iNet-GL-MT6000
+            label: GL.iNet GL-MT6000
           - device: xiaomi_redmi-router-ax6000
             tag: Redmi-AX6000-NMBM110M
             label: Redmi AX6000 NMBM 110MiB
+          - device: netcore_n60-pro
+            tag: Netcore-N60-Pro
+            label: Netcore N60 Pro
     env:
       DEVICE: ${{ matrix.device }}
       DEVICE_TAG: ${{ matrix.tag }}

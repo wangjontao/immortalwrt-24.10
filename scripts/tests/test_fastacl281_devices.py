@@ -39,14 +39,34 @@ MT7981 = {
     "sl_3000-emmc",
     "zbtlink_zbt-z8103ax-c",
     "clt_r30b1",
+    "cetron_ct3003-ubootmod",
+    "cmcc_rax3000me",
+    "asus_rt-ax52",
+    "glinet_gl-mt3000",
+    "huasifei_wh3000-emmc",
+    "huasifei_wh3000-pro",
+    "umi_uax3000e",
+    "zbtlink_zbt-z8102ax",
+    "zbtlink_zbt-z8103ax",
+    "cudy_tr3000-v1",
+    "cudy_tr3000-v1-256mb",
+    "cudy_tr3000-v1-ubootmod",
 }
 MT7986 = {
     "clx_s20l": ("S20L", "JuLiangTK-S20L-FastACL281.txt"),
     "clx_s20p": ("S20P", "JuLiangTK-S20P-FastACL281.txt"),
     "jdcloud_re-cp-03": ("JDCloud-RE-CP-03", "JuLiangTK-JDCloud-RE-CP-03-FastACL281.txt"),
+    "glinet_gl-mt6000": (
+        "GL-iNet-GL-MT6000",
+        "JuLiangTK-GL-iNet-GL-MT6000-FastACL281.txt",
+    ),
     "xiaomi_redmi-router-ax6000": (
         "Redmi-AX6000-NMBM110M",
         "JuLiangTK-Redmi-AX6000-NMBM110M-FastACL281.txt",
+    ),
+    "netcore_n60-pro": (
+        "Netcore-N60-Pro",
+        "JuLiangTK-Netcore-N60-Pro-FastACL281.txt",
     ),
 }
 
@@ -68,8 +88,9 @@ for line in mt7981_workflow.splitlines():
     if line.startswith("            devices: "):
         grouped_devices.append(line.split(":", 1)[1].strip().split())
 assert len(grouped_devices) == 4
-assert all(len(devices) == 5 for devices in grouped_devices)
+assert all(len(devices) == 8 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == MT7981
+assert "32-device MT7981 matrix" in mt7981_workflow
 
 for device, (tag, config_name) in MT7986.items():
     assert f"{device}) tag={tag};" in integration, device

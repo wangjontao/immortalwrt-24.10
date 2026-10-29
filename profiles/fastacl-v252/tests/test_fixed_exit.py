@@ -1,6 +1,9 @@
 from pathlib import Path
 import base64,copy,json
-from lupa.lua51 import LuaRuntime
+try:
+    from lupa.lua51 import LuaRuntime
+except ImportError:
+    from lupa import LuaRuntime
 
 ROOT=Path(__file__).resolve().parents[1]
 lua=LuaRuntime(unpack_returned_tuples=True)

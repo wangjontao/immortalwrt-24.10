@@ -46,3 +46,11 @@ fixes validated on the router.
 
 The `2.8.0` branch remains available for rollback. Build profiles and workflows
 for this release use the `FastACL281` names.
+
+## Model coverage
+
+- MT7981 matrix: 32 devices across the standard, U-Boot, eMMC and NAND variants.
+- MT7986 matrix: S20L, S20P, JDCloud RE-CP-03, GL.iNet GL-MT6000, Redmi AX6000
+  NMBM 110MiB and Netcore N60 Pro.
+- Redmi AX6000 remains excluded from automatic online upgrades until its runtime
+  partition layout can be identified safely.
