@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 view = (ROOT / "root/usr/lib/lua/luci/view/juliang_center/home.htm").read_text(encoding="utf-8")
 console = (ROOT / "root/usr/lib/lua/luci/view/fastacl252/console.htm").read_text(encoding="utf-8")
 center = (ROOT / "root/usr/lib/lua/luci/controller/juliang_center.lua").read_text(encoding="utf-8")
+fastacl_init = (ROOT / "root/etc/init.d/fastacl252").read_text(encoding="utf-8")
 
 assert "<h3>流量统计</h3>" in view
 assert 'id="jc-chart"' in view
@@ -26,5 +27,7 @@ assert "cpu_percent" in center and "memory_percent" in center and "temperature_c
 assert "/proc/stat" in center and "/proc/meminfo" in center and "thermal_zone0" in center
 assert "function plot(t,up,down)" in view
 assert "}plot=function(" not in view
+assert "script_timeout='180'" in fastacl_init
+assert "network_timeout='120'" in fastacl_init
 assert "流量统计" not in console
 print("PASS control-center traffic panel samples WAN counters every 3 seconds and keeps a two-minute chart")
