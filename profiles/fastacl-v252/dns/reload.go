@@ -47,19 +47,19 @@ func loadRelay(file string) (*relay, string, error) {
 		return nil, "", errors.New("invalid legacy DNS configuration")
 	}
 	for id, r := range cfg.Resolvers {
-		if id == "" || net.ParseIP(r.IP).To4() == nil || (r.Type != "doh" && r.Type != "udp") || (r.Type == "doh" && r.Name == "") {
+		if id == "" || net.ParseIP(r.IP).To4() == nil || (r.Type != "doh" && r.Type != "udp" && r.Type != "tcp") || (r.Type == "doh" && r.Name == "") {
 			return nil, "", errors.New("invalid DNS resolver")
 		}
-		if r.Type == "udp" && r.Port != 0 && r.Port != 53 {
-			return nil, "", errors.New("invalid UDP DNS port")
+		if (r.Type == "udp" || r.Type == "tcp") && r.Port != 0 && r.Port != 53 {
+			return nil, "", errors.New("invalid plain DNS port")
 		}
 	}
 	checkPolicy := func(p PolicyConfig) error {
 		if err := validPolicy(cfg, p); err != nil {
 			return err
 		}
-		if p.Exit != 0 && cfg.Resolvers[p.Resolver].Type != "doh" {
-			return errors.New("proxy DNS requires DoH")
+		if p.Exit != 0 && cfg.Resolvers[p.Resolver].Type != "doh" && cfg.Resolvers[p.Resolver].Type != "tcp" {
+			return errors.New("proxy DNS requires DoH or TCP")
 		}
 		return nil
 	}

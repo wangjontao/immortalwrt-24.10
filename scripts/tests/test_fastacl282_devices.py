@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the complete FastACL 2.8.1 MT7981 and MT7986 build matrix."""
+"""Validate the complete FastACL 2.8.2 MT7981 and MT7986 build matrix."""
 from pathlib import Path
 import subprocess
 import sys
@@ -8,10 +8,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 integration = (ROOT / "scripts/integrate-fastacl252-s20l.sh").read_text(encoding="utf-8")
 mt7981_workflow = (
-    ROOT / ".github/workflows/JuLiangTK-MT7981-FastACL281-Grouped.yml"
+    ROOT / ".github/workflows/JuLiangTK-MT7981-FastACL282-Grouped.yml"
 ).read_text(encoding="utf-8")
 mt7986_workflow = (
-    ROOT / ".github/workflows/JuLiangTK-MT7986-FastACL281.yml"
+    ROOT / ".github/workflows/JuLiangTK-MT7986-FastACL282.yml"
 ).read_text(encoding="utf-8")
 package = (ROOT / "profiles/fastacl-v252/package-Makefile").read_text(encoding="utf-8")
 kernel_check = (
@@ -53,24 +53,24 @@ MT7981 = {
     "cudy_tr3000-v1-ubootmod",
 }
 MT7986 = {
-    "clx_s20l": ("S20L", "JuLiangTK-S20L-FastACL281.txt"),
-    "clx_s20p": ("S20P", "JuLiangTK-S20P-FastACL281.txt"),
-    "jdcloud_re-cp-03": ("JDCloud-RE-CP-03", "JuLiangTK-JDCloud-RE-CP-03-FastACL281.txt"),
+    "clx_s20l": ("S20L", "JuLiangTK-S20L-FastACL282.txt"),
+    "clx_s20p": ("S20P", "JuLiangTK-S20P-FastACL282.txt"),
+    "jdcloud_re-cp-03": ("JDCloud-RE-CP-03", "JuLiangTK-JDCloud-RE-CP-03-FastACL282.txt"),
     "glinet_gl-mt6000": (
         "GL-iNet-GL-MT6000",
-        "JuLiangTK-GL-iNet-GL-MT6000-FastACL281.txt",
+        "JuLiangTK-GL-iNet-GL-MT6000-FastACL282.txt",
     ),
     "xiaomi_redmi-router-ax6000": (
         "Redmi-AX6000-NMBM110M",
-        "JuLiangTK-Redmi-AX6000-NMBM110M-FastACL281.txt",
+        "JuLiangTK-Redmi-AX6000-NMBM110M-FastACL282.txt",
     ),
     "netcore_n60-pro": (
         "Netcore-N60-Pro",
-        "JuLiangTK-Netcore-N60-Pro-FastACL281.txt",
+        "JuLiangTK-Netcore-N60-Pro-FastACL282.txt",
     ),
 }
 
-assert "PKG_VERSION:=2.8.1" in package
+assert "PKG_VERSION:=2.8.2" in package
 assert "PKG_RELEASE:=1" in package
 assert "+nftables-json" in package and "+nftables " not in package
 dependencies = (ROOT / "profiles/fastacl-v252/dependencies.config").read_text(encoding="utf-8")
@@ -100,23 +100,23 @@ for device, (tag, config_name) in MT7986.items():
     assert f"CONFIG_TARGET_mediatek_filogic_DEVICE_{device}=y" in config
     assert "CONFIG_PACKAGE_juliangtk-sing-box=y" in config
     assert "CONFIG_PACKAGE_juliangtk-dae=y" not in config
-    assert 'CONFIG_VERSION_CODE="FastACL2.8.1"' in config
+    assert 'CONFIG_VERSION_CODE="FastACL2.8.2"' in config
     assert 'CONFIG_VERSION_DIST="JuLiang OS"' in config
     assert 'CONFIG_VERSION_MANUFACTURER="JuLiang OS"' in config
     assert 'CONFIG_VERSION_PRODUCT="JuLiang OS"' in config
 
 for workflow in (mt7981_workflow, mt7986_workflow):
-    assert "branches: ['2.8.1']" in workflow
+    assert "branches: ['2.8.2']" in workflow
     assert "test_import.py" in workflow
     assert "test_traffic_ui.py" in workflow
     assert "test_fixed_exit.py" in workflow
 
-assert "integrate-fastacl281-grouped.sh" in mt7981_workflow
+assert "integrate-fastacl282-grouped.sh" in mt7981_workflow
 assert "integrate-fastacl252-s20l.sh" in mt7986_workflow
 assert "test_redmi_110m_layout.py" in mt7986_workflow
-assert "README-2.8.1.md" in mt7986_workflow
-assert "find-fastacl281-manifest.py" in mt7981_workflow
-assert "find-fastacl281-manifest.py" in mt7986_workflow
+assert "README-2.8.2.md" in mt7986_workflow
+assert "find-fastacl282-manifest.py" in mt7981_workflow
+assert "find-fastacl282-manifest.py" in mt7986_workflow
 assert "immortalwrt-mediatek-filogic-${DEVICE}" not in mt7986_workflow
 assert 'iname "*${DEVICE}*factory.bin"' in mt7986_workflow
 assert 'iname "*${DEVICE}*sysupgrade.bin"' in mt7986_workflow
@@ -132,7 +132,7 @@ with tempfile.TemporaryDirectory() as temp:
     result = subprocess.check_output(
         [
             sys.executable,
-            str(ROOT / "scripts/find-fastacl281-manifest.py"),
+            str(ROOT / "scripts/find-fastacl282-manifest.py"),
             str(root),
             "clx_s20l",
         ],
@@ -140,4 +140,4 @@ with tempfile.TemporaryDirectory() as temp:
     ).strip()
     assert Path(result).name == "clx_s20l.manifest"
 
-print("FastACL 2.8.1 MT7981 and MT7986 build matrix: OK")
+print("FastACL 2.8.2 MT7981 and MT7986 build matrix: OK")

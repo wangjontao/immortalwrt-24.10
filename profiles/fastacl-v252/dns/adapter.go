@@ -104,14 +104,20 @@ func makeExitsBase(cfg Config, base netproxy.Dialer) (map[int]netproxy.Dialer, e
 	}
 	return result, nil
 }
-func (r *relay) privateDial(ctx context.Context, id int, ip string) (net.Conn, error) {
+func (r *relay) privateDialPort(ctx context.Context, id int, ip string, port int) (net.Conn, error) {
 	d := r.exits[id]
 	if d == nil {
 		return nil, fmt.Errorf("private DNS exit unavailable")
 	}
-	c, e := d.DialContext(ctx, "tcp", net.JoinHostPort(ip, "443"))
+	if port == 0 {
+		port = 443
+	}
+	c, e := d.DialContext(ctx, "tcp", net.JoinHostPort(ip, fmt.Sprint(port)))
 	if e != nil {
 		return nil, e
 	}
-	return &netproxy.FakeNetConn{Conn: c, LAddr: &net.TCPAddr{}, RAddr: &net.TCPAddr{IP: net.ParseIP(ip), Port: 443}}, nil
+	return &netproxy.FakeNetConn{Conn: c, LAddr: &net.TCPAddr{}, RAddr: &net.TCPAddr{IP: net.ParseIP(ip), Port: port}}, nil
+}
+func (r *relay) privateDial(ctx context.Context, id int, ip string) (net.Conn, error) {
+	return r.privateDialPort(ctx, id, ip, 443)
 }

@@ -325,6 +325,45 @@ func udpResolve(q []byte, s ResolverConfig) []byte {
 	}
 	return b
 }
+func tcpResolve(q []byte, s ResolverConfig, exit int, r *relay) []byte {
+	var c net.Conn
+	var e error
+	if exit != 0 {
+		c, e = r.privateDialPort(context.Background(), exit, s.IP, s.Port)
+	} else {
+		d := net.Dialer{Timeout: 5 * time.Second}
+		c, e = d.DialContext(context.Background(), "tcp4", net.JoinHostPort(s.IP, strconv.Itoa(s.Port)))
+	}
+	if e != nil {
+		return fail(q)
+	}
+	defer c.Close()
+	c.SetDeadline(time.Now().Add(8 * time.Second))
+	h := []byte{byte(len(q) >> 8), byte(len(q))}
+	if _, e = c.Write(append(h, q...)); e != nil {
+		return fail(q)
+	}
+	if _, e = io.ReadFull(c, h); e != nil {
+		return fail(q)
+	}
+	n := int(binary.BigEndian.Uint16(h))
+	if n < 12 || n > 65535 {
+		return fail(q)
+	}
+	b := make([]byte, n)
+	if _, e = io.ReadFull(c, b); e != nil {
+		return fail(q)
+	}
+	if b[2]&128 == 0 || !bytes.Equal(b[:2], q[:2]) {
+		return fail(q)
+	}
+	qe, _ := questionEnd(q)
+	be, e := questionEnd(b)
+	if e != nil || !bytes.Equal(q[12:qe], b[12:be]) {
+		return fail(q)
+	}
+	return b
+}
 func (r *relay) resolve(q []byte, ip string) (result []byte) {
 	defer func() {
 		if len(result) >= 4 && result[3]&15 == 2 {
@@ -397,6 +436,8 @@ func (r *relay) resolve(q []byte, ip string) (result []byte) {
 			return fail(q)
 		}
 		b = udpResolve(q, spec)
+	} else if spec.Type == "tcp" {
+		b = tcpResolve(q, spec, exit, r)
 	} else {
 		if spec.Type != "doh" || spec.Name == "" {
 			return fail(q)

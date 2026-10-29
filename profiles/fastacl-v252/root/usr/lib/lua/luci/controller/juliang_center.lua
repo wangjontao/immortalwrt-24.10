@@ -50,6 +50,77 @@ local function wired_ports()
   end
   return rows
 end
+local function cpu_usage()
+  local fs=require'nixio.fs';local text=fs.readfile('/proc/stat') or ''
+  local values=text:match('^cpu%s+([^\n]+)')
+  if not values then return nil end
+  local total,idle=0,0;local index=0
+  for value in values:gmatch('%d+') do
+    index=index+1
+    if index<=8 then total=total+tonumber(value) end
+    if index==4 or index==5 then idle=idle+tonumber(value) end
+  end
+  if total<=0 then return nil end
+  local old_total,old_idle=(fs.readfile('/tmp/juliang-center-cpu.stat') or ''):match('^(%d+)%s+(%d+)')
+  old_total,old_idle=tonumber(old_total),tonumber(old_idle)
+  fs.writefile('/tmp/juliang-center-cpu.stat',tostring(total)..' '..tostring(idle)..'\n')
+  if not old_total or not old_idle or total<=old_total then return nil end
+  local delta=total-old_total
+  local percent=100*(delta-math.max(0,idle-old_idle))/delta
+  return math.max(0,math.min(100,math.floor(percent+0.5)))
+end
+local function system_health()
+  local fs=require'nixio.fs';local sys=require'luci.sys'
+  local mem=fs.readfile('/proc/meminfo') or ''
+  local total=tonumber(mem:match('MemTotal:%s+(%d+)'))
+  local available=tonumber(mem:match('MemAvailable:%s+(%d+)'))
+  if not available then
+    local free=tonumber(mem:match('MemFree:%s+(%d+)')) or 0
+    local buffers=tonumber(mem:match('Buffers:%s+(%d+)')) or 0
+    local cached=tonumber(mem:match('Cached:%s+(%d+)')) or 0
+    available=free+buffers+cached
+  end
+  local used=total and available and math.max(0,total-available) or nil
+  local memory_percent=total and total>0 and used and math.floor(used*1000/total+0.5)/10 or nil
+  local raw=tonumber(fs.readfile('/sys/class/thermal/thermal_zone0/temp') or '')
+  local temperature=raw and (raw>1000 and math.floor(raw/100+0.5)/10 or raw) or nil
+  local cores=tonumber((sys.exec('nproc 2>/dev/null') or ''):match('%d+'))
+  if not cores then cores=tonumber((sys.exec("grep -c '^processor' /proc/cpuinfo 2>/dev/null") or ''):match('%d+')) end
+  return {cpu_percent=cpu_usage(),cpu_cores=cores,memory_percent=memory_percent,memory_used_kb=used,memory_total_kb=total,temperature_c=temperature}
+end
+local traffic_cache,traffic_cache_at
+local function traffic_totals()
+  if traffic_cache and os.time()-traffic_cache_at<30 then return traffic_cache end
+  local json=require'luci.jsonc';local sys=require'luci.sys'
+  local result={available=false,today_rx=0,today_tx=0,month_rx=0,month_tx=0,total_rx=0,total_tx=0}
+  local data=json.parse(sys.exec('/usr/bin/vnstat --json 2>/dev/null')) or {}
+  local interface=data.interfaces and data.interfaces[1]
+  if type(interface)~='table' then return result end
+  local traffic=interface.traffic or {}
+  local now=os.date('*t')
+  local function match(rows,year,month,day)
+    if type(rows)~='table' then return nil end
+    for _,row in ipairs(rows) do
+      local date=row.date or {}
+      if tonumber(date.year)==year and tonumber(date.month)==month and (not day or tonumber(date.day)==day) then return row end
+    end
+    return nil
+  end
+  local today=match(traffic.day,now.year,now.month,now.day) or {}
+  local month=match(traffic.month,now.year,now.month) or {}
+  local total=traffic.total or {}
+  result.available=true
+  result.device=interface.name or ''
+  result.today_rx=tonumber(today.rx) or 0
+  result.today_tx=tonumber(today.tx) or 0
+  result.month_rx=tonumber(month.rx) or 0
+  result.month_tx=tonumber(month.tx) or 0
+  result.total_rx=tonumber(total.rx) or 0
+  result.total_tx=tonumber(total.tx) or 0
+  traffic_cache=result
+  traffic_cache_at=os.time()
+  return result
+end
 function status()
   local json=require 'luci.jsonc'; local sys=require 'luci.sys'; local u=require('uci').cursor()
   local wan=json.parse(sys.exec('ubus call network.interface.wan status 2>/dev/null')) or {}
@@ -66,5 +137,5 @@ function status()
   end
   counters.timestamp=tonumber(sys.exec('cat /proc/uptime'):match('^[%d.]+')) or up
   counters.device=dev
- reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),traffic=counters,hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.8.1 sing-box'})
+ reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),system=system_health(),traffic=counters,traffic_totals=traffic_totals(),hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.8.2 sing-box'})
 end

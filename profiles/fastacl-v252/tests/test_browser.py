@@ -1,4 +1,4 @@
-"""Exercise the FastACL 2.8.1 UI against an isolated demo backend."""
+"""Exercise the FastACL 2.8.2 UI against an isolated demo backend."""
 import pathlib
 import re
 import threading
@@ -56,7 +56,7 @@ try:
         expect(first.locator(".probe-result")).to_contain_text("代理出口：203.0.113.9")
         expect(first.locator(".probe-result")).to_contain_text("经前置 前置节点")
         expect(page.get_by_role("button", name="导出全部", exact=True)).to_be_visible()
-        page.screenshot(path=str(OUT / "ui-nodes-2.8.1.png"), full_page=True)
+        page.screenshot(path=str(OUT / "ui-nodes-2.8.2.png"), full_page=True)
 
         stage = "node editing and notification lifetime"
         page.locator(".node-row").first.get_by_role("button", name="编辑", exact=True).click()
@@ -117,7 +117,7 @@ try:
         expect(page.locator("#f25-wifis")).not_to_be_visible()
         existing.locator(":scope > summary").click()
         expect(page.locator("#f25-wifis")).to_be_visible()
-        page.screenshot(path=str(OUT / "ui-wifi-2.8.1.png"), full_page=True)
+        page.screenshot(path=str(OUT / "ui-wifi-2.8.2.png"), full_page=True)
 
         stage = "DNS and dataplane settings"
         page.locator('[data-f25-view="settings"]').click()
@@ -131,15 +131,15 @@ try:
 
         stage = "responsive screenshots"
         page.locator('[data-f25-view="overview"]').click()
-        page.screenshot(path=str(OUT / "ui-desktop-2.8.1.png"), full_page=True)
+        page.screenshot(path=str(OUT / "ui-desktop-2.8.2.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})
         expect(page.get_by_role("heading", name="运行概览")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-        page.screenshot(path=str(OUT / "ui-mobile-2.8.1.png"), full_page=True)
+        page.screenshot(path=str(OUT / "ui-mobile-2.8.2.png"), full_page=True)
         page.locator('[data-f25-view="wifi"]').click()
         expect(page.get_by_role("heading", name="多 WiFi 分配模式")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-        page.screenshot(path=str(OUT / "ui-mobile-wifi-2.8.1.png"), full_page=True)
+        page.screenshot(path=str(OUT / "ui-mobile-wifi-2.8.2.png"), full_page=True)
         assert not errors, errors
         browser.close()
         print(f"FastACL V{VERSION} navigation, node tools, main LAN, 3s notice and responsive UI passed")

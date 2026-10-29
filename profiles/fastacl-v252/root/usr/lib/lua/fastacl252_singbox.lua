@@ -1,4 +1,4 @@
--- FastACL 2.8.1 native sing-box dataplane compiler. FastACL still owns DNS,
+-- FastACL 2.8.2 native sing-box dataplane compiler. FastACL still owns DNS,
 -- identity guards and per-device/per-WiFi policy selection.
 local M={}
 local split=require 'fastacl252_split'

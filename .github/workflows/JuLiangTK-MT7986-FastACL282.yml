@@ -1,23 +1,24 @@
-name: MT7981 Series FastACL 2.8.1 Grouped Build
-run-name: 'FastACL 2.8.1 - native sing-box group for the 32-device MT7981 matrix'
+name: MT7986 Series FastACL 2.8.2 Build
+run-name: 'FastACL 2.8.2 - native sing-box for S20L S20P JDCloud GL-MT6000 Redmi and N60 Pro'
 
 'on':
   workflow_dispatch: {}
   push:
-    branches: ['2.8.1']
+    branches: ['2.8.2']
     paths:
-      - '.github/workflows/JuLiangTK-MT7981-FastACL281-Grouped.yml'
+      - '.github/workflows/JuLiangTK-MT7986-FastACL282.yml'
       - 'profiles/fastacl-v252/**'
       - 'scripts/integrate-fastacl252-s20l.sh'
-      - 'scripts/integrate-fastacl281-grouped.sh'
-      - 'build-configs/*FastACL281.txt'
-      - 'target/linux/mediatek/image/filogic.mk'
+      - 'scripts/integrate-fastacl252-dependencies.sh'
+      - 'scripts/tests/test_redmi_110m_layout.py'
+      - 'build-configs/*FastACL282.txt'
+      - 'target/linux/mediatek/**'
 
 permissions:
   contents: read
 
 concurrency:
-  group: fastacl281-JuLiangTK-MT7981-grouped-${{ github.ref }}-${{ github.run_id }}
+  group: fastacl282-JuLiangTK-MT7986-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -36,9 +37,9 @@ jobs:
       - name: Install validation tools
         run: |
           . /etc/os-release
-          printf 'deb https://archive.ubuntu.com/ubuntu %s main universe multiverse restricted\ndeb https://archive.ubuntu.com/ubuntu %s-updates main universe multiverse restricted\ndeb https://security.ubuntu.com/ubuntu %s-security main universe multiverse restricted\n' "$VERSION_CODENAME" "$VERSION_CODENAME" "$VERSION_CODENAME" > /tmp/redmi-ubuntu.list
-          sudo mkdir -p /tmp/redmi-apt-lists/partial
-          apt_options=(-o Dir::Etc::sourcelist=/tmp/redmi-ubuntu.list -o Dir::Etc::sourceparts=- -o Dir::State::lists=/tmp/redmi-apt-lists -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
+          printf 'deb https://archive.ubuntu.com/ubuntu %s main universe multiverse restricted\ndeb https://archive.ubuntu.com/ubuntu %s-updates main universe multiverse restricted\ndeb https://security.ubuntu.com/ubuntu %s-security main universe multiverse restricted\n' "$VERSION_CODENAME" "$VERSION_CODENAME" "$VERSION_CODENAME" > /tmp/juliang-ubuntu.list
+          sudo mkdir -p /tmp/juliang-apt-lists/partial
+          apt_options=(-o Dir::Etc::sourcelist=/tmp/juliang-ubuntu.list -o Dir::Etc::sourceparts=- -o Dir::State::lists=/tmp/juliang-apt-lists -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
           sudo timeout 300 apt-get "${apt_options[@]}" update
           sudo timeout 600 apt-get "${apt_options[@]}" install -y --no-install-recommends lua5.1 nftables iproute2 curl shfmt
           python3 -m venv .venv
@@ -49,18 +50,19 @@ jobs:
           mkdir /tmp/sing-box-core
           tar -xzf /tmp/sing-box.tgz --strip-components=1 -C /tmp/sing-box-core
           install -m755 /tmp/sing-box-core/sing-box /tmp/sing-box
-      - name: Validate Lite hot path and syntax
+      - name: Validate architecture, syntax and control flow
         run: |
           python3 profiles/fastacl-v252/tests/test_bbr.py
           .venv/bin/python profiles/fastacl-v252/tests/test_hardware_mac.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_creation.py
           python3 scripts/tests/test_ci_update_feeds.py
-          python3 scripts/tests/test_fastacl281_devices.py
+          python3 scripts/tests/test_fastacl282_devices.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wireless.py
           .venv/bin/python profiles/fastacl-v252/tests/test_wifi_fw4.py
           .venv/bin/python profiles/fastacl-v252/tests/test_tun_dataplane.py --sing-box /tmp/sing-box
           .venv/bin/python profiles/fastacl-v252/tests/test_control.py
           .venv/bin/python profiles/fastacl-v252/tests/test_traffic_ui.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_traffic_totals.py
           .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
           python3 profiles/fastacl-v252/tests/test_online_upgrade.py
           python3 profiles/fastacl-v252/tests/test_update_manifest.py
@@ -81,45 +83,46 @@ jobs:
           for config in profiles/fastacl-v252/test-results/import-*.json; do
             /tmp/sing-box check -c "$config"
           done
-      - name: Validate quick-switch console in Chromium
+      - name: Validate console in Chromium
         run: |
           cd profiles/fastacl-v252/tests
           ../../../.venv/bin/python test_browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: FastACL281-MT7981-preflight-evidence
+          name: FastACL282-MT7986-preflight-evidence
           path: profiles/fastacl-v252/test-results/*
           if-no-files-found: warn
           retention-days: 14
 
   build:
-    name: Build ${{ matrix.label }} FastACL 2.8.1
+    name: Build ${{ matrix.label }} FastACL 2.8.2
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
         include:
-          - group: hy-rax-360
-            tag: HY-RAX-AX52-CETRON
-            label: HY3000 RAX3000M/Me AX52 CT3003 360T7 AGS21
-            devices: philips_hy3000 cmcc_rax3000m cmcc_rax3000m-emmc cmcc_rax3000me qihoo_360t7 aigo_ags21 asus_rt-ax52 cetron_ct3003-ubootmod
-          - group: a10-newland
-            tag: A10-NEWLAND-HUASIFEI
-            label: A10 KOMI A31 Newland ASR3000 Huasifei UMI
-            devices: cmcc_a10-ubootmod konka_komi-a31 newland_nl-wr8103 newland_nl-wr9103 abt_asr3000 huasifei_wh3000-emmc huasifei_wh3000-pro umi_uax3000e
-          - group: q30-ax3000t
-            tag: Q30-AX3000T-GLINET-ZBT
-            label: Q30 AX3000T WR30U GL-MT3000 ZBT
-            devices: jcg_q30-pro xiaomi_mi-router-ax3000t xiaomi_mi-router-ax3000t-mtkuboot xiaomi_mi-router-ax3000t-ubootmod xiaomi_mi-router-wr30u-stock glinet_gl-mt3000 zbtlink_zbt-z8102ax zbtlink_zbt-z8103ax
-          - group: wr30u-z8103-clt
-            tag: WR30U-NOKIA-SL-CUDY
-            label: WR30U Nokia SL3000 Z8103 CLT Cudy TR3000
-            devices: xiaomi_mi-router-wr30u-ubootmod nokia_ea0326gmp sl_3000-emmc zbtlink_zbt-z8103ax-c clt_r30b1 cudy_tr3000-v1 cudy_tr3000-v1-256mb cudy_tr3000-v1-ubootmod
+          - device: clx_s20l
+            tag: S20L
+            label: CLX S20L AX6000
+          - device: clx_s20p
+            tag: S20P
+            label: CLX S20P AX6000 2.5G
+          - device: jdcloud_re-cp-03
+            tag: JDCloud-RE-CP-03
+            label: JDCloud Baili RE-CP-03 AX6000
+          - device: glinet_gl-mt6000
+            tag: GL-iNet-GL-MT6000
+            label: GL.iNet GL-MT6000
+          - device: xiaomi_redmi-router-ax6000
+            tag: Redmi-AX6000-NMBM110M
+            label: Redmi AX6000 NMBM 110MiB
+          - device: netcore_n60-pro
+            tag: Netcore-N60-Pro
+            label: Netcore N60 Pro
     env:
-      DEVICES: ${{ matrix.devices }}
+      DEVICE: ${{ matrix.device }}
       DEVICE_TAG: ${{ matrix.tag }}
-      DEVICE_GROUP: ${{ matrix.group }}
     needs: preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 360
@@ -149,9 +152,9 @@ jobs:
           path: |
             dl
             .ccache
-          key: fastacl281-mt7981-grouped-${{ matrix.group }}-${{ hashFiles('build-configs/JuLiangTK-S20L-FastACL281.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dependencies.config', 'profiles/fastacl-v252/dns/go.mod') }}
+          key: fastacl282-mt7986-${{ matrix.device }}-${{ hashFiles('build-configs/*FastACL282.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dependencies.config', 'profiles/fastacl-v252/dns/go.mod') }}
           restore-keys: |
-            fastacl281-mt7981-grouped-${{ matrix.group }}-
+            fastacl282-mt7986-${{ matrix.device }}-
       - name: Update feeds
         run: |
           sh scripts/ci-update-feeds.sh
@@ -177,16 +180,18 @@ jobs:
             option log_level '4'
           NPS_CONFIG
           fi
-      - name: Integrate FastACL Lite
+      - name: Integrate FastACL 2.8.2
         run: |
-          sh scripts/integrate-fastacl281-grouped.sh $DEVICES
-          grep -q 'PKG_VERSION:=2.8.1' package/fastacl252/Makefile
-          grep -q "version='2.8.1'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
+          sh scripts/integrate-fastacl252-s20l.sh "$DEVICE"
+          grep -q 'PKG_VERSION:=2.8.2' package/fastacl252/Makefile
+          grep -q "version='2.8.2'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q 'CONFIG_PACKAGE_juliangtk-sing-box=y' .config
           ! grep -q "fastacl252_dae\\|router.next.dae" package/fastacl252/files/usr/bin/fastacl252
           python3 scripts/tests/test_ci_update_feeds.py
+          if [ "$DEVICE" = "xiaomi_redmi-router-ax6000" ]; then python3 scripts/tests/test_redmi_110m_layout.py; fi
       - name: Download sources
         run: |
-          make download -j"$(nproc)"
+          make download -j"$(nproc)" || make download -j1 V=s
           find dl -type f -size -1024c -print -delete
       - name: Compile device firmware
         run: |
@@ -198,45 +203,46 @@ jobs:
           kernel=$(find build_dir/target-* -path '*/linux-mediatek_filogic/linux-6.6*/.config' | head -n1)
           test -n "$kernel"
           sh profiles/fastacl-v252/check-kernel.sh "$kernel"
-          # Standalone package/compile bypasses world/prepare build metadata.
           make buildinfo
           for metadata in config feeds version; do
             test -s "bin/targets/mediatek/filogic/${metadata}.buildinfo"
           done
           make package/compile -j"$(nproc)" || make package/compile -j1 V=s
           make -j1 V=s
-          kernel=$(find build_dir/target-* -path '*/linux-mediatek_filogic/linux-6.6*/.config' | head -n1)
-          test -n "$kernel"
-          sh profiles/fastacl-v252/check-kernel.sh "$kernel"
       - name: Verify and collect firmware
         run: |
           mkdir -p upload
-          for device in $DEVICES; do
-            mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname "*${device}*sysupgrade*" -o -iname "*${device}*factory*" \) -size +5M)
-            [ "${#images[@]}" -gt 0 ] || { echo "ERROR: $device firmware image missing"; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort; exit 1; }
-            cp -a "${images[@]}" upload/
-            manifest="$(python3 scripts/find-fastacl281-manifest.py bin/targets/mediatek/filogic "$device")"
-            [ -s "$manifest" ] || { echo "ERROR: $device package manifest missing"; exit 1; }
-            for pkg in fastacl252 juliangtk-sing-box kmod-tun lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
-              grep -q "^$pkg " "$manifest" || { echo "ERROR: $pkg missing from $device"; exit 1; }
-            done
-            if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo "ERROR: iStore/QuickStart unexpectedly present in $device"; exit 1; fi
-            if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then echo "ERROR: forbidden proxy plugin present in $device"; exit 1; fi
-            cp "$manifest" "upload/${device}.manifest"
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f \( -iname "*${DEVICE}*sysupgrade*" -o -iname "*${DEVICE}*factory*" \) -size +5M)
+          [ "${#images[@]}" -gt 0 ] || { echo "ERROR: $DEVICE firmware image missing"; find bin/targets/mediatek/filogic -maxdepth 1 -type f -printf '%f %s bytes\n' | sort; exit 1; }
+          if [ "$DEVICE" = "xiaomi_redmi-router-ax6000" ]; then
+            factory="$(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname "*${DEVICE}*factory.bin" -print -quit)"
+            sysupgrade="$(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname "*${DEVICE}*sysupgrade.bin" -print -quit)"
+            [ -s "$factory" ] && [ -s "$sysupgrade" ] || { echo "ERROR: Redmi firmware image names do not match the generated JuLiang OS prefix"; exit 1; }
+            python3 scripts/tests/test_redmi_110m_layout.py \
+              --factory "$factory" \
+              --sysupgrade "$sysupgrade"
+          fi
+          cp -a "${images[@]}" upload/
+          manifest="$(python3 scripts/find-fastacl282-manifest.py bin/targets/mediatek/filogic "$DEVICE")"
+          [ -s "$manifest" ] || { echo 'ERROR: firmware package manifest missing'; exit 1; }
+          for pkg in fastacl252 juliangtk-sing-box lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+            grep -q "^$pkg " "$manifest" || { echo "$pkg missing from firmware"; exit 1; }
           done
-          grep -q '2.8.1' package/fastacl252/Makefile
+          if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
+          if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
+          grep -q '2.8.2' package/fastacl252/Makefile
           grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
+          cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp "JuLiang-OS-${DEVICE_GROUP}-final.config" profiles/fastacl-v252/README-2.8.1.md upload/
-          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.1\ngroup=%s\ndevices=%s\n' \
-            "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" "$DEVICE_GROUP" "$DEVICES" > upload/LITE-BUILD.txt
+          cp "JuLiang-OS-${DEVICE_TAG}-final.config" profiles/fastacl-v252/README-2.8.2.md upload/
+          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.2\ndevice=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" "$DEVICE" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiang-OS-${{ matrix.tag }}-2.8.1-MT7981-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-${{ matrix.tag }}-2.8.2-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -244,7 +250,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FastACL281-MT7981-grouped-failure-${{ matrix.group }}-${{ github.run_id }}
+          name: FastACL282-MT7986-build-failure-${{ matrix.device }}-${{ github.run_id }}
           path: |
             logs/
             .config

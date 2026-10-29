@@ -1,0 +1,26 @@
+#!/bin/sh /etc/rc.common
+
+START=59
+STOP=61
+
+start() {
+	/usr/libexec/juliang-traffic-setup >/dev/null || {
+		logger -t juliang-traffic 'WAN interface is not ready'
+		return 0
+	}
+	/etc/init.d/vnstat restart
+}
+
+stop() {
+	/etc/init.d/vnstat stop
+}
+
+reload() {
+	/usr/libexec/juliang-traffic-setup >/dev/null || return 0
+	/etc/init.d/vnstat reload
+}
+
+restart() {
+	stop
+	start
+}

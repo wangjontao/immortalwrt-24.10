@@ -38,8 +38,11 @@ assert apps['admin/network/upnp']['action']['path']=='upnp/upnp' and 'admin/serv
 for key in ['ddns','wol','ksmbd']:assert 'title' not in apps['admin/services/'+key]
 assert 'admin/statistics' not in apps
 assert files['/usr/lib/lua/luci/controller/nps.lua']==files['/usr/libexec/juliang-nps-controller.lua']
+nps_controller=files['/usr/lib/lua/luci/controller/nps.lua']
+assert '{"admin","system","nps"}' in nps_controller and '_("JuLiang管理")' in nps_controller
+assert 'alias("admin","system","nps")' in nps_controller
 header=files['/usr/share/ucode/luci/template/themes/argon/header.ut']
-assert header.count('id="juliang-menu-revision"')==1 and '255-network-service-2' in header
+assert header.count('id="juliang-menu-revision"')==1 and '255-network-service-3' in header
 assert 'class="brand juliang-brand-card"' in header, header
 assert header.count('class="juliang-brand-name"')==2
 assert '>网络服务</span></a>' in header
