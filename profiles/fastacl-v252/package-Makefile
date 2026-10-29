@@ -16,6 +16,7 @@ endef
 define Package/fastacl252/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
+lua /usr/libexec/juliang-login-theme.lua >/dev/null 2>&1 || true
 /etc/init.d/fastacl252 enable >/dev/null 2>&1 || true
 if [ "$$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 1)" = 1 ]; then
 	lua /usr/libexec/fastacl252-wifi-fw4.lua >/tmp/fastacl252-postinst-fw4.log 2>&1 || true

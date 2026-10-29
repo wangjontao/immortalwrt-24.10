@@ -30,7 +30,7 @@ u:foreach('fastacl252','wifi',function(s)
  if s.jfa25_owner==wifi.owner and s['.name']:match('^jfa25w%d+$') and not runtime_seen[s['.name']] then wireless_ok=false;wireless_issues[#wireless_issues+1]=s['.name']..':missing' end
 end)
 if next(runtime_seen) and not wireless_ok then
- assert(sys.call('wifi reload >/tmp/fastacl252-wifi-reload.log 2>&1')==0,'Cannot reconcile managed WiFi network mapping')
+ assert(sys.call('wifi reconf >/tmp/fastacl252-wifi-reconf.log 2>&1')==0,'Cannot reconcile managed WiFi network mapping')
  reload=true
 end
 if not reload then

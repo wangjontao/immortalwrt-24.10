@@ -15,10 +15,14 @@ fixes validated on the router.
   generic `follow global` label.
 - Per-WiFi node, front proxy, DNS and split settings can be applied together
   in one transaction; selected WiFi cards can be applied as a group.
+- Newly created WiFi uses `wifi reconf`, so the AP, bridge, DHCP and firewall
+  state becomes usable immediately instead of requiring a reboot.
 - Wireless runtime bridge mapping and fw4 DHCP/DNS chains are reconciled after
   hot apply, preventing a WiFi label from temporarily serving another subnet.
 - FastACL health recovery verifies `dnsmasq`; DHCP gates are restored
   automatically after an interrupted service or firewall refresh.
+- The custom Argon login migration is reapplied on install and boot, supports
+  the current template attributes, and no longer pre-fills the `root` username.
 - NPS is relocated to `System -> JuLiang管理`, with old routes kept as aliases.
 - The monitoring center adds CPU, memory and CPU-temperature gauges, a smooth
   gradient traffic chart with interactive history, and a responsive layout.

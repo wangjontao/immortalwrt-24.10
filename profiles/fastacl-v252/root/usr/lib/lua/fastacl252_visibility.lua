@@ -16,7 +16,7 @@ function M.apply(u,id,options)
  if wanted then for name in pairs(wanted)do assert(found[name],'无线接口不存在')end end
  assert(id=='all' or #targets>0 or native,'无线接口不存在')
  local call=options.call or require('luci.sys').call
- if native then assert(call('wifi reload >/dev/null 2>&1')==0,'WiFi reload 失败');return {path='wireless-reload'} end
+ if native then assert(call('wifi reconf >/dev/null 2>&1')==0,'WiFi reconf 失败');return {path='wireless-reconf'} end
  local status=options.status or require('luci.jsonc').parse(require('luci.sys').exec('ubus -t 5 call network.wireless status'))
  assert(type(status)=='table','读取无线接口失败')
  local mapping={}
