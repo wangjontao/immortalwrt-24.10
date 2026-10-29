@@ -39,7 +39,20 @@ try:
             "(buttons) => buttons.map((button) => button.dataset.f25View)"
         )
         assert views == ["overview", "nodes", "devices", "wifi", "settings"], views
-        expect(page.locator(".f25-sticky")).to_have_css("position", "sticky")
+        sticky = page.locator(".f25-sticky")
+        expect(sticky).to_have_css("position", "relative")
+        page.set_viewport_size({"width": 1000, "height": 600})
+        page.locator('[data-f25-view="wifi"]').click()
+        before_scroll = sticky.bounding_box()["y"]
+        page.locator(".f25-content").evaluate(
+            "(element) => { element.scrollTop = element.scrollHeight }"
+        )
+        after_scroll = sticky.bounding_box()["y"]
+        assert abs(after_scroll - before_scroll) < 1, (
+            "workspace menu moved while content scrolled"
+        )
+        expect(page.locator(".f25-content")).to_have_css("overflow-y", "auto")
+        page.set_viewport_size({"width": 1440, "height": 1080})
 
         stage = "nodes edit copy export"
         page.locator('[data-f25-view="nodes"]').click()
