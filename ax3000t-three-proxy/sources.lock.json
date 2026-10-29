@@ -1,8 +1,8 @@
 {
-  "passwall": {
-    "repo": "Openwrt-Passwall/openwrt-passwall",
-    "ref": "26.10.22-2",
-    "sha": "5e2bbfa8e6a32f7e54a7fe29891a28fb05439e52"
+  "passwall2": {
+    "repo": "Openwrt-Passwall/openwrt-passwall2",
+    "ref": "26.10.20-1",
+    "sha": "20ecdbeed1c2f58bcf730e05284f9ff9a236f805"
   },
   "helloworld": {
     "repo": "fw876/helloworld",

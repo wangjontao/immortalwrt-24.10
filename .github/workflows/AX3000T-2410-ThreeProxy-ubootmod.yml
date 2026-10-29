@@ -1,5 +1,5 @@
-name: AX3000T 24.10 Passwall SSR Plus OpenClash ubootmod
-run-name: 'AX3000T ubootmod - 24.10 - Passwall - SSR AnyTLS via Sing-box - OpenClash Meta'
+name: JuLiang OS AX3000T 24.10 PassWall2 SSR Plus OpenClash ubootmod
+run-name: 'JuLiang OS AX3000T - PassWall2 GeoView - SSR AnyTLS via Sing-box - OpenClash Meta'
 'on':
   workflow_dispatch: {}
   push:
@@ -49,6 +49,10 @@ jobs:
           python3 ../ax3000t-three-proxy/test_customization.py
           python3 ../ax3000t-three-proxy/build.py prepare
           sh -n files/etc/uci-defaults/99-three-proxy-defaults
+          sh -n files/etc/uci-defaults/98-juliang-admin
+          luac5.1 -p files/usr/libexec/juliang-branding.lua
+          luac5.1 -p files/usr/libexec/juliang-login-theme.lua
+          luac5.1 -p files/usr/lib/lua/luci/controller/juliang_live.lua
           luac5.1 -p feeds/helloworld/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_config.lua
           luac5.1 -p package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls.lua
           luac5.1 -p package/custom-proxy-ui/luci-app-ssr-plus/root/usr/share/shadowsocksr/gen_singbox_anytls_server.lua
@@ -69,7 +73,7 @@ jobs:
       - name: Upload AX3000T ubootmod firmware
         uses: actions/upload-artifact@v4
         with:
-          name: AX3000T-ubootmod-24.10-Passwall-SSR-OpenClash-${{ github.run_id }}
+          name: JuLiang-OS-AX3000T-ubootmod-${{ github.run_id }}
           path: openwrt/upload/*
           if-no-files-found: error
           retention-days: 30
@@ -77,7 +81,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: AX3000T-threeproxy-failure-${{ github.run_id }}
+          name: JuLiang-OS-AX3000T-failure-${{ github.run_id }}
           path: |
             openwrt/build.log
             openwrt/logs/**

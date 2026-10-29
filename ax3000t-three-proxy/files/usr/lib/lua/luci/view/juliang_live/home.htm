@@ -1,0 +1,81 @@
+<%+header%>
+<style>
+.jl{--jl-ink:#172235;--jl-muted:#667085;--jl-line:#dce3ec;--jl-panel:#ffffff;--jl-soft:#f4f7fa;--jl-green:#147d64;--jl-amber:#ad6b00;--jl-blue:#285b9a;max-width:1480px;margin:0 auto;color:var(--jl-ink);font-variant-numeric:tabular-nums}.jl *{box-sizing:border-box}.jl-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:4px 0 18px;flex-wrap:wrap}.jl-brand{margin:0;font-size:26px;line-height:1.2;letter-spacing:0}.jl-brand-mark{display:inline-block;width:8px;height:26px;margin-right:10px;border-radius:2px;background:#169b71;vertical-align:-4px}.jl-head-note{font-size:13px;color:var(--jl-muted);margin-top:7px}.jl-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.jl-btn{appearance:none;border:1px solid #c7d2df;background:#fff;color:#29445f;border-radius:7px;padding:8px 12px;font:inherit;font-size:13px;line-height:1.25;text-decoration:none;cursor:pointer}.jl-btn:hover{border-color:#7891aa;background:#f8fafc}.jl-btn.primary{background:#185c91;border-color:#185c91;color:#fff}.jl-btn.danger{color:#a73535;border-color:#e1c2c2}.jl-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}.jl-card{border:1px solid var(--jl-line);border-radius:8px;background:var(--jl-panel);padding:16px;min-width:0}.jl-label{display:block;margin-bottom:8px;color:var(--jl-muted);font-size:12px;font-weight:650;text-transform:uppercase}.jl-value{font-size:19px;line-height:1.35;font-weight:750;overflow-wrap:anywhere}.jl-sub{min-height:18px;margin-top:6px;font-size:12px;line-height:1.4;color:var(--jl-muted);overflow-wrap:anywhere}.jl-ok{color:var(--jl-green)}.jl-bad{color:#b33a3a}.jl-warn{color:var(--jl-amber)}.jl-live-row{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,.75fr);gap:12px;margin-bottom:12px}.jl-chart-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.jl-rates{display:flex;gap:22px}.jl-rate small{display:block;color:var(--jl-muted);font-size:12px;margin-bottom:3px}.jl-rate strong{font-size:20px}.jl-rate.up strong{color:#3e6594}.jl-rate.down strong{color:#19806a}.jl-chart{display:block;width:100%;height:190px;margin-top:10px;background:#f8fafc;border:1px solid #edf1f5;border-radius:6px}.jl-chart-legend{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--jl-muted)}.jl-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:#5e80ab}.jl-dot.down{background:#2e9b7b}.jl-port-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.jl-port{border:1px solid #e0e6ee;border-radius:6px;padding:9px;background:#fafbfd;min-width:0}.jl-port.on{border-color:#badccf;background:#f1f8f5}.jl-port b{display:block;font-size:12px;text-transform:uppercase}.jl-port span{display:block;margin-top:5px;color:var(--jl-muted);font-size:11px}.jl-service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.jl-service{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--jl-line);border-radius:8px;background:#fff;padding:14px 16px;text-decoration:none;color:var(--jl-ink)}.jl-service:hover{border-color:#839ab2;background:#f8fafc}.jl-service b{font-size:14px}.jl-state{border-radius:999px;padding:4px 8px;background:#eef1f4;color:#687386;font-size:11px;white-space:nowrap}.jl-state.on{background:#e4f3ed;color:#12694f}.jl-error{display:none;margin:0 0 12px;padding:10px 12px;border:1px solid #e5c4c4;border-radius:7px;background:#fff5f5;color:#9e3030;font-size:13px}.jl-error.show{display:block}@media(max-width:1050px){.jl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jl-live-row{grid-template-columns:1fr}}@media(max-width:680px){.jl-brand{font-size:22px}.jl-grid,.jl-service-grid{grid-template-columns:1fr}.jl-head{align-items:flex-start}.jl-head-actions{width:100%}.jl-head-actions .jl-btn{flex:1;text-align:center}.jl-rates{gap:16px}.jl-chart{height:165px}}
+</style>
+<div class="jl">
+  <div class="jl-head">
+    <div>
+      <h2 class="jl-brand"><span class="jl-brand-mark"></span>JuLiang Live</h2>
+      <div class="jl-head-note"><%=pcdata(luci.sys.hostname() or 'JuLiang')%> · AX3000T</div>
+    </div>
+    <div class="jl-head-actions">
+      <a class="jl-btn" href="<%=luci.dispatcher.build_url('admin','network','wireless')%>">无线设置</a>
+      <a class="jl-btn primary" href="<%=luci.dispatcher.build_url('admin','services','passwall2')%>">PassWall 2</a>
+      <button class="jl-btn danger" type="button" id="jl-reboot">重启设备</button>
+    </div>
+  </div>
+  <div class="jl-error" id="jl-error" role="alert">状态读取失败，正在重试。</div>
+
+  <div class="jl-grid">
+    <section class="jl-card">
+      <span class="jl-label">WAN 状态</span>
+      <div class="jl-value" id="jl-wan">读取中</div>
+      <div class="jl-sub" id="jl-wan-detail">—</div>
+    </section>
+    <section class="jl-card">
+      <span class="jl-label">无线网络</span>
+      <div class="jl-value" id="jl-wifi">—</div>
+      <div class="jl-sub">JuLiang-2.4G / JuLiang-5G</div>
+    </section>
+    <section class="jl-card">
+      <span class="jl-label">系统运行</span>
+      <div class="jl-value" id="jl-uptime">—</div>
+      <div class="jl-sub" id="jl-memory">内存 —</div>
+    </section>
+    <section class="jl-card">
+      <span class="jl-label">管理地址</span>
+      <div class="jl-value" id="jl-lan">192.168.9.1</div>
+      <div class="jl-sub" id="jl-load">负载 —</div>
+    </section>
+  </div>
+
+  <div class="jl-live-row">
+    <section class="jl-card">
+      <div class="jl-chart-head">
+        <div class="jl-rates">
+          <div class="jl-rate up"><small>实时上传</small><strong id="jl-tx">—</strong></div>
+          <div class="jl-rate down"><small>实时下载</small><strong id="jl-rx">—</strong></div>
+        </div>
+        <div class="jl-sub" id="jl-updated">每 3 秒更新</div>
+      </div>
+      <svg class="jl-chart" id="jl-chart" viewBox="0 0 900 190" preserveAspectRatio="none" role="img" aria-label="WAN 最近两分钟实时流量"></svg>
+      <div class="jl-chart-legend"><span><i class="jl-dot"></i>上传</span><span><i class="jl-dot down"></i>下载</span><span id="jl-scale" style="margin-left:auto"></span></div>
+    </section>
+    <section class="jl-card">
+      <span class="jl-label">有线网口</span>
+      <div class="jl-port-list" id="jl-ports"><div class="jl-sub">读取中</div></div>
+    </section>
+  </div>
+
+  <div class="jl-service-grid">
+    <a class="jl-service" href="<%=luci.dispatcher.build_url('admin','services','passwall2')%>"><b>PassWall 2</b><span class="jl-state" id="jl-passwall2">未启用</span></a>
+    <a class="jl-service" href="<%=luci.dispatcher.build_url('admin','services','ssr-plus')%>"><b>SSR Plus+</b><span class="jl-state" id="jl-ssr">未启用</span></a>
+    <a class="jl-service" href="<%=luci.dispatcher.build_url('admin','services','openclash')%>"><b>OpenClash</b><span class="jl-state" id="jl-openclash">未启用</span></a>
+  </div>
+</div>
+<script>(function(){'use strict';
+var token='<%=token%>',url='<%=luci.dispatcher.build_url("admin","juliang","status")%>',rebootUrl='<%=luci.dispatcher.build_url("admin","juliang","reboot")%>';
+var previous=null,busy=false,history=[];
+function el(id){return document.getElementById('jl-'+id)}
+function text(v){return String(v==null?'':v)}
+function bytes(n){n=Number(n);if(!Number.isFinite(n)||n<0)return '—';var u=['B','KB','MB','GB','TB'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i>0?2:0)+' '+u[i]}
+function rate(n,seconds){return seconds>0&&Number.isFinite(n)?bytes(n/seconds)+'/s':'—'}
+function uptime(seconds){seconds=Math.max(0,Number(seconds)||0);var d=Math.floor(seconds/86400),h=Math.floor(seconds%86400/3600),m=Math.floor(seconds%3600/60);return d?d+' 天 '+h+' 小时':h?h+' 小时 '+m+' 分':m+' 分钟'}
+function setState(id,on){var node=el(id);node.textContent=on?'运行中':'未启用';node.className='jl-state'+(on?' on':'')}
+function draw(t,up,down){if(!Number.isFinite(up)||!Number.isFinite(down)||up<0||down<0){history=[];return}history.push({t:t,up:up,down:down});history=history.filter(function(p){return t-p.t<=120});var max=1024;history.forEach(function(p){max=Math.max(max,p.up||0,p.down||0)});max*=1.18;var svg=el('chart'),ns='http://www.w3.org/2000/svg',children=[];for(var y=20;y<180;y+=50){var line=document.createElementNS(ns,'line');line.setAttribute('x1','0');line.setAttribute('x2','900');line.setAttribute('y1',String(y));line.setAttribute('y2',String(y));line.setAttribute('stroke','#e6ebf1');children.push(line)}[['up','#5e80ab'],['down','#2e9b7b']].forEach(function(pair){var path=document.createElementNS(ns,'path'),d='',started=false;history.forEach(function(p){var value=p[pair[0]];if(!Number.isFinite(value)){started=false;return}var x=900-(t-p.t)/120*900,y=170-Math.min(value/max,1)*150;d+=(started?'L':'M')+x.toFixed(1)+','+y.toFixed(1);started=true});path.setAttribute('d',d);path.setAttribute('stroke',pair[1]);path.setAttribute('stroke-width','2.5');path.setAttribute('fill','none');children.push(path)});svg.replaceChildren.apply(svg,children);el('scale').textContent='上限 '+rate(max,1)}
+function ports(rows){var root=el('ports');root.replaceChildren();if(!rows||!rows.length){root.innerHTML='<div class="jl-sub">未检测到物理网口</div>';return}rows.forEach(function(port){var box=document.createElement('div'),name=document.createElement('b'),state=document.createElement('span');box.className='jl-port'+(port.connected?' on':'');name.textContent=port.device.toUpperCase();state.textContent=port.connected?(port.speed?port.speed+' Mbps':'已连接'):'未连接';box.append(name,state);root.appendChild(box)})}
+async function refresh(){if(busy||document.hidden)return;busy=true;try{var response=await fetch(url,{cache:'no-store'}),data=await response.json();if(!response.ok||!data.ok)throw new Error('status');el('error').classList.remove('show');el('wan').textContent=data.wan_up?(data.wan_ip||'已连接'):'未连接';el('wan').className='jl-value '+(data.wan_up?'jl-ok':'jl-bad');el('wan-detail').textContent=data.wan_device||'—';el('wifi').textContent=text(data.wifi_count)+' 个启用';el('uptime').textContent=uptime(data.uptime);var total=Number(data.memory_total)||0,available=Number(data.memory_available)||0;el('memory').textContent=total?'内存 '+Math.round((total-available)/total*100)+'% 已用':'内存 —';el('lan').textContent=data.lan_ip||'—';el('load').textContent='1 分钟负载 '+(Number(data.load)||0).toFixed(2);setState('passwall2',data.passwall2);setState('ssr',data.ssr_plus);setState('openclash',data.openclash);ports(data.ports);var traffic=data.traffic||{},same=previous&&previous.device===traffic.device,seconds=same?Number(traffic.timestamp)-Number(previous.timestamp):0,tx=same?Math.max(0,Number(traffic.tx_bytes)-Number(previous.tx_bytes)):NaN,rx=same?Math.max(0,Number(traffic.rx_bytes)-Number(previous.rx_bytes)):NaN;el('tx').textContent=data.wan_up&&seconds>0?rate(tx,seconds):'—';el('rx').textContent=data.wan_up&&seconds>0?rate(rx,seconds):'—';el('updated').textContent=seconds>0?'更新于 '+new Date().toLocaleTimeString():'等待下一次采样';draw(Number(traffic.timestamp),seconds>0?tx/seconds:NaN,seconds>0?rx/seconds:NaN);previous=traffic}catch(error){el('error').classList.add('show');previous=null;history=[]}finally{busy=false}}
+el('reboot').addEventListener('click',async function(){if(!confirm('确认重启设备？网络会短暂中断。'))return;var response=await fetch(rebootUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token:token})});if(!response.ok)el('error').textContent='重启请求失败';else el('error').textContent='设备正在重启'});
+refresh();setInterval(refresh,3000);document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh()});
+})();</script>
+<%+footer%>

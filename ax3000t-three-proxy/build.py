@@ -20,15 +20,15 @@ def patch_ssrplus_singbox():
  assert '${PROBE_INSTANCE_KEY}-sing-box' in switcher
 def prepare():
  lines=[]
- for name in ['packages','luci','routing','telephony','pwpackages','passwall','helloworld','openclash']:
+ for name in ['packages','luci','routing','telephony','pwpackages','passwall2','helloworld','openclash']:
   item=LOCK[name];lines.append(f"src-git {name} https://github.com/{item['repo']}.git^{item['sha']}")
  Path('feeds.conf.default').write_text('\n'.join(lines)+'\n')
  run('./scripts/feeds','update','-a')
  run('./scripts/feeds','install','-a')
- for feed,pkg in [('passwall','luci-app-passwall'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
+ for feed,pkg in [('passwall2','luci-app-passwall2'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
   run('./scripts/feeds','install','-f','-p',feed,pkg)
  # Explicitly replace the old LuCI providers with pinned plugin sources.
- for feed,pkg in [('passwall','luci-app-passwall'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
+ for feed,pkg in [('passwall2','luci-app-passwall2'),('helloworld','luci-app-ssr-plus'),('openclash','luci-app-openclash')]:
   for item in Path('package/feeds').glob('*/'+pkg):
    assert item.is_symlink(),item
    item.unlink()
@@ -45,14 +45,16 @@ def prepare():
   if item.is_file() and item.read_bytes().startswith(b'#!/bin/sh'):item.chmod(0o755)
  shutil.copy2(P/'ax3000t-ubootmod.config','.config')
  run('make','defconfig')
- required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y']
+ required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall2=y','CONFIG_PACKAGE_geoview=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-theme-argon=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y']
  config=Path('.config').read_text()
  for line in required:assert line in config,line
+ assert 'CONFIG_PACKAGE_luci-app-passwall=y' not in config
  assert 'CONFIG_PACKAGE_fastacl252=y' not in config
- pw=Path('package/custom-proxy-ui/luci-app-passwall/Makefile').read_text()
+ pw=Path('package/custom-proxy-ui/luci-app-passwall2/Makefile').read_text()
  ssr=Path('package/custom-proxy-ui/luci-app-ssr-plus/Makefile').read_text()
  oc=Path('package/custom-proxy-ui/luci-app-openclash/Makefile').read_text()
- assert '26.10.22' in pw and 'PKG_RELEASE:=2' in pw
+ assert '26.10.20' in pw and 'PKG_RELEASE:=1' in pw
+ assert '+geoview' in pw and '+v2ray-geoip' in pw and '+v2ray-geosite' in pw
  assert 'PKG_VERSION:=198' in ssr and 'PKG_RELEASE:=2' in ssr and 'AnyTLS' in ssr
  assert '0.48.002' in oc
  print('Target, plugin versions and core selection verified.',flush=True)
@@ -90,8 +92,11 @@ def corecheck():
 def artifacts():
  src=Path('bin/targets/mediatek/filogic');out=Path('upload');out.mkdir(exist_ok=True)
  manifest=next(src.glob('*.manifest'));text=manifest.read_text()
- for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall','26.10.22'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),*[(k,v['version']) for k,v in CORES.items()]]:
+ for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall2','26.10.20'),('geoview','0.2.8'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),('luci-theme-argon',''),('luci-app-argon-config',''),*[(k,v['version']) for k,v in CORES.items()]]:
   assert any(l.startswith(pkg+' - ') and version in l for l in text.splitlines()),(pkg,version)
+ assert not any(l.startswith('luci-app-passwall - ') for l in text.splitlines()),'PassWall 1 must not be installed'
+ for pkg in ['v2ray-geoip','v2ray-geosite']:
+  assert any(l.startswith(pkg+' - ') for l in text.splitlines()),pkg
  images=list(src.glob('*xiaomi_mi-router-ax3000t-ubootmod*sysupgrade.itb'));assert len(images)==1,images
  assert images[0].read_bytes()[:4]==bytes.fromhex('d00dfeed')
  for p in images+[manifest]+list(src.glob('*.buildinfo')):
