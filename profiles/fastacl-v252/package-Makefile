@@ -13,6 +13,14 @@ define Package/fastacl252
 endef
 define Build/Compile
 endef
+
+define Package/fastacl252/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] || {
+	lua /usr/libexec/juliang-login-theme.lua >/dev/null 2>&1 || true
+}
+endef
+
 define Package/fastacl252/install
 	$(CP) ./files/* $(1)/
 	test -s $(1)/usr/share/fastacl252/cn-ipv4.txt

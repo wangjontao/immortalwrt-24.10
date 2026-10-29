@@ -26,6 +26,8 @@ dataplane used by the 2.6.x firmware family.
 - Selected WiFi cards can be applied independently.
 - One action can set or clear a front proxy for all WiFi cards or only selected
   cards; incompatible direct or unassigned cards are skipped.
+- Newly created WiFi uses `wifi reconf`, so its AP, bridge, DHCP and firewall
+  state becomes active immediately instead of requiring a reboot.
 
 ## Management and stability
 
@@ -35,6 +37,8 @@ dataplane used by the 2.6.x firmware family.
 - Managed WiFi runtime network and bridge mappings are reconciled when stale.
 - fw4 DHCP/DNS chain coverage is checked and reloaded after WiFi hot changes.
 - dnsmasq is checked during health recovery and restarted if it is unavailable.
+- The custom Argon login migration works with the current template layout,
+  retries at boot/package installation, and leaves the username field blank.
 
 ## Monitoring
 

@@ -319,7 +319,8 @@ function wifi_action()
     committed=true
     for _,n in ipairs(names) do assert(u:commit(n),'保存 '..n..' 配置失败') end
     assert(sys.call('/etc/init.d/network reload >/dev/null 2>&1')==0,'network reload 失败')
-    sys.call('wifi reload >/dev/null 2>&1')
+    assert(sys.call('wifi reconf >/dev/null 2>&1')==0,'WiFi 重新配置失败')
+    sys.call('sleep 2')
     sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
     sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
     if u:get('fastacl252','main','enabled')=='1' then
@@ -330,7 +331,7 @@ function wifi_action()
     for _,n in ipairs(names) do u:revert(n) end
     if committed then
       restore_files(fs,backup,names)
-      sys.call('/etc/init.d/network reload >/dev/null 2>&1'); sys.call('wifi reload >/dev/null 2>&1'); sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
+      sys.call('/etc/init.d/network reload >/dev/null 2>&1'); sys.call('wifi reconf >/dev/null 2>&1'); sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
       if u:get('fastacl252','main','enabled')=='1' then apply_now('cold-apply') end
     end
   end

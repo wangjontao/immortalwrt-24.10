@@ -35,6 +35,7 @@ assert "apply_now('hot-apply')" in wifi_update
 for forbidden in (
     "/etc/init.d/network reload",
     "wifi reload",
+    "wifi reconf",
     "/etc/init.d/firewall restart",
     "/etc/init.d/dnsmasq restart",
 ):
@@ -48,6 +49,7 @@ assert "dhcp_changed" in main_save
 for forbidden in (
     "/etc/init.d/network reload",
     "wifi reload",
+    "wifi reconf",
     "/etc/init.d/firewall restart",
     "/etc/init.d/dnsmasq restart",
 ):
@@ -58,6 +60,7 @@ wifi_all = between(controller, "function wifi_action()", "function subscription(
 assert "apply_now('hot-apply')" in wifi_all
 assert "apply_now('cold-apply')" in wifi_all  # topology creation still needs a cold apply
 assert "/etc/init.d/network reload" in wifi_all
+assert "wifi reconf" in wifi_all
 assert "/etc/init.d/firewall restart" in wifi_all
 
 # Runtime hot apply uses dae's application reload and private nft table only.
