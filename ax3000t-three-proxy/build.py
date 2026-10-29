@@ -45,7 +45,7 @@ def prepare():
   if item.is_file() and item.read_bytes().startswith(b'#!/bin/sh'):item.chmod(0o755)
  shutil.copy2(P/'ax3000t-ubootmod.config','.config')
  run('make','defconfig')
- required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall2=y','CONFIG_PACKAGE_geoview=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-theme-argon=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y']
+ required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-ubootmod=y','CONFIG_PACKAGE_luci-app-passwall2=y','CONFIG_PACKAGE_geoview=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-theme-argon=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y','CONFIG_IMAGEOPT=y','CONFIG_VERSIONOPT=y','CONFIG_VERSION_DIST="JuLiang OS"','CONFIG_VERSION_PRODUCT="JuLiang OS"']
  config=Path('.config').read_text()
  for line in required:assert line in config,line
  assert 'CONFIG_PACKAGE_luci-app-passwall=y' not in config

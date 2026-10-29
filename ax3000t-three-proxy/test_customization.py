@@ -23,6 +23,8 @@ class CustomizationTest(unittest.TestCase):
         self.assertIn('CONFIG_PACKAGE_luci-theme-argon=y', config)
         self.assertIn('CONFIG_PACKAGE_luci-app-passwall2=y', config)
         self.assertIn('CONFIG_PACKAGE_geoview=y', config)
+        self.assertIn('CONFIG_IMAGEOPT=y', config)
+        self.assertIn('CONFIG_VERSIONOPT=y', config)
         self.assertIn('CONFIG_VERSION_DIST="JuLiang OS"', config)
         self.assertNotIn('CONFIG_PACKAGE_luci-app-passwall=y', config)
 
