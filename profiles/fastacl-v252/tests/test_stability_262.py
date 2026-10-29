@@ -16,6 +16,7 @@ wifi = (PROFILE / 'usr/lib/lua/fastacl252_wifi.lua').read_text(encoding='utf-8')
 nps = (PROFILE / 'usr/libexec/nps-wan-mac').read_text(encoding='utf-8')
 nps_init = (PROFILE / 'etc/init.d/nps-wan-mac').read_text(encoding='utf-8')
 nps_hotplug = (PROFILE / 'etc/hotplug.d/iface/99-nps-wan-mac').read_text(encoding='utf-8')
+fastacl_init = (PROFILE / 'etc/init.d/fastacl252').read_text(encoding='utf-8')
 
 for required in (
     'socks_backlog',
@@ -63,6 +64,8 @@ assert '/tmp/nps-wan-mac.ready' in nps_init
 assert '[ -e /etc/nps-wan-mac.done ] ||' not in nps_init
 assert 'ifup|ifupdate' in nps_hotplug
 assert '/usr/libexec/nps-wan-mac' in nps_hotplug
+assert "script_timeout='180'" in fastacl_init
+assert "network_timeout='120'" in fastacl_init
 
 assert 'wireless.$radio.channel=36' in defaults
 assert 'wireless.$radio.htmode=HE80' in defaults
