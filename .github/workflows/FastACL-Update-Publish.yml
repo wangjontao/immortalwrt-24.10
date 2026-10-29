@@ -1,5 +1,5 @@
 name: Publish FastACL online update
-run-name: 'Publish FastACL 2.7.1 online update - ${{ inputs.channel }}'
+run-name: 'Publish FastACL 2.8.2 online update - ${{ inputs.channel }}'
 
 'on':
   workflow_dispatch:
@@ -7,7 +7,7 @@ run-name: 'Publish FastACL 2.7.1 online update - ${{ inputs.channel }}'
       version:
         description: Release version
         required: true
-        default: 2.7.1
+        default: 2.8.2
         type: string
       channel:
         description: Update channel
