@@ -183,6 +183,8 @@ dns_guard_ready(){
 
 dns_ready(){ dns_alive && listener 12553 && socks_ready && dns_guard_ready; }
 
+dnsmasq_ready(){ /etc/init.d/dnsmasq status >/dev/null 2>&1; }
+
 pid_fd_count(){
   [ -d "/proc/$1/fd" ] && ls "/proc/$1/fd" 2>/dev/null | wc -l
 }
@@ -196,6 +198,7 @@ runtime_failure(){
   socks_ready || { echo "socks-backlog:$(socks_backlog)"; return; }
   dae_ready || { echo dae-listener; return; }
   nft list table inet fastacl252 >/dev/null 2>&1 || { echo nft-table; return; }
+  dnsmasq_ready || { echo dnsmasq; return; }
 
   pid=$(cat "$R/router.pid" 2>/dev/null || true)
   [ "$(pid_fd_count "$pid")" -lt "$DAE_FD_LIMIT" ] ||
@@ -300,6 +303,21 @@ firewall_apply(){
   fi
 }
 
+ensure_dnsmasq(){
+  dnsmasq_ready && return 0
+  (
+    /etc/init.d/dnsmasq start >"$R/dnsmasq-start.log" 2>&1 </dev/null &
+  ) || true
+  local i=0
+  while [ "$i" -lt 10 ]; do
+    sleep 1
+    dnsmasq_ready && return 0
+    i=$((i+1))
+  done
+  cat "$R/dnsmasq-start.log" 2>/dev/null || true
+  return 1
+}
+
 start_dns_next(){
   cp "$R/dns.next.json" "$R/dns.json"
   fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
@@ -397,6 +415,11 @@ hot_apply(){
   generate_next
   validate_next
   firewall_apply
+  if [ -f /usr/libexec/fastacl252-wifi-fw4.lua ]; then
+    lua /usr/libexec/fastacl252-wifi-fw4.lua >"$R/wifi-fw4.log" 2>&1 ||
+      { cat "$R/wifi-fw4.log" 2>/dev/null || true; return 1; }
+  fi
+  ensure_dnsmasq || return 1
   reload_dns_next
   reload_dae_next
   echo 'hot' > "$R/last-request-mode"
@@ -410,6 +433,11 @@ cold_apply(){
   generate_next
   validate_next
   firewall_apply
+  if [ -f /usr/libexec/fastacl252-wifi-fw4.lua ]; then
+    lua /usr/libexec/fastacl252-wifi-fw4.lua >"$R/wifi-fw4.log" 2>&1 ||
+      { cat "$R/wifi-fw4.log" 2>/dev/null || true; return 1; }
+  fi
+  ensure_dnsmasq || return 1
   dae_stop
   dns_stop
   start_dns_next

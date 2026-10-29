@@ -60,13 +60,13 @@ def preview_shell(content,title,active):
     head=(
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>%s · JuLiang OS 2.6.7</title><style>%s</style></head><body>'
+        '<title>%s · JuLiang OS 2.6.8</title><style>%s</style></head><body>'
         '<div class="preview-shell"><aside class="preview-sidebar">'
         '<div class="preview-brand"><b>JuLiang</b><small>网络服务</small></div>'
         '<nav class="preview-nav">%s</nav><div class="preview-sidefoot">'
         'dae / eBPF 数据面<br>本地界面效果预览</div></aside>'
         '<main class="preview-main"><header class="preview-topbar">'
-        '<div>JuLiang <b>/ %s</b></div><span class="preview-badge">2.6.7 · 本地预览</span>'
+        '<div>JuLiang <b>/ %s</b></div><span class="preview-badge">2.6.8 · 本地预览</span>'
         '</header><div class="preview-content">'
     ) % (title, PREVIEW_CSS, nav, title)
     return head+content+'</div></main></div></body></html>'

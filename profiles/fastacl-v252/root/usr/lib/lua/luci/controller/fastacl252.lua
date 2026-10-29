@@ -45,6 +45,17 @@ end
 local function provider_ok(id,scope)
   return require('fastacl252_dns').allowed(id,scope)
 end
+local function validate_dns_setting(id,scope,dtype,dip,dname)
+  local dns=require 'fastacl252_dns'
+  id=tostring(id or 'inherit')
+  assert(dns.valid_id(id),'DNS 选择无效')
+  if id=='custom' then
+    dns.resolve({dns='custom',dns_type=dtype,dns_ip=dip,dns_name=dname},scope,{}, {}, 'validate_'..scope)
+  elseif id~='inherit' then
+    assert(provider_ok(id,scope),scope=='proxy' and '代理出口 DNS 必须使用 DoH 或经代理的 TCP' or '国内直连 DNS 选择无效')
+  end
+  return id
+end
 local function restore_files(fs,backup,names)
   for _,n in ipairs(names) do if backup[n]~=nil then fs.writefile('/etc/config/'..n,backup[n]) end end
 end
@@ -91,7 +102,7 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.6.7',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,proxy_dns=c.proxy_dns,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({dns_stats=dns_stats,ok=true,version='2.6.8',enabled=c.enabled,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,direct_dns_type=c.direct_dns_type,direct_dns_ip=c.direct_dns_ip,direct_dns_name=c.direct_dns_name,proxy_dns=c.proxy_dns,proxy_dns_type=c.proxy_dns_type,proxy_dns_ip=c.proxy_dns_ip,proxy_dns_name=c.proxy_dns_name,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -111,8 +122,14 @@ function save()
   local ok,err=pcall(function()
     for _,cfg in ipairs({'fastacl252','dhcp'}) do local changes=u:changes(cfg); assert(not changes or not next(changes),'请先保存或撤销 LuCI 中未提交的配置') end
     local c=env.read(u); enabled=c.enabled
-    if request.direct_dns then assert(provider_ok(request.direct_dns,'direct'),'国内直连 DNS 选择无效'); c.direct_dns=request.direct_dns end
-    if request.proxy_dns then assert(provider_ok(request.proxy_dns,'proxy'),'代理出口 DNS 选择无效'); c.proxy_dns=request.proxy_dns end
+    if request.direct_dns then
+      c.direct_dns=validate_dns_setting(request.direct_dns,'direct',request.direct_dns_type,request.direct_dns_ip,request.direct_dns_name)
+      c.direct_dns_type=tostring(request.direct_dns_type or 'doh'); c.direct_dns_ip=tostring(request.direct_dns_ip or ''); c.direct_dns_name=tostring(request.direct_dns_name or '')
+    end
+    if request.proxy_dns then
+      c.proxy_dns=validate_dns_setting(request.proxy_dns,'proxy',request.proxy_dns_type,request.proxy_dns_ip,request.proxy_dns_name)
+      c.proxy_dns_type=tostring(request.proxy_dns_type or 'doh'); c.proxy_dns_ip=tostring(request.proxy_dns_ip or ''); c.proxy_dns_name=tostring(request.proxy_dns_name or '')
+    end
     local updates=request.devices or {}; assert(type(updates)=='table' and #updates<=256,'设备数量过多')
     local existing={}; for _,d in ipairs(c.devices) do existing[d.mac]=d end
     local before={}; local changed={}
@@ -124,7 +141,7 @@ function save()
         assert(dns.valid_id(dnsid),'DNS 选择无效')
         if dnsid~='inherit' and dnsid~='custom' then
           local dp=assert(dns.provider(dnsid),'DNS 服务商不存在')
-          assert(dns.allowed(dnsid,mode),'当前出口不支持此 DNS；代理出口请选择 DoH')
+          assert(dns.allowed(dnsid,mode),'当前出口不支持此 DNS；代理出口请选择 DoH 或经代理的 TCP')
         end
         existing[mac]={id='d_'..mac:gsub(':',''),mac=mac,ip=d.ip,name=d.name or '',mode=mode,node=node,preproxy=d.preproxy or '',platforms=d.platforms or (existing[mac] and existing[mac].platforms) or '',dns_split=d.dns_split or (existing[mac] and existing[mac].dns_split) or '0',block_domains=d.block_domains or (existing[mac] and existing[mac].block_domains) or '',split_mode=d.split_mode or (existing[mac] and existing[mac].split_mode) or 'all',split_rules=d.split_rules or (existing[mac] and existing[mac].split_rules) or '',dns=dnsid,dns_type=d.dns_type,dns_ip=d.dns_ip,dns_name=d.dns_name}
       end
@@ -144,8 +161,16 @@ function save()
       for _,r in ipairs(inventory) do assert(r.mac==d.mac or r.ip~=d.ip,'固定 IP 当前正被其他设备使用') end
     end
 
-    if request.direct_dns then u:set('fastacl252','main','direct_dns',c.direct_dns) end
-    if request.proxy_dns then u:set('fastacl252','main','proxy_dns',c.proxy_dns) end
+    if request.direct_dns then
+      u:set('fastacl252','main','direct_dns',c.direct_dns)
+      if c.direct_dns=='custom' then u:set('fastacl252','main','direct_dns_type',c.direct_dns_type);u:set('fastacl252','main','direct_dns_ip',c.direct_dns_ip);u:set('fastacl252','main','direct_dns_name',c.direct_dns_name)
+      else u:delete('fastacl252','main','direct_dns_type');u:delete('fastacl252','main','direct_dns_ip');u:delete('fastacl252','main','direct_dns_name') end
+    end
+    if request.proxy_dns then
+      u:set('fastacl252','main','proxy_dns',c.proxy_dns)
+      if c.proxy_dns=='custom' then u:set('fastacl252','main','proxy_dns_type',c.proxy_dns_type);u:set('fastacl252','main','proxy_dns_ip',c.proxy_dns_ip);u:set('fastacl252','main','proxy_dns_name',c.proxy_dns_name)
+      else u:delete('fastacl252','main','proxy_dns_type');u:delete('fastacl252','main','proxy_dns_ip');u:delete('fastacl252','main','proxy_dns_name') end
+    end
 
     for mac in pairs(changed) do
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id; local old=before[mac]; local d=existing[mac]
@@ -229,24 +254,39 @@ function wifi_action()
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor(); local manager=require 'fastacl252_wifi'; local result; local detail=''
 
-  if req.action=='update' or req.action=='lan_update' then
+  if req.action=='update' or req.action=='lan_update' or req.action=='bulk_update' or req.action=='apply_batch' or req.action=='preproxy_batch' then
     local original=fs.readfile('/etc/config/fastacl252'); local committed=false
     local ok,err=pcall(function()
       local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交配置')
-      if req.action=='lan_update' then manager.update_main(u,req) else manager.update(u,req) end
+      if req.action=='lan_update' then result=manager.update_main(u,req)
+      elseif req.action=='bulk_update' then result=manager.update_many(u,req)
+      elseif req.action=='apply_batch' then result=manager.update_items(u,req)
+      elseif req.action=='preproxy_batch' then result=manager.update_preproxy_many(u,req)
+      else manager.update(u,req) end
       require('fastacl252_env').read(u)
       assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); committed=true; fs.chmod('/etc/config/fastacl252','600')
       if u:get('fastacl252','main','enabled')=='1' then
         local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'应用层快速切换失败：'..(d~='' and d or '未知错误'))
       end
-      result=req.action=='lan_update' and {id='main-lan',path='hot'} or {id=req.id,path='hot'}
+      if req.action=='lan_update' then result={id='main-lan',path='hot'}
+      elseif req.action=='bulk_update' or req.action=='apply_batch' or req.action=='preproxy_batch' then result.path='hot'
+      else result={id=req.id,path='hot'} end
     end)
     if not ok then
       u:revert('fastacl252')
       if committed and original then fs.writefile('/etc/config/fastacl252',original); apply_now('hot-apply') end
     end
     release_lock(fs)
-    reply(ok and {ok=true,result=result,message=req.action=='lan_update' and '主 WiFi / 有线 LAN 默认出口已快速应用。' or '节点已应用层快速切换；network / WiFi / firewall 均未重载。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+    local message
+    if req.action=='lan_update' then message='主 WiFi / 有线 LAN 默认出口已快速应用。'
+    elseif req.action=='bulk_update' then message='已一次切换 '..tostring(result and result.count or 0)..' 个 Live WiFi 的节点；其他策略保持不变。'
+    elseif req.action=='apply_batch' then message='已一次应用 '..tostring(result and result.count or 0)..' 个 WiFi 的当前设置。'
+    elseif req.action=='preproxy_batch' then
+      message='已一次更新 '..tostring(result and result.count or 0)..' 个 WiFi 的前置代理'
+      if result and result.skipped and #result.skipped>0 then message=message..'；'..#result.skipped..' 个直连、未设置节点或前置冲突项已跳过' end
+      message=message..'。'
+    else message='节点已应用层快速切换；network / WiFi / firewall 均未重载。' end
+    reply(ok and {ok=true,result=result,message=message,detail=detail} or {ok=false,error=tostring(err),detail=detail})
     return
   end
 

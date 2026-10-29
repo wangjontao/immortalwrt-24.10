@@ -7,9 +7,9 @@ script = (ROOT / 'scripts/integrate-fastacl252-s20l.sh').read_text(encoding='utf
 workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262.yml').read_text(encoding='utf-8')
 grouped_workflow = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL262-Grouped.yml').read_text(encoding='utf-8')
 grouped_workflow_263 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL263-Grouped.yml').read_text(encoding='utf-8')
-grouped_workflow_267 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL267-Grouped.yml').read_text(encoding='utf-8')
+grouped_workflow_268 = (ROOT / '.github/workflows/JuLiangTK-MT7981-FastACL268-Grouped.yml').read_text(encoding='utf-8')
 image_makefile = (ROOT / 'target/linux/mediatek/image/filogic.mk').read_text(encoding='utf-8')
-base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL258.txt').read_text(encoding='utf-8')
+base_config = (ROOT / 'build-configs/JuLiangTK-S20L-FastACL268.txt').read_text(encoding='utf-8')
 grouped_script = (ROOT / 'scripts/integrate-fastacl262-grouped.sh').read_text(encoding='utf-8')
 
 DEVICES = {
@@ -103,20 +103,20 @@ assert 'mediatek,nmbm;' in zbt_text
 assert 'band@0' in zbt_text and 'band@1' in zbt_text
 
 grouped_devices = []
-for line in grouped_workflow_267.splitlines():
+for line in grouped_workflow_268.splitlines():
     if line.startswith('            devices: '):
         grouped_devices.append(line.split(':', 1)[1].strip().split())
 assert len(grouped_devices) == 4
 assert all(len(devices) == 8 for devices in grouped_devices)
 assert {device for group in grouped_devices for device in group} == set(DEVICES) | set(EXTRA_DEVICES_267)
-assert 'max-parallel: 4' in grouped_workflow_267
-assert '32-device MT7981 matrix' in grouped_workflow_267
+assert 'max-parallel: 4' in grouped_workflow_268
+assert '32-device MT7981 matrix' in grouped_workflow_268
 assert 'integrate-fastacl262-grouped.sh' in grouped_workflow
 assert 'immortalwrt-mediatek-filogic.manifest' in grouped_workflow_263
 assert '${{ github.run_id }}' in grouped_workflow_263
-assert 'find-fastacl-manifest.py' in grouped_workflow_267
-assert 'upload/${device}.manifest' in grouped_workflow_267
-assert '${{ github.run_id }}' in grouped_workflow_267
+assert 'find-fastacl-manifest.py' in grouped_workflow_268
+assert 'upload/${device}.manifest' in grouped_workflow_268
+assert '${{ github.run_id }}' in grouped_workflow_268
 assert 'CONFIG_TARGET_MULTI_PROFILE=y' in grouped_script
 assert 'CONFIG_TARGET_PER_DEVICE_ROOTFS=y' in grouped_script
 
@@ -129,4 +129,4 @@ assert "branches: ['2.6.2']" in workflow
 for path in (ROOT / '.github/workflows').glob('*FastACL262*.yml'):
     assert 'cancel-in-progress: false' in path.read_text(encoding='utf-8'), path
 
-print('FastACL 2.6.7 32-device MT7981 matrix and DTS identities: OK')
+print('FastACL 2.6.8 32-device MT7981 matrix and DTS identities: OK')

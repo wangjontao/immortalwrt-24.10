@@ -50,6 +50,44 @@ local function wired_ports()
   end
   return rows
 end
+local function cpu_usage()
+  local fs=require'nixio.fs';local text=fs.readfile('/proc/stat') or ''
+  local values=text:match('^cpu%s+([^\n]+)')
+  if not values then return nil end
+  local total,idle=0,0;local index=0
+  for value in values:gmatch('%d+') do
+    index=index+1
+    if index<=8 then total=total+tonumber(value) end
+    if index==4 or index==5 then idle=idle+tonumber(value) end
+  end
+  if total<=0 then return nil end
+  local old_total,old_idle=(fs.readfile('/tmp/juliang-center-cpu.stat') or ''):match('^(%d+)%s+(%d+)')
+  old_total,old_idle=tonumber(old_total),tonumber(old_idle)
+  fs.writefile('/tmp/juliang-center-cpu.stat',tostring(total)..' '..tostring(idle)..'\n')
+  if not old_total or not old_idle or total<=old_total then return nil end
+  local delta=total-old_total
+  local percent=100*(delta-math.max(0,idle-old_idle))/delta
+  return math.max(0,math.min(100,math.floor(percent+0.5)))
+end
+local function system_health()
+  local fs=require'nixio.fs';local sys=require'luci.sys'
+  local mem=fs.readfile('/proc/meminfo') or ''
+  local total=tonumber(mem:match('MemTotal:%s+(%d+)'))
+  local available=tonumber(mem:match('MemAvailable:%s+(%d+)'))
+  if not available then
+    local free=tonumber(mem:match('MemFree:%s+(%d+)')) or 0
+    local buffers=tonumber(mem:match('Buffers:%s+(%d+)')) or 0
+    local cached=tonumber(mem:match('Cached:%s+(%d+)')) or 0
+    available=free+buffers+cached
+  end
+  local used=total and available and math.max(0,total-available) or nil
+  local memory_percent=total and total>0 and used and math.floor(used*1000/total+0.5)/10 or nil
+  local raw=tonumber(fs.readfile('/sys/class/thermal/thermal_zone0/temp') or '')
+  local temperature=raw and (raw>1000 and math.floor(raw/100+0.5)/10 or raw) or nil
+  local cores=tonumber((sys.exec('nproc 2>/dev/null') or ''):match('%d+'))
+  if not cores then cores=tonumber((sys.exec("grep -c '^processor' /proc/cpuinfo 2>/dev/null") or ''):match('%d+')) end
+  return {cpu_percent=cpu_usage(),cpu_cores=cores,memory_percent=memory_percent,memory_used_kb=used,memory_total_kb=total,temperature_c=temperature}
+end
 local traffic_cache,traffic_cache_at
 local function traffic_totals()
   if traffic_cache and os.time()-traffic_cache_at<30 then return traffic_cache end
@@ -99,5 +137,5 @@ function status()
   end
   counters.timestamp=tonumber(sys.exec('cat /proc/uptime'):match('^[%d.]+')) or up
   counters.device=dev
-  reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),traffic=counters,traffic_totals=traffic_totals(),hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.6.7 dae/eBPF'})
+  reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),system=system_health(),traffic=counters,traffic_totals=traffic_totals(),hostname=sys.hostname() or 'JuLiangTK-S20L',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='FastACL 2.6.8 dae/eBPF'})
 end

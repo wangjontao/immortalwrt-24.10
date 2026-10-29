@@ -87,7 +87,7 @@ local function set_dns(u,section,req,mode,prefix)
   assert(dns.valid_id(id),'DNS 选择无效')
   if id~='inherit' and id~='custom' then
     local p=assert(dns.provider(id),'DNS 服务商不存在')
-    assert(dns.allowed(id,mode),'当前出口不支持此 DNS；代理出口请选择 DoH')
+    assert(dns.allowed(id,mode),'当前出口不支持此 DNS；代理出口请选择 DoH 或经代理的 TCP')
   end
   local tmp={dns=id,dns_type=req.dns_type,dns_ip=req.dns_ip,dns_name=req.dns_name}
   local main=u:get_all('fastacl252','main') or {}; dns.resolve(tmp,mode,main,{},'wifi')
@@ -177,6 +177,118 @@ function M.update(u,req)
   u:set('fastacl252',id,'dns_split',split.dns_split); u:set('fastacl252',id,'block_domains',split.block_domains)
   u:set('fastacl252',id,'split_mode',split.split_mode); u:set('fastacl252',id,'split_rules',split.split_rules)
   u:set('fastacl252',id,'mode',mode); u:set('fastacl252',id,'node',node); u:set('fastacl252',id,'preproxy',pre); set_dns(u,id,req,mode)
+end
+
+local function preserved_dns(u,s,mode)
+  local dns=require 'fastacl252_dns'
+  local id=tostring(s.dns or 'inherit')
+  if id=='' or id=='inherit' then return 'inherit' end
+  if id=='custom' then
+    local main=u:get_all('fastacl252','main') or {}
+    local ok=pcall(dns.resolve,{dns='custom',dns_type=s.dns_type,dns_ip=s.dns_ip,dns_name=s.dns_name},mode,main,{},'bulk')
+    if ok then return 'custom',s.dns_type,s.dns_ip,s.dns_name end
+    return 'inherit'
+  end
+  if dns.valid_id(id) and dns.allowed(id,mode) then return id end
+  return 'inherit'
+end
+
+function M.update_many(u,req)
+  req=req or {}
+  local mode,node,pre=validate_binding(u,req.node,req.preproxy)
+  local selected={}
+  local restricted=type(req.ids)=='table'
+  if restricted then
+    assert(#req.ids>0,'请选择要切换的 WiFi')
+    for _,id in ipairs(req.ids) do
+      id=tostring(id or '')
+      assert(id:match('^jfa25w%d+$'),'附加 WiFi 编号无效')
+      selected[id]=true
+    end
+  end
+  local rows={}
+  u:foreach('fastacl252','wifi',function(s)
+    local id=s['.name']
+    if owned(s) and (not restricted or selected[id]) then rows[#rows+1]={id=id,section=s} end
+  end)
+  local ids={}
+  for _,row in ipairs(rows) do
+    local id=row.id
+    local dnsid,dtype,dip,dname=preserved_dns(u,row.section,mode)
+    assert(u:set('fastacl252',id,'mode',mode),'保存 WiFi 分流模式失败')
+    assert(u:set('fastacl252',id,'node',node),'保存 WiFi 节点失败')
+    assert(u:set('fastacl252',id,'preproxy',pre),'保存 WiFi 前置失败')
+    assert(u:set('fastacl252',id,'dns',dnsid),'保存 WiFi DNS 失败')
+    if dnsid=='custom' then
+      u:set('fastacl252',id,'dns_type',dtype or 'doh')
+      u:set('fastacl252',id,'dns_ip',dip or '')
+      u:set('fastacl252',id,'dns_name',dname or '')
+    else
+      u:delete('fastacl252',id,'dns_type')
+      u:delete('fastacl252',id,'dns_ip')
+      u:delete('fastacl252',id,'dns_name')
+    end
+    ids[#ids+1]=id
+  end
+  assert(#ids>0,'没有找到可切换的 Live WiFi')
+  return {count=#ids,ids=ids}
+end
+
+function M.update_items(u,req)
+  local items=assert(type(req.items)=='table' and req.items,'没有可应用的 WiFi 设置')
+  assert(#items>0 and #items<=64,'WiFi 批量设置数量无效')
+  local seen,ids={},{}
+  for _,item in ipairs(items) do
+    assert(type(item)=='table','WiFi 设置格式错误')
+    local id=tostring(item.id or '')
+    assert(id:match('^jfa25w%d+$'),'附加 WiFi 编号无效')
+    assert(not seen[id],'WiFi 设置重复: '..id)
+    seen[id]=true
+    M.update(u,item)
+    ids[#ids+1]=id
+  end
+  return {count=#ids,ids=ids}
+end
+
+function M.update_preproxy_many(u,req)
+  local pre=req.preproxy==nil and '' or tostring(req.preproxy)
+  if pre~='' then assert(u:get('fastacl252',pre)=='node','请选择有效前置节点') end
+  local selected={}
+  local restricted=type(req.ids)=='table'
+  if restricted then
+    assert(#req.ids>0,'请选择要设置前置的 WiFi')
+    for _,id in ipairs(req.ids) do
+      id=tostring(id or '')
+      assert(id:match('^jfa25w%d+$'),'附加 WiFi 编号无效')
+      selected[id]=true
+    end
+  end
+  local rows={}
+  u:foreach('fastacl252','wifi',function(s)
+    local id=s['.name']
+    if owned(s) and (not restricted or selected[id]) then rows[#rows+1]={id=id,section=s} end
+  end)
+  local ids,skipped={},{}
+  for _,row in ipairs(rows) do
+    local s=row.section
+    local node=tostring(s.node or '')
+    if pre=='' then
+      assert(u:set('fastacl252',row.id,'preproxy',''),'清除 WiFi 前置失败')
+      ids[#ids+1]=row.id
+    elseif s.mode=='proxy' and node~='' and node~=pre then
+      local ok=pcall(validate_binding,u,node,pre)
+      if ok then
+        assert(u:set('fastacl252',row.id,'preproxy',pre),'保存 WiFi 前置失败')
+        ids[#ids+1]=row.id
+      else
+        skipped[#skipped+1]=row.id
+      end
+    else
+      skipped[#skipped+1]=row.id
+    end
+  end
+  assert(#ids>0,'没有可设置前置的代理 WiFi')
+  return {count=#ids,ids=ids,skipped=skipped}
 end
 
 function M.hide_one(u,id,hidden)

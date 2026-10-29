@@ -36,7 +36,7 @@ assert "https://up.juliangtk.top:8443" in upgrade_config
 assert "option provisioned '0'" in fastacl_config
 assert 'if [ "$provisioned" != 0 ]; then' in defaults
 assert "uci set 'fastacl252.main.provisioned=1'" in defaults
-assert "uci set 'fastacl252.main.version=2.6.7'" in defaults
+assert "uci set 'fastacl252.main.version=2.6.8'" in defaults
 assert '"juliang-bbr"' in bbr_acl and '"juliang_bbr"' in bbr_acl
 assert "acl_depends={'juliang-bbr'}" in bbr_controller
 assert "read='juliang-bbr'" in admin_defaults and "write='juliang-bbr'" in admin_defaults

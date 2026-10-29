@@ -87,17 +87,17 @@ chmod 755 package/fastacl252/files/usr/bin/fastacl252 package/fastacl252/files/u
 chmod 755 package/fastacl252/files/usr/libexec/juliang-traffic-setup
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "fastacl252.main.version=2.6.7" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
-grep -q "PKG_VERSION:=2.6.7" package/fastacl252/Makefile
+grep -q "fastacl252.main.version=2.6.8" package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252
+grep -q "PKG_VERSION:=2.6.8" package/fastacl252/Makefile
 grep -q "rpcd.juliang_operator.username='admin'" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 grep -Fq "ADMIN_HASH='\$1\$" package/fastacl252/files/etc/uci-defaults/96-juliang-center
 
-config="build-configs/JuLiangTK-${tag}-FastACL258.txt"
+config="build-configs/JuLiangTK-${tag}-FastACL268.txt"
 if [ -f "$config" ]; then
   cp "$config" .config
 else
   sed "s/^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$/CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y/" \
-    build-configs/JuLiangTK-S20L-FastACL258.txt > .config
+    build-configs/JuLiangTK-S20L-FastACL268.txt > .config
 fi
 grep -q '^CONFIG_PACKAGE_vnstat2=y$' .config ||
   echo 'CONFIG_PACKAGE_vnstat2=y' >>.config

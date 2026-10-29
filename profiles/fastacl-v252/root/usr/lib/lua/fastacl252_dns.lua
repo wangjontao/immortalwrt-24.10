@@ -29,7 +29,8 @@ function M.catalog()
   return out
 end
 
--- Resolver location and egress path are independent. Proxy DNS must use DoH.
+-- Resolver location and egress path are independent. Proxy-side TCP is also
+-- carried through the selected node, so it cannot fall back to the WAN.
 function M.allowed(id,mode)
   local p=providers[id]
   if not p then return false end
@@ -54,16 +55,27 @@ end
 function M.resolve(section,mode,main,resolvers,keyprefix)
   section=section or {}; main=main or {}; resolvers=resolvers or {}
   local id=section.dns or 'inherit'
+  local inherited=false
   if id=='follow_exit' then assert(mode=='proxy','DNS 跟随代理出口只能用于代理设备或 WiFi') end
-  if id=='' or id=='inherit' then id=(mode=='proxy' and (main.proxy_dns or 'cloudflare') or (main.direct_dns or 'alidns')) end
+  if id=='' or id=='inherit' then
+    inherited=true
+    id=(mode=='proxy' and (main.proxy_dns or 'cloudflare') or (main.direct_dns or 'alidns'))
+  end
   if id=='custom' then
-    local kind=section.dns_type or 'doh'
-    assert(kind=='doh' or kind=='udp','自定义 DNS 类型必须是 DoH 或 UDP')
-    local ip=assert(ip4(section.dns_ip),'自定义 DNS 需要有效 IPv4 地址')
-    if mode=='proxy' and kind~='doh' then error('代理设备的自定义 DNS 必须使用 DoH，避免 DNS 直连泄漏',0) end
-    local r={type=kind,ip=ip,port=kind=='udp' and 53 or 443,path='/dns-query'}
+    local prefix=mode=='proxy' and 'proxy_dns' or 'direct_dns'
+    local kind=section.dns_type
+    if kind==nil or kind=='' then kind=inherited and main[prefix..'_type'] or nil end
+    kind=kind or 'doh'
+    assert(kind=='doh' or kind=='udp' or kind=='tcp','自定义 DNS 类型必须是 DoH、UDP 或 TCP')
+    local rawip=section.dns_ip
+    if rawip==nil or rawip=='' then rawip=inherited and main[prefix..'_ip'] or nil end
+    local ip=assert(ip4(rawip),'自定义 DNS 需要有效 IPv4 地址')
+    if mode=='proxy' and kind~='doh' and kind~='tcp' then error('代理设备的自定义 DNS 必须使用 DoH 或经代理的 TCP，避免 DNS 直连泄漏',0) end
+    local r={type=kind,ip=ip,port=(kind=='udp' or kind=='tcp') and 53 or 443,path='/dns-query'}
     if kind=='doh' then
-      local name=tostring(section.dns_name or '')
+      local name=section.dns_name
+      if name==nil or name=='' then name=inherited and main[prefix..'_name'] or '' end
+      name=tostring(name or '')
       assert(name:match('^[%w.-]+$') and #name<=253,'自定义 DoH 需要有效域名')
       r.name=name
     end
@@ -73,7 +85,7 @@ function M.resolve(section,mode,main,resolvers,keyprefix)
     return key
   end
   local r=assert(M.builtin(id),'未知 DNS 服务商: '..tostring(id))
-  if mode=='proxy' and r.type~='doh' then error('代理出口 DNS 必须使用 DoH，不能选择明文 UDP DNS',0) end
+  if mode=='proxy' and r.type~='doh' and r.type~='tcp' then error('代理出口 DNS 必须使用 DoH 或经代理的 TCP，不能选择明文 UDP DNS',0) end
   resolvers[id]=resolvers[id] or r
   return id
 end

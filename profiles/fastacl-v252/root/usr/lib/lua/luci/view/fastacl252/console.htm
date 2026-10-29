@@ -153,6 +153,14 @@
 .f252 .split-platform-chip:has(input:checked){color:#565acb;background:rgba(104,111,218,.1);border-color:rgba(104,111,218,.38)}
 .f252 .split-help{margin-top:10px}.f252 .split-help>summary{font-size:11px;font-weight:400;color:#7885a0}.f252 .split-help>.note{margin-top:7px}
 .f252 .split-panel [hidden]{display:none!important}
+.f252 .f25-dns-custom{margin:10px 0 4px;padding:10px 12px;border:1px solid rgba(104,111,218,.24);border-radius:8px;background:rgba(104,111,218,.05)}
+.f252 .f25-dns-custom[hidden]{display:none!important}
+.f252 .f25-dns-custom .fields{margin:0}
+.f252 .wifi-dns-custom{grid-column:1/-1;margin-top:2px;border-color:#8ebbd5;background:linear-gradient(120deg,#eef9ff,#f3f7ff);box-shadow:inset 4px 0 0 #2f86b7}
+.f252 .wifi-dns-custom-title{display:flex;align-items:center;gap:7px;margin-bottom:8px;color:#1d5c7d;font-size:12px;font-weight:800}
+.f252 .wifi-dns-custom-title:before{content:'';width:8px;height:8px;border-radius:2px;background:#2f9b82;transform:rotate(45deg)}
+.f252 .f25-wifi-batch-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.f252 .f25-wifi-batch-actions select{flex:1 1 210px;min-width:0}
 @media(max-width:640px){.f252 .split-controls,.f252 .split-editors{grid-template-columns:1fr}.f252 .fields>.split-panel{padding:10px}}
 @container(max-width:600px){.f252 .split-controls,.f252 .split-editors{grid-template-columns:1fr}}
 
@@ -297,14 +305,22 @@
 @container(max-width:650px){.f252 .f25-sticky{padding:6px 0}.f252 .f25-topbar{padding:9px 11px}.f252 .f25-brand{padding-left:14px}.f252 .f25-brand:before{width:5px}.f252 .f25-tabs{margin-top:8px}}
 @media(prefers-color-scheme:dark){body:not(.mode-light) .f252 .f25-sticky{background:#1d2a35}body:not(.mode-light) .f252 .f25-topbar{border-color:#41677a!important;background:linear-gradient(110deg,#17384d,#21596a 58%,#236552)!important}body:not(.mode-light) .f252 .f25-tools #f25-search{background:#eff6f9!important}}
 
-/* Keep the header and menu stationary; feedback overlays without moving content. */
-.f252{margin-top:0!important}
-.f252 .f25-sticky{position:sticky!important;top:0!important;z-index:90!important;transform:none!important;transition:none!important}
+/* Keep the menu stationary without allowing it to cover interactive page content. */
+.main-right:has(.f252){overflow:hidden!important}
+.main-right:has(.f252)>div:not(.darkMask){display:flex!important;flex:1 1 0%!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+.main-right:has(.f252) #maincontent,.main-right:has(.f252) #maincontent>.container{display:flex!important;flex:1 1 0%!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+.f252{display:flex!important;flex:1 1 0%!important;flex-direction:column!important;min-height:0!important;margin-top:0!important;overflow:hidden!important}
+.f252 .f25-sticky{position:relative!important;top:auto!important;flex:0 0 auto!important;z-index:90!important;transform:none!important;transition:none!important}
+.f252 .f25-content{flex:1 1 0%!important;min-height:0!important;overflow:auto!important;overscroll-behavior:contain;scrollbar-gutter:stable;padding-bottom:34px}
 .f252 .f25-tabs button,.f252 .f25-tabs button:hover,.f252 .f25-tabs button[aria-selected=true],.f252 .f25-subtabs button,.f252 .f25-subtabs button:hover,.f252 .f25-subtabs button[aria-selected=true]{transform:none!important}
 .f252 .f25-tabs,.f252 .f25-subtabs{scrollbar-gutter:stable}
 .f252 .f25-sticky .msg{position:absolute;left:16px;right:16px;top:calc(100% + 7px);z-index:100;margin:0;padding:10px 14px;border:1px solid rgba(29,137,91,.28);border-radius:7px;background:#eaf8f1;color:#166a4a;box-shadow:0 9px 20px -10px rgba(21,72,67,.62);pointer-events:none}
 .f252 .f25-sticky .msg.bad{border-color:rgba(185,57,65,.3);background:#fff0f1;color:#a82932}
 .f252 .f25-sticky .msg.pending{border-color:rgba(70,101,184,.28);background:#edf1ff;color:#3d579f}
+.f252 .field select:not(:disabled){border:1px solid #8caec5!important;background:#fff!important;color:#173f5d!important;font-weight:650;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 6px -5px rgba(22,70,103,.55)}
+.f252 .field select:not(:disabled):hover{border-color:#2c80ad!important;background:#f7fcff!important;color:#0f527d!important;box-shadow:0 0 0 2px rgba(44,128,173,.12),0 4px 10px -7px rgba(17,73,108,.7)}
+.f252 .field select:not(:disabled):focus{border-color:#176c9e!important;outline:3px solid rgba(35,124,173,.22)!important;outline-offset:1px;background:#fff!important}
+.f252 .field select:disabled{border-color:#d6e0e8!important;background:#f3f6f8!important;color:#8293a2!important;cursor:not-allowed}
 @container(max-width:650px){.f252 .f25-sticky .msg{left:9px;right:9px;top:calc(100% + 6px);padding:9px 11px}}
 
 /* Main WiFi and wired devices share the primary LAN bridge. */
@@ -332,13 +348,21 @@
 .f252 .f25-existing-body{padding:12px 14px 14px}
 .f252 .f25-existing-body .wifi-bulk-toolbar{margin-top:0}
 @container(max-width:650px){.f252 .f25-existing-panel>.wifi-existing-header{padding:11px 12px}.f252 .f25-existing-body{padding:10px}}
+.f252 .f25-wifi-batch-actions .f25-batch-primary{background:linear-gradient(135deg,#246bd5,#4e58d8)!important;border-color:#246bd5!important;color:#fff!important;font-weight:800!important;box-shadow:0 7px 16px -10px rgba(30,88,190,.9),inset 0 1px 0 rgba(255,255,255,.22)!important}
+.f252 .f25-wifi-batch-actions .f25-batch-primary:hover{background:linear-gradient(135deg,#1f60c5,#454fd0)!important}
+.f252 .f25-wifi-batch-actions .f25-batch-selected{background:linear-gradient(135deg,#6b48c5,#9b5b9f)!important;border-color:#7d5bc6!important;color:#fff!important;font-weight:800!important;box-shadow:0 7px 16px -10px rgba(102,65,180,.88),inset 0 1px 0 rgba(255,255,255,.2)!important}
+.f252 .f25-wifi-batch-actions .f25-batch-selected:hover{background:linear-gradient(135deg,#603db7,#8c4f95)!important}
+.f252 .f25-wifi-batch-actions .f25-batch-selected:disabled{opacity:1!important;background:linear-gradient(135deg,#e4e7fb,#d9dcf8)!important;border:1px solid #8e94d6!important;color:#34416e!important;-webkit-text-fill-color:#34416e!important;font-weight:800!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)!important;cursor:not-allowed}
+.f252 .f25-wifi-batch-actions .f25-batch-selected.is-ready{animation:f25-ready-pulse 1.4s ease-out 1}
+@keyframes f25-ready-pulse{0%{box-shadow:0 0 0 0 rgba(139,92,216,.5)}100%{box-shadow:0 0 0 10px rgba(139,92,216,0)}}
+@container(max-width:650px){.f252 .f25-wifi-batch-actions{display:grid;grid-template-columns:1fr 1fr}.f252 .f25-wifi-batch-actions select{grid-column:1/-1}.f252 .f25-wifi-batch-actions .cbi-button{width:100%;min-width:0}}
 </style>
 <div class="f252">
   <div class="f25-sticky" aria-label="FastACL 状态与操作提示">
     <div class="f25-topbar">
       <div class="f25-brand">
         <h2><span class="f25-brand-text">FastACL</span></h2>
-        <span class="f25-version">JuLiangTK · dae/eBPF V2.6.7</span>
+        <span class="f25-version">JuLiangTK · dae/eBPF V2.6.8</span>
       </div>
       <div class="f25-tools">
         <span id="f25-health">读取状态…</span>
@@ -433,6 +457,12 @@
     <details id="f25-wifi-existing-panel" class="f25-existing-panel" open>
     <summary class="wifi-existing-header"><h4>已创建 WiFi <span id="f25-wifi-existing-count" class="pill">0 个</span></h4></summary>
     <div class="f25-existing-body">
+    <details class="f25-batch-drawer" open>
+      <summary>批量前置代理与统一应用</summary>
+      <div class="bar f25-wifi-batch-actions"><select id="f25-wifi-batch-pre" aria-label="批量前置代理"></select><button type="button" class="cbi-button cbi-button-apply f25-batch-primary" id="f25-wifi-pre-all">应用全部前置</button><button type="button" class="cbi-button f25-batch-selected" id="f25-wifi-pre-selected">应用已选前置 · 0</button></div>
+      <div class="bar f25-wifi-batch-actions"><button type="button" class="cbi-button cbi-button-apply f25-batch-primary" id="f25-wifi-apply-all">一键应用全部更改</button><button type="button" class="cbi-button f25-batch-selected" id="f25-wifi-apply-selected">一键应用已选更改 · 0</button><span class="note">先在每个 WiFi 卡片中选好节点、前置和策略，再统一应用。</span></div>
+      <p class="note">统一应用只提交一次配置和一次热切换。各 WiFi 可选择不同节点；批量前置只修改前置代理，未设置节点或与前置冲突的直连 WiFi 会跳过。</p>
+    </details>
     <div class="bar wifi-bulk-toolbar"><label class="wifi-choice"><input type="checkbox" id="f25-wifi-select-all">全选附加 WiFi</label><span id="f25-wifi-selected-count" class="note">已选 0 个</span><button type="button" class="cbi-button wifi-delete" id="f25-wifi-delete-selected" disabled>批量删除所选</button><button type="button" class="cbi-button wifi-visibility" id="f25-wifi-hide-selected" disabled>批量隐藏所选</button><button type="button" class="cbi-button wifi-visibility" id="f25-wifi-show-selected" disabled>批量恢复显示</button></div>
     <div id="f25-wifis" class="grid"></div>
     </div>
@@ -441,8 +471,10 @@
 
   <section class="card" data-f25-tab="settings" data-f25-subview="dns" role="tabpanel">
     <div class="head"><h3>全局设置</h3><span class="pill">DNS</span></div>
-    <h3>DNS</h3><div class="fields"><div class="field"><label>代理 DNS 查询路径</label><select disabled><option>跟随代理出口（节点 + 前置）</option></select></div></div><p class="note">DNS 查询始终跟随对应节点和前置代理。可选择国内的阿里 DNS、腾讯 DNSPod、360 安全 DNS（DoH），或 Cloudflare、Google、Quad9、OpenDNS；选择国内 DNS 不会改为 WAN 直连。原来的“DNS 跟随代理出口（Cloudflare DoH）”保留为固定 CF 的兼容选项。DNS 服务器 IP 不等于节点 IP；失败时不回落直连。百度、114、CNNIC 当前为 UDP，仅直连可选；代理模式显示为不可选，避免绕过代理。设备或 WiFi 的独立 DNS 设置优先于全局。</p>
+    <h3>DNS</h3><div class="fields"><div class="field"><label>代理 DNS 查询路径</label><select disabled><option>跟随代理出口（节点 + 前置）</option></select></div></div><p class="note">DNS 查询始终跟随对应节点和前置代理。内置 DNS 可直接选择；自定义 DNS 支持 UDP、TCP 和 DoH，代理侧 TCP/DoH 会经当前节点和前置出口，不回落直连。DNS 服务器 IP 不等于节点 IP；失败时返回 SERVFAIL。设备或 WiFi 的独立 DNS 设置优先于全局。</p>
     <div class="fields"><div class="field"><label>国内直连 DNS</label><select id="f25-direct-dns"></select></div><div class="field"><label>代理 DNS</label><select id="f25-proxy-dns"></select></div></div>
+    <div class="f25-dns-custom" id="f25-direct-dns-custom" hidden><div class="fields"><div class="field"><label>国内自定义类型</label><select id="f25-direct-dns-type"><option value="doh">DoH</option><option value="udp">UDP</option><option value="tcp">TCP</option></select></div><div class="field"><label>DNS IPv4</label><input id="f25-direct-dns-ip" inputmode="decimal" placeholder="例如 1.1.1.1"></div><div class="field wide"><label>DoH 域名（UDP/TCP 可留空）</label><input id="f25-direct-dns-name" placeholder="例如 dns.example.com"></div></div></div>
+    <div class="f25-dns-custom" id="f25-proxy-dns-custom" hidden><div class="fields"><div class="field"><label>代理自定义类型</label><select id="f25-proxy-dns-type"><option value="doh">DoH</option><option value="tcp">TCP（经代理）</option></select></div><div class="field"><label>DNS IPv4</label><input id="f25-proxy-dns-ip" inputmode="decimal" placeholder="例如 1.1.1.1"></div><div class="field wide"><label>DoH 域名（TCP 可留空）</label><input id="f25-proxy-dns-name" placeholder="例如 dns.example.com"></div></div></div>
     <div class="bar"><button class="cbi-button cbi-button-apply" id="f25-dns-save">保存 DNS</button></div>
   </section>
 
@@ -472,15 +504,27 @@
 <script>
 (function(){'use strict';
 const base='<%=luci.dispatcher.build_url("admin","services")%>',token='<%=token%>',$=x=>document.getElementById('f25-'+x);
-let state=null,busy=false,rows=[],selected=new Set(),assignNode=null,wifiSelected=new Set(),editingNode=null,msgTimer=null,mainLanControls=null;
+let state=null,busy=false,rows=[],selected=new Set(),assignNode=null,wifiSelected=new Set(),wifiRows=[],editingNode=null,msgTimer=null,mainLanControls=null,wifiCreateDnsCustom=null;
 function msg(t,b){clearTimeout(msgTimer);const box=$('msg');box.textContent=t||'';box.className='msg '+(b?'bad':'good');if(t){const shown=t;msgTimer=setTimeout(()=>{if(box.textContent===shown)box.textContent=''},3000)}}
 function confirmTwice(first,second){return window.confirm(first)&&window.confirm(second)}
 async function api(name,data){const o=data?{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(Object.assign({token},data))}:{};const r=await fetch(base+'/fastacl252_'+name,o);let j;try{j=await r.json()}catch(e){throw Error('HTTP '+r.status+' 返回异常')}if(!r.ok)throw Error('HTTP '+r.status);if(!j.ok){const e=Error((j.error||'操作失败')+(j.detail?'\n'+j.detail:''));e.busy=j.busy===true;e.retryAfter=j.retry_after;throw e}return j}
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}function opt(s,v,t){const o=document.createElement('option');o.value=v;o.textContent=t;s.appendChild(o)}
 function nodeSel(v,pre){const s=document.createElement('select');opt(s,'',pre?'不使用前置':'国内直连');(state.nodes||[]).forEach(n=>opt(s,n.id,n.name));s.value=v||'';return s}
-function dnsAllowed(x,mode){return mode==='proxy'?x.kind==='doh':x.scope==='direct'}
-function dnsFill(s,mode){for(const scope of ['direct','proxy']){const entries=(state.dns_catalog||[]).filter(x=>x.scope===scope&&(mode==='proxy'||dnsAllowed(x,mode)));if(!entries.length)continue;const group=document.createElement('optgroup');group.label=scope==='direct'?'国内公共 DNS':'海外公共 DNS';for(const x of entries){const o=document.createElement('option');o.value=x.id;o.disabled=!dnsAllowed(x,mode);o.textContent=x.label+(o.disabled?'（仅直连，UDP）':x.kind==='doh'&&scope==='direct'?'（DoH）':'');group.appendChild(o)}s.appendChild(group)}}
-function dnsSel(mode,v,custom){if(v==='follow_exit')v='cloudflare';const s=document.createElement('select');opt(s,'inherit','跟随全局 DNS');dnsFill(s,mode);if(custom)opt(s,'custom','自定义 DNS');s.value=v||'inherit';if(!s.value)s.value='inherit';return s}
+function dnsAllowed(x,mode){return mode==='proxy'?(x.kind==='doh'||x.kind==='tcp'):x.scope==='direct'}
+function dnsFill(s,mode,custom){for(const scope of ['direct','proxy']){const entries=(state.dns_catalog||[]).filter(x=>x.scope===scope&&(mode==='proxy'||dnsAllowed(x,mode)));if(!entries.length)continue;const group=document.createElement('optgroup');group.label=scope==='direct'?'国内公共 DNS':'海外公共 DNS';for(const x of entries){const o=document.createElement('option');o.value=x.id;o.disabled=!dnsAllowed(x,mode);o.textContent=x.label+(o.disabled?'（仅直连，UDP）':x.kind==='doh'&&scope==='direct'?'（DoH）':'');group.appendChild(o)}s.appendChild(group)}if(custom)opt(s,'custom','自定义 DNS')}
+function dnsGlobal(mode){const p=mode==='proxy'?'proxy':'direct';return{id:state[p+'_dns']||(mode==='proxy'?'cloudflare':'alidns'),type:state[p+'_dns_type']||'',ip:state[p+'_dns_ip']||'',name:state[p+'_dns_name']||''}}
+function dnsText(id,type,ip,name){if(id==='custom'){const raw=String(type||'doh').toLowerCase(),kind=raw==='doh'?'DoH':raw.toUpperCase();return kind+' · '+(ip||'未填写')+(raw==='doh'&&name?' · '+name:'')}const p=(state.dns_catalog||[]).find(x=>x.id===id);return p?p.label:(id||'未设置')}
+function dnsCustomLabel(data){return'自定义 DNS · '+dnsText('custom',data?.dns_type,data?.dns_ip,data?.dns_name)}
+function dnsSel(mode,v,custom,data){if(v==='follow_exit')v='cloudflare';const s=document.createElement('select'),global=dnsGlobal(mode);opt(s,'inherit','跟随全局 · '+dnsText(global.id,global.type,global.ip,global.name));dnsFill(s,mode,false);if(custom)opt(s,'custom',v==='custom'?dnsCustomLabel(data):'自定义 DNS（本项独立生效）');s.value=v||'inherit';if(!s.value)s.value='inherit';return s}
+function customDnsEditor(data,mode){data=data||{};const box=el('div','f25-dns-custom wifi-dns-custom'),inner=el('div','fields'),type=document.createElement('select'),ip=document.createElement('input'),name=document.createElement('input'),typeField=field('DNS 类型',type),nameField=field('DoH 域名',name);box.append(el('div','wifi-dns-custom-title','本项独立 DNS'),inner);ip.type='text';ip.inputMode='decimal';ip.maxLength=15;ip.placeholder='例如 1.1.1.1';ip.value=data.dns_ip||'';name.maxLength=253;name.placeholder='例如 dns.example.com';name.value=data.dns_name||'';inner.append(typeField,field('DNS IPv4',ip),nameField);
+ const setMode=m=>{const current=type.value||data.dns_type||'doh';type.replaceChildren();for(const [v,t] of (m==='proxy'?[['doh','DoH（经代理）'],['tcp','TCP（经代理）']]:[['doh','DoH'],['udp','UDP'],['tcp','TCP']]))opt(type,v,t);type.value=current;if(!type.value)type.value='doh';const sync=()=>{nameField.hidden=type.value!=='doh'};type.onchange=sync;sync()};
+ const value=()=>({dns_type:type.value||'doh',dns_ip:ip.value.trim(),dns_name:type.value==='doh'?name.value.trim():''});
+ const visible=select=>{box.hidden=select.value!=='custom';return!box.hidden};
+ const label=select=>{if(select.value==='custom')select.options[select.selectedIndex].textContent=dnsCustomLabel(value())};
+ type.addEventListener('change',()=>label(box._dnsSelect));ip.addEventListener('input',()=>label(box._dnsSelect));name.addEventListener('input',()=>label(box._dnsSelect));
+ const bind=select=>{box._dnsSelect=select;visible(select)};setMode(mode||'direct');return{box,setMode,value,visible,bind};
+}
+function dnsPayload(select,editor){const out={dns:select.value};if(select.value==='custom')Object.assign(out,editor.value());return out}
 function dnsPath(mode){const s=document.createElement('select');setDnsPath(s,mode);s.disabled=true;s.title='查询路径由出口节点决定，代理 DNS 不允许回落直连';return s}
 function setDnsPath(s,mode){s.replaceChildren();opt(s,mode,mode==='split'?'国内域名直连 DNS · 其余跟随代理':mode==='proxy'?'跟随代理出口（节点 + 前置）':'本地直连出口');s.value=mode}
 function field(name,c,wide){const d=el('div','field'+(wide?' wide':''));d.append(el('label','',name),c);return d}
@@ -620,55 +664,87 @@ function splitFields(x,f,node,path){
 
 function devicePayload(r){return{mac:r.d.mac,name:r.name.value,ip:r.ip.value,node:r.node.value,preproxy:r.node.value?r.pre.value:'',dns:r.dns.value,split_mode:r.split.mode.value,split_rules:r.split.rules.value,platforms:r.split.platforms.value,dns_split:r.split.ds.value,block_domains:r.split.blocked.value}}
 function renderDevices(){let stats=$('dns-stats');if(!stats){stats=el('div','note');stats.id='f25-dns-stats';$('devices').before(stats)}const st=state.dns_stats||{};stats.textContent='DNS 查询统计（本次配置加载后）：直连查询 '+(st.direct||0)+' · 代理 '+(st.proxy||0)+' · 已拦截 '+(st.blocked||0)+' · 解析失败 '+(st.errors||0);rows=[];$('devices').replaceChildren();const q=$('search').value.trim().toLowerCase(),all=state.devices||[],numbers=new Map(all.map((d,i)=>[d.mac,i+1])),visible=all.filter(d=>[d.name,d.hostname,d.mac,d.ip,d.fixed_ip].join(' ').toLowerCase().includes(q)),online=all.filter(d=>d.online).length,proxied=all.filter(d=>d.mode==='proxy').length;for(const [id,value] of [['total',all.length],['online',online],['offline',all.length-online],['proxy',proxied],['direct',all.length-proxied]])$( 'stat-'+id).textContent=value;$('device-total').textContent=all.length+' 台设备';$('device-matches').textContent=q?'当前搜索匹配 '+visible.length+' / '+all.length+' 台 · 编号保留原列表顺序':'当前显示 '+visible.length+' 台 · 在线状态以最近刷新为准';visible.forEach(d=>{const box=el('div','item device-row'),h=el('div','head'),left=el('div'),ck=document.createElement('input');ck.type='checkbox';const deviceTitle=el('div','device-title');deviceTitle.append(el('span','device-number',String(numbers.get(d.mac)).padStart(2,'0')),el('span','title',d.name||d.mac));const presence=el('div','device-presence');presence.append(el('span','device-mac',d.mac+' · '),el('span','device-online '+(d.online?'is-online':'is-offline'),d.online?'在线':'离线'));left.append(deviceTitle,presence);h.append(left,ck);const f=el('div','fields'),name=document.createElement('input'),ip=document.createElement('input'),node=nodeSel(d.mode==='proxy'?d.node:'',false),pre=nodeSel(d.preproxy||'',true),dns=dnsSel(d.mode==='proxy'?'proxy':'direct',d.dns||'inherit',false),path=dnsPath(d.mode==='proxy'?'proxy':'direct');name.value=d.name||'';name.placeholder='例如：客厅手机 / 工位 01';name.maxLength=80;ip.value=d.fixed_ip||d.ip||'';const nameField=field('设备备注名',name),nameSave=el('button','cbi-button device-name-save','保存备注');nameSave.type='button';nameSave.onclick=async()=>{nameSave.disabled=true;try{const j=await api('device_name',{mac:d.mac,name:name.value});d.custom_name=j.name||'';d.name=j.name||d.hostname||d.mac;deviceTitle.querySelector('.title').textContent=d.name;msg(j.name?'设备备注已保存':'设备备注已清除')}catch(e){msg(e.message,true)}finally{nameSave.disabled=false}};nameField.append(nameSave);f.append(nameField,field('固定 IP',ip),field('出口节点',node),field('前置',pre),field('DNS 查询路径',path,true),field('DNS 服务商',dns,true));const split=splitFields(d,f,node,path);const save=el('button','cbi-button cbi-button-apply','快速保存'),bar=el('div','row-actions'),test=el('button','cbi-button','检测绑定出口'),result=el('div','probe-result note','未检测（使用已保存配置）');bar.append(save,test);test.onclick=()=>probeExit('device',d.mac,test,result);box.append(h,f,bar,result);$('devices').append(box);const r={d,ck,name,ip,node,pre,dns,split};node.onchange=()=>{const s=dnsSel(node.value?'proxy':'direct','inherit',false);dns.replaceWith(s);r.dns=s;split.update()};save.onclick=()=>store({devices:[devicePayload(r)]});rows.push(r)});if(!rows.length)$('devices').append(el('div','note','没有匹配设备'))}
-function wifiPayload(w,node,pre,dns){return{action:'update',id:w.id,node:node.value,preproxy:node.value?pre.value:'',dns:dns.value}}
+function wifiPayload(w,node,pre,dns,editor){return{action:'update',id:w.id,node:node.value,preproxy:node.value?pre.value:'',...dnsPayload(dns,editor)}}
+function wifiItemPayload(r){return{...wifiPayload(r.w,r.node,r.pre,r.dns,r.dnsCustom),split_mode:r.split.mode.value,split_rules:r.split.rules.value,platforms:r.split.platforms.value,dns_split:r.split.ds.value,block_domains:r.split.blocked.value}}
 function renderMainLan(main){
- main=main||{};const selected=main.mode==='proxy'?(main.node||''):'',n=nodeSel(selected,false),p=nodeSel(main.preproxy||'',true),fields=$('main-lan-fields'),path=$('main-lan-path'),dns=$('main-lan-dns');
- fields.querySelectorAll('.split-panel').forEach(e=>e.remove());
+ main=main||{};const selected=main.mode==='proxy'?(main.node||''):'',mode=selected?'proxy':'direct',n=nodeSel(selected,false),p=nodeSel(main.preproxy||'',true),fields=$('main-lan-fields'),path=$('main-lan-path'),dns=$('main-lan-dns');
+ fields.querySelectorAll('.split-panel,.wifi-dns-custom').forEach(e=>e.remove());
  $('main-lan-node').replaceChildren(...n.childNodes);$('main-lan-pre').replaceChildren(...p.childNodes);$('main-lan-node').value=selected;$('main-lan-pre').value=main.preproxy||'';
- setDnsPath(path,selected?'proxy':'direct');const ds=dnsSel(selected?'proxy':'direct',main.dns||'inherit',false);dns.replaceChildren(...ds.childNodes);dns.value=main.dns||'inherit';
- const split=splitFields(main,fields,$('main-lan-node'),path);mainLanControls={node:$('main-lan-node'),pre:$('main-lan-pre'),dns,path,split};
+ setDnsPath(path,mode);const ds=dnsSel(mode,main.dns||'inherit',true,main);dns.replaceChildren(...ds.childNodes);dns.value=main.dns||'inherit';
+ const dnsCustom=customDnsEditor(main,mode);dnsCustom.box.classList.add('main-lan-dns-custom');fields.append(dnsCustom.box);
+ const wire=select=>{select.onchange=()=>dnsCustom.visible(select);dnsCustom.bind(select)};wire(dns);
+ const split=splitFields(main,fields,$('main-lan-node'),path);mainLanControls={node:$('main-lan-node'),pre:$('main-lan-pre'),dns,dnsCustom,path,split};
  const statePill=$('main-lan-state');statePill.textContent=selected?'已分配节点':'直连';statePill.classList.toggle('proxy',!!selected);
- const sync=()=>{const node=(state.nodes||[]).find(x=>x.id===$('main-lan-node').value),previous=dns.value||'inherit';$('main-lan-pre').disabled=!node;if(!node)$('main-lan-pre').value='';setDnsPath(path,node?'proxy':'direct');const next=dnsSel(node?'proxy':'direct',previous,false);dns.replaceChildren(...next.childNodes);dns.value=previous;if(!dns.value)dns.value='inherit';split.update();statePill.textContent=node?'已分配节点':'直连';statePill.classList.toggle('proxy',!!node)};
+ const sync=()=>{const node=(state.nodes||[]).find(x=>x.id===$('main-lan-node').value),nextMode=node?'proxy':'direct',previous=dns.value||'inherit';$('main-lan-pre').disabled=!node;if(!node)$('main-lan-pre').value='';setDnsPath(path,nextMode);dnsCustom.setMode(nextMode);const next=dnsSel(nextMode,previous,true,dnsCustom.value());dns.replaceChildren(...next.childNodes);dns.value=next.value||'inherit';mainLanControls.dns=dns;wire(dns);split.update();statePill.textContent=node?'已分配节点':'直连';statePill.classList.toggle('proxy',!!node)};
  $('main-lan-node').onchange=sync;sync();
 }
-function renderWifiCreate(){const n=nodeSel('',false),p=nodeSel('',true);$('wnode').replaceChildren(...n.childNodes);$('wpre').replaceChildren(...p.childNodes);$('wnode').value='';$('wpre').value='';const fill=()=>{setDnsPath($('wpath'),$('wnode').value?'proxy':'direct');const d=dnsSel($('wnode').value?'proxy':'direct','inherit',false);$('wdns').replaceChildren(...d.childNodes)};$('wnode').onchange=fill;fill()}
+function renderWifiBatch(){
+ const p=nodeSel('',true);$('wifi-batch-pre').replaceChildren(...p.childNodes);$('wifi-batch-pre').value='';
+}
+function renderWifiCreate(){const n=nodeSel('',false),p=nodeSel('',true),fields=$('wdns').closest('.fields');$('wnode').replaceChildren(...n.childNodes);$('wpre').replaceChildren(...p.childNodes);$('wnode').value='';$('wpre').value='';fields.querySelectorAll('.wifi-create-dns-custom').forEach(e=>e.remove());const custom=customDnsEditor({},'direct');custom.box.classList.add('wifi-create-dns-custom');$('wdns').closest('.field').after(custom.box);wifiCreateDnsCustom=custom;const wire=select=>{select.onchange=()=>custom.visible(select);custom.bind(select)};const fill=()=>{const mode=$('wnode').value?'proxy':'direct',previous=$('wdns').value||'inherit';setDnsPath($('wpath'),mode);custom.setMode(mode);const d=dnsSel(mode,previous,true,custom.value());$('wdns').replaceChildren(...d.childNodes);$('wdns').value=previous;if(!$('wdns').value)$('wdns').value='inherit';wire($('wdns'))};$('wnode').onchange=fill;fill()}
 function updateWifiBulk(){
  const list=state?.wifi?.managed||[],ids=new Set(list.map(w=>w.id));for(const id of wifiSelected)if(!ids.has(id))wifiSelected.delete(id);
  const all=$('wifi-select-all');all.checked=list.length>0&&wifiSelected.size===list.length;all.indeterminate=wifiSelected.size>0&&wifiSelected.size<list.length;all.disabled=!list.length;
  $('wifi-selected-count').textContent='已选 '+wifiSelected.size+' / '+list.length+' 个';for(const key of ['wifi-delete-selected','wifi-hide-selected','wifi-show-selected']){$(key).disabled=!wifiSelected.size;$(key).hidden=!wifiSelected.size}
- $('hide-all').disabled=$('show-all').disabled=!list.length;$('wifi-clear-all').disabled=!list.length;
+ $('hide-all').disabled=$('show-all').disabled=!list.length;$('wifi-clear-all').disabled=!list.length;$('wifi-apply-all').disabled=!list.length;$('wifi-pre-all').disabled=!list.length;$('wifi-apply-selected').disabled=!wifiSelected.size;$('wifi-pre-selected').disabled=!wifiSelected.size;
+ $('wifi-apply-selected').textContent='一键应用已选更改 · '+wifiSelected.size;$('wifi-pre-selected').textContent='应用已选前置 · '+wifiSelected.size;
+ for(const id of ['wifi-apply-selected','wifi-pre-selected']){const b=$(id);b.classList.toggle('is-ready',wifiSelected.size>0)}
 }
 function renderWifis(){
  const inf=state.wifi||{managed:[],counts:{'5g':0,'2g':0},max5:14,max2:8};$('wifi-existing-count').textContent=(inf.managed||[]).length+' 个';$('wifi-count').textContent='5G '+(inf.counts['5g']||0)+'/'+inf.max5+' · 2.4G '+(inf.counts['2g']||0)+'/'+inf.max2;$('wifis').replaceChildren();
- renderMainLan(inf.main||{});
+ renderMainLan(inf.main||{});renderWifiBatch();wifiRows=[];
  (inf.managed||[]).forEach(w=>{
   const box=el('div','item'),h=el('div','head'),left=el('div'),checkLabel=el('label','wifi-choice'),cb=document.createElement('input');
   left.append(el('div','title',w.ssid||w.id),el('div','meta',w.subnet+' · '+w.band+' · '+(w.hidden?'已隐藏':'广播中')));cb.type='checkbox';cb.checked=wifiSelected.has(w.id);cb.setAttribute('aria-label','选择 '+(w.ssid||w.id));cb.onchange=()=>{cb.checked?wifiSelected.add(w.id):wifiSelected.delete(w.id);updateWifiBulk()};checkLabel.append(cb,document.createTextNode('选择'));h.append(left,checkLabel);
-  const f=el('div','fields'),node=nodeSel(w.mode==='proxy'?w.node:'',false),pre=nodeSel(w.preproxy||'',true);let dns=dnsSel(w.mode==='proxy'?'proxy':'direct',w.dns||'inherit',false);const path=dnsPath(w.mode==='proxy'?'proxy':'direct');
-  f.append(field('出口节点',node),field('前置',pre),field('DNS 查询路径',path,true),field('DNS 服务商',dns,true));const split=splitFields(w,f,node,path);
+   const f=el('div','fields'),node=nodeSel(w.mode==='proxy'?w.node:'',false),pre=nodeSel(w.preproxy||'',true),mode=w.mode==='proxy'?'proxy':'direct';let dns=dnsSel(mode,w.dns||'inherit',true,w);const path=dnsPath(mode);
+   const dnsCustom=customDnsEditor(w,mode),wire=select=>{select.onchange=()=>dnsCustom.visible(select);dnsCustom.bind(select)};
+   f.append(field('出口节点',node),field('前置',pre),field('DNS 查询路径',path,true),field('DNS 服务商',dns,true),dnsCustom.box);wire(dns);const split=splitFields(w,f,node,path);
   const bar=el('div','bar'),save=el('button','cbi-button cbi-button-apply','快速切换'),del=el('button','cbi-button wifi-delete','删除 WiFi'),hide=el('button','cbi-button wifi-visibility',w.hidden?'恢复显示':'隐藏 WiFi');bar.append(save,del,hide);box.append(h,f,bar);$('wifis').append(box);
-  node.onchange=()=>{const s=dnsSel(node.value?'proxy':'direct','inherit',false);dns.replaceWith(s);dns=s;split.update()};
-  save.onclick=()=>wifi({...wifiPayload(w,node,pre,dns),split_mode:split.mode.value,split_rules:split.rules.value,platforms:split.platforms.value,dns_split:split.ds.value,block_domains:split.blocked.value});
+   const r={w,node,pre,dns,dnsCustom,split};wifiRows.push(r);
+   node.onchange=()=>{const nextMode=node.value?'proxy':'direct',previous=dns.value||'inherit';dnsCustom.setMode(nextMode);const s=dnsSel(nextMode,previous,true,dnsCustom.value());dns.replaceWith(s);dns=s;r.dns=s;wire(s);split.update()};
+  save.onclick=()=>wifi(wifiItemPayload(r));
   del.onclick=()=>confirmTwice('删除 '+w.ssid+'？连接该 WiFi 的设备会断开。','再次确认：该 WiFi、网络、DHCP 和代理绑定将被删除。')&&wifi({action:'remove',id:w.id});hide.onclick=()=>wifi({action:'hide_one',id:w.id,hidden:!w.hidden});
  });updateWifiBulk();renderWifiCreate();
 }
 
-function renderDns(){for(const [id,scope,val] of [['direct-dns','direct',state.direct_dns],['proxy-dns','proxy',state.proxy_dns]]){const s=$(id);s.replaceChildren();dnsFill(s,scope);s.value=val==='follow_exit'?'cloudflare':val||''}}
+function syncDnsCustom(scope){const custom=$(scope+'-dns').value==='custom';$(scope+'-dns-custom').hidden=!custom}
+function renderDns(){for(const [id,scope,val] of [['direct-dns','direct',state.direct_dns],['proxy-dns','proxy',state.proxy_dns]]){const s=$(id);s.replaceChildren();dnsFill(s,scope,true);s.value=val==='follow_exit'?'cloudflare':val||'inherit';if(!s.value)s.value='inherit';$(scope+'-dns-type').value=state[scope+'_dns_type']||'doh';$(scope+'-dns-ip').value=state[scope+'_dns_ip']||'';$(scope+'-dns-name').value=state[scope+'_dns_name']||'';s.onchange=()=>syncDnsCustom(scope);syncDnsCustom(scope)}}
 function renderSubLogs(){const root=$('sub-logs');root.replaceChildren();const names=new Map((state.subscriptions||[]).map(s=>[s.id,s.name]));for(const log of (Array.isArray(state.subscription_history)?state.subscription_history:[])){const row=el('div','item'),title=el('div',log.ok?'good':'bad',new Date(log.attempt*1000).toLocaleString()+' · '+(names.get(log.id)||'已删除订阅')+' · '+(log.ok?'成功':'失败'));row.append(title,el('div','note',log.ok?'导入 '+log.count+' 个节点 · 耗时 '+Math.max(0,(log.finished||log.attempt)-log.attempt)+' 秒':log.error||'更新失败'));root.append(row)}if(!root.childNodes.length)root.append(el('p','note','暂无更新记录；下次更新订阅后显示。'))}
 function renderSubs(){renderSubLogs();const list=state.subscriptions||[],root=$('sub-list');root.replaceChildren();$('sub-count').textContent=list.length+' 个';$('sub-update').disabled=state.subscription_running===true;$('sub-update').textContent=state.subscription_running?'更新中…':'更新全部';list.forEach((s,i)=>{const row=el('div','subscription-row'),number=el('span','subscription-number',String(i+1).padStart(2,'0')),identity=el('div','subscription-identity'),period=el('div','subscription-period','每 '+s.interval_hours+' 小时'),last=el('div','subscription-result'),actions=el('div','subscription-actions'),update=el('button','cbi-button subscription-update','更新'),remove=el('button','cbi-button danger','删除'),st=s.status||{};identity.append(el('div','title',s.name||s.id),el('div','meta',s.enabled===false?'已停用':'自动更新已启用'));const when=Number(st.finished||st.attempt||0);if(when>0&&Number.isFinite(when)){last.append(el('div','subscription-result-state '+(st.ok?'good':'bad'),st.ok?'成功 · '+Number(st.count||0)+' 个节点':'更新失败'),el('div','meta',new Date(when*1000).toLocaleString()));if(st.ok===false&&st.error)last.append(el('div','meta',st.error))}else last.append(el('div','meta','尚未更新'));update.type=remove.type='button';update.disabled=state.subscription_running===true;update.onclick=async()=>{update.disabled=true;try{await sub({action:'update',id:s.id})}finally{update.disabled=state.subscription_running===true}};remove.onclick=()=>confirm('删除订阅“'+(s.name||s.id)+'”？')&&sub({action:'remove',id:s.id});actions.append(update,remove);row.append(number,identity,period,last,actions);root.append(row)});if(!list.length)root.append(el('div','subscription-empty','暂无订阅，在上方添加 HTTPS 订阅地址。'))}
 function render(){health();renderNodes();renderBatch();renderDevices();renderWifis();renderDns();renderSubs();renderOverview()}
 async function load(){try{state=await api('status');render()}catch(e){msg(e.message,true)}}
 async function store(data){if(busy)return false;busy=true;const t=performance.now();try{const j=await api('save',{data:JSON.stringify(data)});await load();msg((j.message||'完成')+' · '+((performance.now()-t)/1000).toFixed(2)+'s');return true}catch(e){msg(e.message,true);return false}finally{busy=false}}
 let wifiProgress=null;
-async function wifi(data){if(busy){msg('上一项操作尚未完成，请等待完成提示');return false}busy=true;const t=performance.now(),create=data.action==='create',label=create?'正在建立 WiFi':data.action==='update'?'正在分配节点':'正在应用 WiFi 设置',button=$('wcreate'),original=button.textContent;const controls=['wcreate','assign-go','assign-unbind','import'].map(id=>$(id)),disabled=controls.map(e=>e.disabled);controls.forEach(e=>e.disabled=true);let hint=$('wifi-progress');if(!hint){hint=el('div','note');hint.id='f25-wifi-progress';hint.setAttribute('role','status');hint.setAttribute('aria-live','polite');button.parentElement.after(hint)}const progress=()=>{const seconds=((performance.now()-t)/1000).toFixed(1),text=label+'，已等待 '+seconds+' 秒。'+(create?'正在保存并应用无线配置，请等待完成提示后再分配节点。':'请勿重复操作。');msg(text);$('msg').className='msg pending';hint.textContent=text;if(create)button.textContent='建立中 · '+seconds+'s'};progress();wifiProgress=setInterval(progress,250);try{const j=await api('wifi',{data:JSON.stringify(data)});clearInterval(wifiProgress);wifiProgress=null;const done=(j.message||(create?'WiFi 建立完成':'操作完成'))+' · 用时 '+((performance.now()-t)/1000).toFixed(2)+' 秒';hint.textContent=create?'WiFi 建立完成，现在可以导入或分配节点。'+done:done;await load();msg(create?'WiFi 建立完成，可以分配节点。'+done:done);return true}catch(e){clearInterval(wifiProgress);wifiProgress=null;const text=(create?'WiFi 建立未确认完成：':'操作未完成：')+e.message;hint.textContent=text;msg(text,true);return false}finally{if(wifiProgress){clearInterval(wifiProgress);wifiProgress=null}busy=false;controls.forEach((e,i)=>e.disabled=disabled[i]);button.textContent=original}}
+async function wifi(data){if(busy){msg('上一项操作尚未完成，请等待完成提示');return false}busy=true;const t=performance.now(),create=data.action==='create',label=data.action==='apply_batch'?'正在统一应用 WiFi 设置':data.action==='preproxy_batch'?'正在统一设置前置代理':create?'正在建立 WiFi':data.action==='update'?'正在分配节点':'正在应用 WiFi 设置',button=$('wcreate'),original=button.textContent;const controls=['wcreate','assign-go','assign-unbind','import'].map(id=>$(id)),disabled=controls.map(e=>e.disabled);controls.forEach(e=>e.disabled=true);let hint=$('wifi-progress');if(!hint){hint=el('div','note');hint.id='f25-wifi-progress';hint.setAttribute('role','status');hint.setAttribute('aria-live','polite');button.parentElement.after(hint)}const progress=()=>{const seconds=((performance.now()-t)/1000).toFixed(1),text=label+'，已等待 '+seconds+' 秒。'+(create?'正在保存并应用无线配置，请等待完成提示后再分配节点。':'请勿重复操作。');msg(text);$('msg').className='msg pending';hint.textContent=text;if(create)button.textContent='建立中 · '+seconds+'s'};progress();wifiProgress=setInterval(progress,250);try{const j=await api('wifi',{data:JSON.stringify(data)});clearInterval(wifiProgress);wifiProgress=null;const done=(j.message||(create?'WiFi 建立完成':'操作完成'))+' · 用时 '+((performance.now()-t)/1000).toFixed(2)+' 秒';hint.textContent=create?'WiFi 建立完成，现在可以导入或分配节点。'+done:done;await load();msg(create?'WiFi 建立完成，可以分配节点。'+done:done);return true}catch(e){clearInterval(wifiProgress);wifiProgress=null;const text=(create?'WiFi 建立未确认完成：':'操作未完成：')+e.message;hint.textContent=text;msg(text,true);return false}finally{if(wifiProgress){clearInterval(wifiProgress);wifiProgress=null}busy=false;controls.forEach((e,i)=>e.disabled=disabled[i]);button.textContent=original}}
 async function saveMainLan(){
  if(busy)return msg('上一项配置仍在应用，请稍后保存',true);
  const button=$('main-lan-save'),label=button.textContent,node=$('main-lan-node').value,pre=node&&!$('main-lan-pre').disabled?$('main-lan-pre').value:'',split=mainLanControls&&mainLanControls.split;
- const payload={action:'lan_update',node,preproxy:pre,dns:mainLanControls?mainLanControls.dns.value:'inherit',split_mode:split?split.mode.value:'all',split_rules:split?split.rules.value:'',platforms:split?split.platforms.value:'',dns_split:split?split.ds.value:'0',block_domains:split?split.blocked.value:''};
+ const dns=mainLanControls?dnsPayload(mainLanControls.dns,mainLanControls.dnsCustom):{dns:'inherit'};
+ const payload={action:'lan_update',node,preproxy:pre,...dns,split_mode:split?split.mode.value:'all',split_rules:split?split.rules.value:'',platforms:split?split.platforms.value:'',dns_split:split?split.ds.value:'0',block_domains:split?split.blocked.value:''};
  button.disabled=true;button.textContent='正在应用…';busy=true;
  try{await api('wifi',{data:JSON.stringify(payload)});await load();msg(node?'主 WiFi / 有线 LAN 默认出口已更新':'主 WiFi / 有线 LAN 已设为直连')}
  catch(e){msg('主 WiFi 设置失败：'+e.message,true)}
  finally{button.disabled=false;button.textContent=label;busy=false}
+}
+
+async function saveDns(){
+ const direct=$('direct-dns').value,proxy=$('proxy-dns').value,payload={direct_dns:direct,proxy_dns:proxy};
+ if(direct==='custom'){payload.direct_dns_type=$('direct-dns-type').value;payload.direct_dns_ip=$('direct-dns-ip').value.trim();payload.direct_dns_name=$('direct-dns-name').value.trim()}
+ if(proxy==='custom'){payload.proxy_dns_type=$('proxy-dns-type').value;payload.proxy_dns_ip=$('proxy-dns-ip').value.trim();payload.proxy_dns_name=$('proxy-dns-name').value.trim()}
+ await store(payload)
+}
+async function applyWifiBatch(scope){
+ const rows=scope==='selected'?wifiRows.filter(r=>wifiSelected.has(r.w.id)):wifiRows;
+ if(!rows.length)return msg(scope==='selected'?'请先勾选要应用的 WiFi':'当前没有可应用的 WiFi',true);
+ if(!confirm('一次应用 '+rows.length+' 个 WiFi 卡片中的当前节点与策略设置？'))return;
+ await wifi({action:'apply_batch',items:rows.map(wifiItemPayload)})
+}
+async function applyWifiPreproxy(scope){
+ const pre=$('wifi-batch-pre').value,preName=pre?((state.nodes||[]).find(n=>n.id===pre)||{}).name||pre:'不使用前置',rows=scope==='selected'?wifiRows.filter(r=>wifiSelected.has(r.w.id)):wifiRows;
+ if(!rows.length)return msg(scope==='selected'?'请先勾选要设置前置的 WiFi':'当前没有可设置的 WiFi',true);
+ if(!confirm('将 '+rows.length+' 个 WiFi 的前置统一设为“'+preName+'”？'))return;
+ const payload={action:'preproxy_batch',preproxy:pre};if(scope==='selected')payload.ids=rows.map(r=>r.w.id);
+ await wifi(payload)
 }
 
 function assignTargets(){const s=$('assign-target');s.replaceChildren();if($('assign-type').value==='wifi')(state.wifi&&state.wifi.managed||[]).forEach(w=>opt(s,w.id,(w.ssid||w.id)+' · '+w.subnet));else(state.devices||[]).forEach(d=>opt(s,d.mac,(d.name||d.mac)+' · '+(d.fixed_ip||d.ip||'')));if(!s.options.length)opt(s,'','没有目标')}
@@ -681,11 +757,15 @@ $('import').onclick=async()=>{const links=$('links').value;if(!links.trim())retu
 
 $('select-all').onclick=()=>{visibleNodes.forEach(n=>selected.add(n.id));renderNodes()};$('clear-selected').onclick=()=>{selected.clear();renderNodes()};$('delete-selected').onclick=async()=>{if(!selected.size)return msg('请先选择节点',true);if(!confirmTwice('确认删除所选 '+selected.size+' 个节点？','再次确认：关联设备和 WiFi 将切换为国内直连。'))return;try{const j=await api('delete_nodes',{data:JSON.stringify({ids:[...selected],force:true})});selected.clear();await load();const x=(j.skipped||[]).map(v=>v.id+'：'+v.reason).join('\n');msg(j.message+(x?'\n'+x:''),(j.skipped||[]).length>0)}catch(e){msg(e.message,true)}};
 $('batch').onclick=()=>{const a=rows.filter(r=>r.ck.checked);if(!a.length)return msg('请先勾选设备',true);a.forEach(r=>{r.node.value=$('batch-node').value;r.pre.value=$('batch-pre').value});store({devices:a.map(devicePayload)})};$('unbind').onclick=()=>{const a=rows.filter(r=>r.ck.checked);if(!a.length)return msg('请先勾选设备',true);store({devices:a.map(r=>({mac:r.d.mac,remove:true}))})};
-$('dns-save').onclick=()=>store({direct_dns:$('direct-dns').value,proxy_dns:$('proxy-dns').value});$('wcreate').onclick=()=>wifi({action:'create',count5:Number($('w5').value||0),count2:Number($('w2').value||0),prefix:$('wprefix').value,start:Number($('wstart').value||1),key:$('wkey').value,node:$('wnode').value,preproxy:$('wnode').value?$('wpre').value:'',dns:$('wdns').value,hidden:$('whidden').value==='1'});$('hide-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:true});$('show-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:false});
+ $('dns-save').onclick=saveDns;$('wcreate').onclick=()=>wifi({action:'create',count5:Number($('w5').value||0),count2:Number($('w2').value||0),prefix:$('wprefix').value,start:Number($('wstart').value||1),key:$('wkey').value,node:$('wnode').value,preproxy:$('wnode').value?$('wpre').value:'',...dnsPayload($('wdns'),wifiCreateDnsCustom),hidden:$('whidden').value==='1'});$('hide-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:true});$('show-all').onclick=()=>wifi({action:'hide_selected',ids:(state.wifi.managed||[]).map(w=>w.id),hidden:false});
 $('sub-add').onclick=()=>sub({action:'save',name:$('sub-name').value,url:$('sub-url').value,interval_hours:Number($('sub-hours').value),enabled:true});$('sub-update').onclick=()=>sub({action:'update',id:'all'});$('assign-type').onchange=assignTargets;$('assign-go').onclick=()=>doAssign(false);$('assign-unbind').onclick=()=>doAssign(true);$('assign-close').onclick=closeAssign;$('assign-modal').onclick=e=>{if(e.target===$('assign-modal'))closeAssign()};
 
 $('wifi-select-all').onchange=()=>{wifiSelected=$('wifi-select-all').checked?new Set((state.wifi.managed||[]).map(w=>w.id)):new Set();renderWifis()};
 $('wifi-delete-selected').onclick=async()=>{const ids=[...wifiSelected];if(ids.length&&confirmTwice('删除所选 '+ids.length+' 个附加 WiFi？连接这些 WiFi 的设备会断开；主 WiFi 保留。','再次确认：所选 WiFi、网络、DHCP 和代理绑定将被删除。')){if(await wifi({action:'remove_selected',ids})){wifiSelected.clear();renderWifis()}}};
+$('wifi-apply-all').onclick=()=>applyWifiBatch('all');
+$('wifi-apply-selected').onclick=()=>applyWifiBatch('selected');
+$('wifi-pre-all').onclick=()=>applyWifiPreproxy('all');
+$('wifi-pre-selected').onclick=()=>applyWifiPreproxy('selected');
 $('wifi-hide-selected').onclick=()=>wifi({action:'hide_selected',ids:[...wifiSelected],hidden:true});
 $('wifi-clear-all').onclick=async()=>{const ids=(state.wifi.managed||[]).map(w=>w.id);if(!ids.length)return;if(!confirmTwice('确认清除全部 '+ids.length+' 个附加 WiFi？\n将删除这些 WiFi 及对应的网络、DHCP 和代理绑定配置，连接设备会断开。\n主 WiFi 保留。此操作无法撤销。','再次确认：全部附加 WiFi 将被永久删除，是否继续？'))return;if(await wifi({action:'remove_all',ids})){wifiSelected.clear();renderWifis()}};
 $('wifi-show-selected').onclick=()=>wifi({action:'hide_selected',ids:[...wifiSelected],hidden:false});

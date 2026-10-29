@@ -24,7 +24,13 @@ console = (ROOT / "root/usr/lib/lua/luci/view/fastacl252/console.htm").read_text
 assert "FastACL" in console and f"V{version}" in console
 
 # Managed WiFi node/preproxy/DNS updates are pure application-layer switches.
-wifi_update = between(controller, "if req.action=='update' or req.action=='lan_update' then", "if req.action=='hide_all'")
+wifi_update = between(
+    controller,
+    "if req.action=='update' or req.action=='lan_update' or "
+    "req.action=='bulk_update' or req.action=='apply_batch' or "
+    "req.action=='preproxy_batch' then",
+    "if req.action=='hide_all'",
+)
 assert "apply_now('hot-apply')" in wifi_update
 for forbidden in (
     "/etc/init.d/network reload",

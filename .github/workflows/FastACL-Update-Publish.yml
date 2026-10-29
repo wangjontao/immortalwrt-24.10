@@ -1,5 +1,5 @@
 name: Publish FastACL online update
-run-name: 'Publish JuLiang OS 2.6.7 online update - ${{ inputs.channel }}'
+run-name: 'Publish JuLiang OS 2.6.8 online update - ${{ inputs.channel }}'
 
 'on':
   workflow_dispatch:
@@ -7,7 +7,7 @@ run-name: 'Publish JuLiang OS 2.6.7 online update - ${{ inputs.channel }}'
       version:
         description: Release version
         required: true
-        default: 2.6.7
+        default: 2.6.8
         type: string
       channel:
         description: Update channel
