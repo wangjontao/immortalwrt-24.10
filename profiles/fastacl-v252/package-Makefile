@@ -17,6 +17,7 @@ endef
 define Package/fastacl252/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
+	lua /usr/libexec/juliang-menu-cleanup.lua >/dev/null 2>&1 || true
 	lua /usr/libexec/juliang-login-theme.lua >/dev/null 2>&1 || true
 }
 endef

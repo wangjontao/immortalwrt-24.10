@@ -39,6 +39,9 @@ dataplane used by the 2.6.x firmware family.
 - dnsmasq is checked during health recovery and restarted if it is unavailable.
 - The custom Argon login migration works with the current template layout,
   retries at boot/package installation, and leaves the username field blank.
+- The Argon sidebar brand is always migrated to the two-line
+  `JuLiang / 网络服务` card; the build no longer writes the misleading
+  `JuLiang 控制面板` intermediate label.
 
 ## Monitoring
 
