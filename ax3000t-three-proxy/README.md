@@ -13,7 +13,7 @@
 |---|---|
 | 系统显示名 | JuLiang OS |
 | PassWall 2 | 26.10.20-1 |
-| GeoView | 0.2.8 |
+| GeoView | 0.1.10 |
 | Sing-box | 1.14.4 |
 | SSR Plus+ | 198-2 / v198.2 |
 | Xray | 26.10.21 |

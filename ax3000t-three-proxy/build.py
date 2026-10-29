@@ -92,7 +92,7 @@ def corecheck():
 def artifacts():
  src=Path('bin/targets/mediatek/filogic');out=Path('upload');out.mkdir(exist_ok=True)
  manifest=next(src.glob('*.manifest'));text=manifest.read_text()
- for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall2','26.10.20'),('geoview','0.2.8'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),('luci-theme-argon',''),('luci-app-argon-config',''),*[(k,v['version']) for k,v in CORES.items()]]:
+ for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall2','26.10.20'),('geoview','0.1.10'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),('luci-theme-argon',''),('luci-app-argon-config',''),*[(k,v['version']) for k,v in CORES.items()]]:
   assert any(l.startswith(pkg+' - ') and version in l for l in text.splitlines()),(pkg,version)
  assert not any(l.startswith('luci-app-passwall - ') for l in text.splitlines()),'PassWall 1 must not be installed'
  for pkg in ['v2ray-geoip','v2ray-geosite']:
