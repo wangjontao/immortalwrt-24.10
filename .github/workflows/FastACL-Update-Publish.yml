@@ -45,7 +45,7 @@ jobs:
   publish:
     name: Verify, sign and deploy update
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 300
     environment: release
     steps:
       - uses: actions/checkout@v4
@@ -168,13 +168,13 @@ jobs:
               "chmod -R u+rwX '$RELEASE_ROOT/staging/$version' 2>/dev/null || true; rm -rf '$RELEASE_ROOT/staging/$version'"
           fi
           ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$version'"
-          rsync -az --chmod=D755,F644 -e "ssh $ssh_options" \
+          rsync -az --partial --info=progress2 --chmod=D755,F644 -e "ssh $ssh_options" \
             "publish/releases/$version/" \
             "$target:$RELEASE_ROOT/staging/$version/"
           ssh $ssh_options "$target" \
             "test -s '$RELEASE_ROOT/staging/$version/SHA256SUMS' && mv '$RELEASE_ROOT/staging/$version' '$RELEASE_ROOT/releases/$version'"
 
-          rsync -az --chmod=D755,F644 -e "ssh $ssh_options" \
+          rsync -az --partial --info=progress2 --chmod=D755,F644 -e "ssh $ssh_options" \
             "publish/$channel.json" "publish/$channel.json.sig" \
             "$target:$RELEASE_ROOT/staging/"
           ssh $ssh_options "$target" \
