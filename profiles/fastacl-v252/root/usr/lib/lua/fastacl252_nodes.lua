@@ -27,6 +27,7 @@ function M.replace(u,nodes,owner)
   local counts,active={},{}; local bound={}
   u:foreach('fastacl252','device',function(d) bound[d.node or '']=true; bound[d.preproxy or '']=true end)
   u:foreach('fastacl252','wifi',function(w) bound[w.node or '']=true; bound[w.preproxy or '']=true end)
+  u:foreach('fastacl252','vlan',function(w) bound[w.node or '']=true; bound[w.preproxy or '']=true end)
   for _,n in ipairs(nodes) do
     local identity=n.protocol..'\n'..n.name; counts[identity]=(counts[identity] or 0)+1
     identity=identity..'\n'..counts[identity]

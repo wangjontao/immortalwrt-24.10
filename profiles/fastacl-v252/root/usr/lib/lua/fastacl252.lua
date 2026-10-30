@@ -86,18 +86,9 @@ function M.validate(c,guards_only)
     validate_exit(c,c.lan_default,guards_only)
     dns.resolve(c.lan_default,c.lan_default.mode,c,sink,'main_lan')
   end
-  local seenip,seenmac={},{}
-  for _,d in ipairs(c.devices) do
-    assert(M.mac(d.mac)==d.mac,'Invalid MAC')
-    assert(M.in_lan(d.ip,c.router_ip,c.netmask),'Device IP outside LAN / router / network / broadcast')
-    assert(not seenip[d.ip] and not seenmac[d.mac],'Duplicate device IP or MAC')
-    seenip[d.ip],seenmac[d.mac]=true,true
-    validate_exit(c,d,guards_only)
-    local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
-    dns.resolve(d,d.mode,c,sink,'device_'..did)
-  end
   local ranges={}; do local a,b=cidr_range(M.cidr(c.router_ip,c.netmask)); ranges[#ranges+1]={a,b,c.network} end
-  local seennet={}
+  local seennet={[c.network]=true}
+  local policy_networks={[c.network]={router_ip=c.router_ip,netmask=c.netmask}}
   for _,w in ipairs(c.wifis or {}) do
     assert(M.id(w.id) and M.id(w.network),'Invalid WiFi policy ID')
     assert(not seennet[w.network],'Duplicate WiFi network'); seennet[w.network]=true
@@ -105,6 +96,21 @@ function M.validate(c,guards_only)
     assert(M.ipnum(w.router_ip) and M.prefix(w.netmask),'Managed WiFi requires static IPv4')
     local actual=M.cidr(w.router_ip,w.netmask); assert(actual==w.subnet,'Managed WiFi subnet mismatch')
     local a,b=assert(cidr_range(w.subnet)); for _,r in ipairs(ranges) do assert(b<r[1] or a>r[2],'WiFi subnet overlaps '..r[3]) end; ranges[#ranges+1]={a,b,w.network}
+    policy_networks[w.network]={router_ip=w.router_ip,netmask=w.netmask}
+  end
+  local seenip,seenmac={},{}
+  for _,d in ipairs(c.devices) do
+    assert(M.mac(d.mac)==d.mac,'Invalid MAC')
+    local network=d.network or c.network; local scope=policy_networks[network]
+    assert(M.id(network) and scope,'Device network is not managed')
+    assert(M.in_lan(d.ip,scope.router_ip,scope.netmask),'Device IP outside selected network / router / broadcast')
+    assert(not seenip[d.ip] and not seenmac[d.mac],'Duplicate device IP or MAC')
+    seenip[d.ip],seenmac[d.mac]=true,true
+    validate_exit(c,d,guards_only)
+    local did=tostring(d.id or d.mac or d.ip or 'device'):gsub('[^%w_]','_')
+    dns.resolve(d,d.mode,c,sink,'device_'..did)
+  end
+  for _,w in ipairs(c.wifis or {}) do
     validate_exit(c,w,guards_only); dns.resolve(w,w.mode,c,sink,'wifi_'..w.id)
   end
   return c
@@ -126,7 +132,7 @@ function M.firewall(c,backend)
   local ifaces={}; local seen={}
   for _,v in ipairs(c.interfaces or {c.interface}) do if not seen[v] then ifaces[#ifaces+1]=quote_iface(v);seen[v]=true end end
   for _,w in ipairs(c.wifis or {}) do if w.mode=='proxy' then tun_sources[#tun_sources+1]=w.subnet end end
-  local all='iifname @lan_ifaces '; local main='iifname '..quote_iface(c.interface)..' '
+  local all='iifname @lan_ifaces '
   local proxy_excludes={}
   local seen_exclude={}
   local function exclude(v)
@@ -145,8 +151,8 @@ function M.firewall(c,backend)
   local nft='table inet fastacl252 {\n'..sets..split_sets..
     'chain prerouting { type filter hook prerouting priority -151; policy accept;\n'..
     all..'udp sport 68 udp dport 67 return\n'..
-    main..'meta nfproto ipv4 ether saddr @proxy_macs ether saddr . ip saddr != @proxy_pairs drop\n'..
-    main..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n'..
+    all..'meta nfproto ipv4 ether saddr @proxy_macs ether saddr . ip saddr != @proxy_pairs drop\n'..
+    all..'meta nfproto ipv4 ip saddr @proxy_ips ether saddr . ip saddr != @proxy_pairs drop\n'..
     intercept..'}\n'..
     'chain forward { type filter hook forward priority -10; policy accept;\n'..dns6..split_rules..
     '}\n'..

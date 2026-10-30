@@ -30,7 +30,12 @@ with tempfile.TemporaryDirectory() as directory:
     }]) == 32
     devices = {entry['device'] for entry in models}
     assert {'clx_s20l', 'clx_s20p', 'jdcloud_re-cp-03', 'glinet_gl-mt6000', 'netcore_n60-pro'} <= devices
+    assert 'generic' in devices
     assert 'xiaomi_redmi-router-ax6000' not in devices
     assert module.sha256(image) == 'c3bf47ea1f4a4a605470313cacb3a44f4a461f68c6faeab07e737610cb5ac835'
+    x86 = artifacts / 'juliang-os-x86-64-generic-ext4-combined-efi.img.gz'
+    x86.write_bytes(b'x86-firmware')
+    (artifacts / 'juliang-os-x86-64-generic-ext4-combined.img.gz').write_bytes(b'bios')
+    assert module.find_image(artifacts, 'generic') == x86
 
 print('FastACL update manifest generation: OK')

@@ -9,17 +9,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-IMAGE_SUFFIXES = ('.bin', '.itb')
+IMAGE_SUFFIXES = ('.bin', '.itb', '.img.gz')
 
 
 def find_image(artifacts: Path, device: str) -> Path | None:
     candidates = []
-    for path in artifacts.rglob(f'*{device}*sysupgrade*'):
-        lower = path.name.lower()
-        if path.is_file() and lower.endswith(IMAGE_SUFFIXES):
-            candidates.append(path)
+    patterns = [f'*{device}*sysupgrade*']
+    if device == 'generic':
+        patterns.append('*x86*generic*combined-efi.img.gz')
+        patterns.append('*x86*generic*combined.img.gz')
+    for pattern in patterns:
+        for path in artifacts.rglob(pattern):
+            lower = path.name.lower()
+            if path.is_file() and lower.endswith(IMAGE_SUFFIXES):
+                candidates.append(path)
     if not candidates:
         return None
+    if device == 'generic':
+        return sorted(
+            candidates,
+            key=lambda path: (
+                0 if 'combined-efi.img.gz' in path.name.lower() else 1,
+                len(path.name),
+                path.name,
+            ),
+        )[0]
     return sorted(candidates, key=lambda p: (len(p.name), p.name))[0]
 
 

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+uci set fastacl252.main.version='2.8.2'
+uci set fastacl252.main.dataplane='singbox'
+uci set fastacl252.main.vlan_mode='1'
+if [ -z "$(uci -q get fastacl252.main.vlan_trunk || true)" ]; then
+  uci set fastacl252.main.vlan_trunk='eth1'
+fi
+if [ -z "$(uci -q get fastacl252.main.vlan_wan || true)" ]; then
+  uci set fastacl252.main.vlan_wan='eth0'
+fi
+uci set fastacl252.main.max_wifi_5g='0'
+uci set fastacl252.main.max_wifi_2g='0'
+uci set fastacl252.main.provisioned='1'
+uci commit fastacl252
+
+/etc/init.d/fastacl252 enable
+/etc/init.d/wan-watchdog enable
+exit 0

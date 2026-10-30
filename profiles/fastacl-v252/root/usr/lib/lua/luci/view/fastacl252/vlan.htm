@@ -1,0 +1,220 @@
+<%+header%>
+<style>
+.f25v{width:100%;max-width:none;container-type:inline-size;color:var(--text-color,#38485c)}
+.f25v *{box-sizing:border-box}
+.f25v .toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px}
+.f25v h2{margin:0;font-size:25px;line-height:1.3}
+.f25v .summary{color:#6d7c90;font-size:13px;margin-top:5px}
+.f25v .band{border-top:1px solid rgba(110,125,145,.22);border-bottom:1px solid rgba(110,125,145,.16);padding:16px 0;margin:0 0 16px}
+.f25v .form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.f25v label{display:block;font-size:12px;color:#718096;margin:0 0 5px}
+.f25v input,.f25v select{width:100%;min-width:0;min-height:38px}
+.f25v .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:13px}
+.f25v .actions button{min-height:38px}
+.f25v .notice{font-size:12px;color:#6f7d91;line-height:1.6;margin:10px 0 0}
+.f25v .status{min-height:22px;margin:10px 0;font-weight:650;white-space:pre-wrap}
+.f25v .status.ok{color:#16855b}.f25v .status.err{color:#c63c45}
+.f25v .table-wrap{overflow-x:auto;border:1px solid rgba(110,125,145,.18);border-radius:8px}
+.f25v table{width:100%;border-collapse:collapse;min-width:840px;background:var(--background-color,#fff)}
+.f25v th,.f25v td{padding:10px 11px;border-bottom:1px solid rgba(110,125,145,.15);text-align:left;vertical-align:middle}
+.f25v th{font-size:12px;color:#69798e;font-weight:700;background:rgba(100,120,150,.055)}
+.f25v td{font-size:13px}
+.f25v tr:last-child td{border-bottom:0}
+.f25v code{font-size:12px;white-space:nowrap}
+.f25v select.row-node{min-width:150px}
+.f25v .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.f25v .row-actions button{min-height:32px;padding:5px 9px!important}
+.f25v .empty{padding:28px 16px;text-align:center;color:#7c8ba0}
+@container(max-width:850px){.f25v .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(max-width:520px){.f25v .form-grid{grid-template-columns:1fr}.f25v .toolbar{align-items:stretch}.f25v .actions>*{flex:1 1 100%;width:100%}}
+@media(prefers-color-scheme:dark){body:not(.mode-light) .f25v{color:#d8e2ec}body:not(.mode-light) .f25v .summary,body:not(.mode-light) .f25v label,body:not(.mode-light) .f25v .notice{color:#b5c3d2}body:not(.mode-light) .f25v table{background:#233240}body:not(.mode-light) .f25v th{background:#2b3d4d;color:#c7d5e2}}
+</style>
+
+<div class="f25v">
+  <div class="toolbar">
+    <div>
+      <h2>X86 VLAN 分流</h2>
+      <div class="summary" id="vlan-summary">正在读取 VLAN 配置…</div>
+    </div>
+    <button type="button" class="cbi-button" id="vlan-refresh">刷新状态</button>
+  </div>
+
+  <section class="band" aria-labelledby="vlan-create-title">
+    <h3 id="vlan-create-title">批量创建</h3>
+    <div class="form-grid">
+      <div>
+        <label for="vlan-count">数量</label>
+        <input id="vlan-count" type="number" min="1" max="32" value="4">
+      </div>
+      <div>
+        <label for="vlan-start">起始 VLAN ID</label>
+        <input id="vlan-start" type="number" min="2" max="4094" value="10">
+      </div>
+      <div>
+        <label for="vlan-subnet">起始网段</label>
+        <input id="vlan-subnet" type="number" min="1" max="254" value="10">
+      </div>
+      <div>
+        <label for="vlan-trunk">LAN Trunk 网口</label>
+        <select id="vlan-trunk"></select>
+      </div>
+      <div>
+        <label for="vlan-prefix">SSID 前缀</label>
+        <input id="vlan-prefix" type="text" maxlength="24" value="JuLiang">
+      </div>
+      <div>
+        <label for="vlan-node">默认出口</label>
+        <select id="vlan-node"></select>
+      </div>
+      <div>
+        <label for="vlan-dhcp-start">DHCP 起始</label>
+        <input id="vlan-dhcp-start" type="number" min="2" max="250" value="100">
+      </div>
+      <div>
+        <label for="vlan-dhcp-limit">DHCP 数量</label>
+        <input id="vlan-dhcp-limit" type="number" min="1" max="252" value="120">
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="cbi-button" id="vlan-preview">生成预览</button>
+      <button type="button" class="cbi-button cbi-button-apply" id="vlan-create">一键创建并应用</button>
+      <button type="button" class="cbi-button cbi-button-remove" id="vlan-delete" disabled>删除所选</button>
+    </div>
+    <p class="notice">H3C AP 的 LAN 口需设置为 Trunk；管理地址使用未打标签的管理 VLAN，各 SSID 使用表中对应的 Tagged VLAN。AP 侧关闭 DHCP、NAT 和客户端隔离。</p>
+    <div class="status" id="vlan-status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section aria-labelledby="vlan-list-title">
+    <h3 id="vlan-list-title">VLAN 与 SSID 映射</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="vlan-all" aria-label="选择全部 VLAN"></th>
+            <th>VLAN</th>
+            <th>SSID</th>
+            <th>网段</th>
+            <th>Trunk / 接口</th>
+            <th>出口节点</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="vlan-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script type="text/javascript">
+(function(){
+  const statusUrl='<%=url("admin/services/fastacl252_vlan_status")%>';
+  const actionUrl='<%=url("admin/services/fastacl252_vlan_action")%>';
+  const token='<%=token%>';
+  let state={rows:[],nodes:[],candidates:[]};
+
+  const $=id=>document.getElementById(id);
+  function text(node,value){node.textContent=value==null?'':String(value);return node}
+  function el(tag,className,value){const node=document.createElement(tag);if(className)node.className=className;if(value!=null)node.textContent=value;return node}
+  function message(value,error){const node=$('vlan-status');node.className='status '+(error?'err':'ok');node.textContent=value}
+
+  async function request(url,body){
+    const response=await fetch(url,{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'}:{},body});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||('请求失败：HTTP '+response.status));
+    return data;
+  }
+  async function action(payload){return request(actionUrl,new URLSearchParams({data:JSON.stringify(payload),token}).toString())}
+
+  function fillNodes(selected){
+    const select=$('vlan-node');select.replaceChildren();
+    const direct=el('option',null,'直连网络');direct.value='';select.append(direct);
+    state.nodes.forEach(node=>{const option=el('option',null,node.name);option.value=node.id;select.append(option)});
+    select.value=selected||'';
+  }
+  function fillCandidates(selected){
+    const select=$('vlan-trunk');select.replaceChildren();
+    state.candidates.forEach(name=>{const option=el('option',null,name);option.value=name;select.append(option)});
+    const preferred=selected||state.trunk||state.candidates[0]||'';
+    if(preferred&&!state.candidates.includes(preferred)){const option=el('option',null,preferred);option.value=preferred;select.append(option)}
+    select.value=preferred;
+  }
+  function nodeSelect(row){
+    const select=el('select','row-node');
+    const direct=el('option',null,'直连网络');direct.value='';select.append(direct);
+    state.nodes.forEach(node=>{const option=el('option',null,node.name);option.value=node.id;select.append(option)});
+    select.value=row.mode==='proxy'?row.node:'';
+    return select;
+  }
+  function render(){
+    $('vlan-summary').textContent=(state.rows.length+' 个 VLAN · Trunk '+(state.trunk||'未识别'))+(state.enabled?' · X86 VLAN 模式已启用':' · VLAN 模式未启用');
+    fillCandidates();
+    fillNodes($('vlan-node').value);
+    const body=$('vlan-rows');body.replaceChildren();
+    if(!state.rows.length){
+      const tr=el('tr'),td=el('td','empty','尚未创建 VLAN');td.colSpan=7;tr.append(td);body.append(tr);
+      $('vlan-delete').disabled=true;return;
+    }
+    state.rows.forEach(row=>{
+      const tr=el('tr'),checkCell=el('td'),check=document.createElement('input');
+      check.type='checkbox';check.className='vlan-select';check.dataset.id=row.id;checkCell.append(check);
+      const vlan=el('td',null,'VLAN '+(row.vlan||''));vlan.append(el('code',null,'  '+row.id));
+      const ssid=el('td',null,row.ssid||'—');
+      const subnet=el('td',null,row.subnet||'—');
+      const link=el('td'),linkCode=el('code',null,(row.trunk||'—')+' → '+(row.interface||'—'));link.append(linkCode);
+      const policy=el('td'),select=nodeSelect(row);policy.append(select);
+      const operations=el('td'),wrap=el('div','row-actions'),save=el('button','cbi-button cbi-button-apply','保存'),probe=el('button','cbi-button','复制映射');
+      save.type='button';probe.type='button';
+      save.onclick=async()=>{try{await action({action:'update',id:row.id,node:select.value,dns:'inherit'});message('VLAN '+(row.vlan||'')+' 出口已更新');await load()}catch(error){message(error.message,true)}};
+      probe.onclick=async()=>{try{await navigator.clipboard.writeText('VLAN '+(row.vlan||'')+' -> SSID '+(row.ssid||'')+' -> '+(row.subnet||''));message('映射已复制')}catch(error){message('浏览器未允许复制，请手动选择表格内容',true)}};
+      wrap.append(save,probe);operations.append(wrap);
+      tr.append(checkCell,vlan,ssid,subnet,link,policy,operations);body.append(tr);
+    });
+    document.querySelectorAll('.vlan-select').forEach(box=>box.onchange=updateDeleteButton);
+    $('vlan-all').checked=false;updateDeleteButton();
+  }
+  function selectedIds(){return [...document.querySelectorAll('.vlan-select:checked')].map(box=>box.dataset.id)}
+  function updateDeleteButton(){$('vlan-delete').disabled=selectedIds().length===0}
+  function formPayload(){
+    return {
+      count:Number($('vlan-count').value),
+      start_vlan:Number($('vlan-start').value),
+      start_subnet:Number($('vlan-subnet').value),
+      ssid_prefix:$('vlan-prefix').value,
+      trunk:$('vlan-trunk').value,
+      node:$('vlan-node').value,
+      dns:'inherit',
+      dhcp_start:Number($('vlan-dhcp-start').value),
+      dhcp_limit:Number($('vlan-dhcp-limit').value)
+    };
+  }
+  async function load(){
+    try{
+      const data=await request(statusUrl);state=data;render();
+      if(!state.enabled)message('当前固件未启用 X86 VLAN 模式',true);
+    }catch(error){message(error.message,true)}
+  }
+
+  $('vlan-refresh').onclick=load;
+  $('vlan-preview').onclick=async()=>{
+    try{
+      const data=await action(Object.assign({action:'preview'},formPayload())),rows=data.result.rows||[];
+      message('预览：\n'+rows.map(row=>'VLAN '+row.vlan+' · '+row.ssid+' · '+row.subnet+' · '+row.interface).join('\n'));
+    }catch(error){message(error.message,true)}
+  };
+  $('vlan-create').onclick=async()=>{
+    const payload=formPayload();
+    if(!confirm('创建 '+payload.count+' 个 VLAN，并立即重载网络、DHCP 和防火墙？\n请确认 AP Trunk 已放行对应 VLAN。'))return;
+    try{const data=await action(Object.assign({action:'create'},payload));message(data.message||'VLAN 创建完成');await load()}
+    catch(error){message(error.message,true)}
+  };
+  $('vlan-delete').onclick=async()=>{
+    const ids=selectedIds();if(!ids.length)return;
+    if(!confirm('删除所选 '+ids.length+' 个 VLAN？对应 DHCP、防火墙和出口策略将一并删除。'))return;
+    try{const data=await action({action:'remove',ids});message(data.message||'VLAN 已删除');await load()}
+    catch(error){message(error.message,true)}
+  };
+  $('vlan-all').onchange=()=>{document.querySelectorAll('.vlan-select').forEach(box=>box.checked=$('vlan-all').checked);updateDeleteButton()};
+  load();
+})();
+</script>
+<%+footer%>

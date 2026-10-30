@@ -64,6 +64,11 @@ function index()
   if not nixio.fs.access('/etc/config/fastacl252') then return end
   local p=entry({'admin','juliang','fastacl'},template('fastacl252/console'),_('FastACL 控制台'),3)
   p.dependent=false; gate(p)
+  local u=require('uci').cursor()
+  if u:get('fastacl252','main','vlan_mode')=='1' then
+    p=entry({'admin','juliang','fastacl-vlan'},template('fastacl252/vlan'),_('VLAN 分流'),4)
+    p.dependent=false; gate(p)
+  end
   local old=gate(entry({'admin','services','fastacl252'},alias('admin','juliang','fastacl'),nil));old.leaf=true
   local e
   e=gate(entry({'admin','services','fastacl252_wireless'},call('wireless_status'),nil));e.leaf=true
@@ -79,6 +84,8 @@ function index()
   e=gate(entry({'admin','services','fastacl252_rename_node'},post('rename_node'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_device_name'},post('device_name'),nil)); e.leaf=true
   e=gate(entry({'admin','services','fastacl252_wifi'},post('wifi_action'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_vlan_status'},call('vlan_status'),nil)); e.leaf=true
+  e=gate(entry({'admin','services','fastacl252_vlan_action'},post('vlan_action'),nil)); e.leaf=true
 end
 
 function status()
@@ -102,7 +109,9 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.8.2',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,direct_dns_type=c.direct_dns_type,direct_dns_ip=c.direct_dns_ip,direct_dns_name=c.direct_dns_name,proxy_dns=c.proxy_dns,proxy_dns_type=c.proxy_dns_type,proxy_dns_ip=c.proxy_dns_ip,proxy_dns_name=c.proxy_dns_name,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  local vlan={enabled=false,trunk='',candidates={},rows={}}
+  if u:get('fastacl252','main','vlan_mode')=='1' then vlan=require('fastacl252_vlan').status(u) end
+  reply({dns_stats=dns_stats,ok=true,version='2.8.2',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,direct_dns_type=c.direct_dns_type,direct_dns_ip=c.direct_dns_ip,direct_dns_name=c.direct_dns_name,proxy_dns=c.proxy_dns,proxy_dns_type=c.proxy_dns_type,proxy_dns_ip=c.proxy_dns_ip,proxy_dns_name=c.proxy_dns_name,wifi=wifi.status(u),vlan=vlan,network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -144,12 +153,14 @@ function save()
       if d.remove==true then existing[mac]=nil else
         assert(type(d.name or '')=='string' and #(d.name or '')<=80,'设备名称无效')
         local node=tostring(d.node or ''); local mode=node~='' and 'proxy' or 'direct'; local dnsid=tostring(d.dns or 'inherit')
+        local network=tostring(d.network or (existing[mac] and existing[mac].network) or c.network)
+        assert(policy.id(network),'设备所属网络无效')
         assert(dns.valid_id(dnsid),'DNS 选择无效')
         if dnsid~='inherit' and dnsid~='custom' then
           local dp=assert(dns.provider(dnsid),'DNS 服务商不存在')
           assert(dns.allowed(dnsid,mode),'当前出口不支持此 DNS；代理出口请选择 DoH')
         end
-        existing[mac]={id='d_'..mac:gsub(':',''),mac=mac,ip=d.ip,name=d.name or '',mode=mode,node=node,preproxy=d.preproxy or '',platforms=d.platforms or (existing[mac] and existing[mac].platforms) or '',dns_split=d.dns_split or (existing[mac] and existing[mac].dns_split) or '0',block_domains=d.block_domains or (existing[mac] and existing[mac].block_domains) or '',split_mode=d.split_mode or (existing[mac] and existing[mac].split_mode) or 'all',split_rules=d.split_rules or (existing[mac] and existing[mac].split_rules) or '',dns=dnsid,dns_type=d.dns_type,dns_ip=d.dns_ip,dns_name=d.dns_name}
+        existing[mac]={id='d_'..mac:gsub(':',''),mac=mac,ip=d.ip,network=network,name=d.name or '',mode=mode,node=node,preproxy=d.preproxy or '',platforms=d.platforms or (existing[mac] and existing[mac].platforms) or '',dns_split=d.dns_split or (existing[mac] and existing[mac].dns_split) or '0',block_domains=d.block_domains or (existing[mac] and existing[mac].block_domains) or '',split_mode=d.split_mode or (existing[mac] and existing[mac].split_mode) or 'all',split_rules=d.split_rules or (existing[mac] and existing[mac].split_rules) or '',dns=dnsid,dns_type=d.dns_type,dns_ip=d.dns_ip,dns_name=d.dns_name}
       end
     end
 
@@ -187,7 +198,7 @@ function save()
       local id='d_'..mac:gsub(':',''); local host='jfa25_'..id; local old=before[mac]; local d=existing[mac]
       u:delete('fastacl252',id)
       if d then
-        require('fastacl252').section(u,'fastacl252','device',id,{mac=mac,ip=d.ip,name=d.name,mode=d.mode,node=d.node or '',preproxy=d.preproxy or '',platforms=d.platforms or '',dns_split=d.dns_split or '0',block_domains=d.block_domains or '',split_mode=d.split_mode or 'all',split_rules=d.split_rules or '',dns=d.dns or 'inherit'})
+        require('fastacl252').section(u,'fastacl252','device',id,{mac=mac,ip=d.ip,network=d.network or c.network,name=d.name,mode=d.mode,node=d.node or '',preproxy=d.preproxy or '',platforms=d.platforms or '',dns_split=d.dns_split or '0',block_domains=d.block_domains or '',split_mode=d.split_mode or 'all',split_rules=d.split_rules or '',dns=d.dns or 'inherit'})
         if d.dns=='custom' then
           u:set('fastacl252',id,'dns_type',d.dns_type or 'doh'); u:set('fastacl252',id,'dns_ip',d.dns_ip or ''); u:set('fastacl252',id,'dns_name',d.dns_name or '')
         end
@@ -195,7 +206,7 @@ function save()
 
       if d then require('fastacl252_devices').save_name(u,mac,d.name or '') end
 
-      if not d or not old or tostring(old.ip or '')~=tostring(d.ip or '') then
+      if not d or not old or tostring(old.ip or '')~=tostring(d.ip or '') or tostring(old.network or c.network)~=tostring(d.network or c.network) then
         dhcp_changed=true
         u:delete('dhcp',host)
         if d then
@@ -206,7 +217,7 @@ function save()
               for _,v in ipairs(list) do for x in v:gmatch('%S+') do if policy.mac(x)==mac then assert(s.ip==d.ip,'此 MAC 已有其他固定 IP，请先调整原静态租约'); reserved=true end end end
             end
           end)
-          if not reserved then require('fastacl252').section(u,'dhcp','host',host,{mac=mac,ip=d.ip,leasetime='infinite',jfa25='1'}) end
+          if not reserved then require('fastacl252').section(u,'dhcp','host',host,{mac=mac,ip=d.ip,interface=d.network or c.network,leasetime='infinite',jfa25='1'}) end
         end
       end
     end
@@ -254,6 +265,91 @@ function import_nodes()
   local detail=not ok and (fs.readfile('/tmp/fastacl252/nodes-check.log') or '') or ''
   if #detail>3000 then detail=detail:sub(-3000) end
   reply({ok=ok,count=count,error=not ok and tostring(err) or nil,detail=not ok and detail or nil})
+end
+
+function vlan_status()
+  local ok,result=pcall(function()
+    local u=require('uci').cursor()
+    local status=require('fastacl252_vlan').status(u)
+    status.nodes={}
+    u:foreach('fastacl252','node',function(node)
+      if node.retired~='1' then status.nodes[#status.nodes+1]={id=node['.name'],name=node.name or node['.name']} end
+    end)
+    table.sort(status.nodes,function(a,b) return a.name<b.name end)
+    return status
+  end)
+  if ok then result.ok=true; reply(result)
+  else reply({ok=false,error=tostring(result)}) end
+end
+
+function vlan_action()
+  local h=require 'luci.http'; local json=require 'luci.jsonc'; local fs=require 'nixio.fs'; local sys=require 'luci.sys'
+  local raw=h.formvalue('data') or ''
+  if #raw>131072 then reply({ok=false,error='请求过大'}); return end
+  local request=json.parse(raw)
+  if type(request)~='table' then reply({ok=false,error='VLAN 请求格式错误'}); return end
+  local u=require('uci').cursor(); local manager=require 'fastacl252_vlan'
+  if request.action=='preview' then
+    local ok,result=pcall(function() return manager.plan(u,request) end)
+    reply(ok and {ok=true,result=result} or {ok=false,error=tostring(result)})
+    return
+  end
+  if request.action~='create' and request.action~='remove' and request.action~='update' then
+    reply({ok=false,error='不支持的 VLAN 操作'}); return
+  end
+  if not acquire_lock(fs) then return end
+
+  if request.action=='update' then
+    local original=fs.readfile('/etc/config/fastacl252'); local committed=false; local result; local detail=''
+    local ok,err=pcall(function()
+      local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交配置')
+      result=manager.update(u,request)
+      require('fastacl252_env').read(u)
+      assert(u:commit('fastacl252'),'保存 VLAN 策略失败'); committed=true
+      fs.chmod('/etc/config/fastacl252','600')
+      if u:get('fastacl252','main','enabled')=='1' then
+        local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'VLAN 策略应用失败：'..(d~='' and d or '未知错误'))
+      end
+    end)
+    if not ok then
+      u:revert('fastacl252')
+      if committed and original then fs.writefile('/etc/config/fastacl252',original); if u:get('fastacl252','main','enabled')=='1' then apply_now('hot-apply') end end
+    end
+    release_lock(fs)
+    reply(ok and {ok=true,result=result,message='VLAN 节点与 DNS 策略已快速应用。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
+    return
+  end
+
+  local names={'network','dhcp','firewall','fastacl252'}; local backup={}
+  for _,name in ipairs(names) do backup[name]=fs.readfile('/etc/config/'..name) end
+  local committed=false; local result; local detail=''
+  local ok,err=pcall(function()
+    for _,name in ipairs(names) do local pending=u:changes(name); assert(not pending or not next(pending),'请先保存或撤销 LuCI 中未提交的配置') end
+    if request.action=='create' then result=manager.create_batch(u,request)
+    else result=manager.remove_many(u,request.ids) end
+    require('fastacl252_env').read(u)
+    committed=true
+    for _,name in ipairs(names) do assert(u:commit(name),'保存 '..name..' 配置失败') end
+    assert(sys.call('/etc/init.d/network reload >/dev/null 2>&1')==0,'network reload 失败')
+    sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
+    sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
+    if u:get('fastacl252','main','enabled')=='1' then
+      local aok,d=apply_now('cold-apply'); detail=d; assert(aok,'VLAN 拓扑应用失败：'..(d~='' and d or '未知错误'))
+    end
+  end)
+  if not ok then
+    for _,name in ipairs(names) do u:revert(name) end
+    if committed then
+      restore_files(fs,backup,names)
+      sys.call('/etc/init.d/network reload >/dev/null 2>&1')
+      sys.call('/etc/init.d/dnsmasq restart >/dev/null 2>&1')
+      sys.call('/etc/init.d/firewall restart >/dev/null 2>&1')
+      if u:get('fastacl252','main','enabled')=='1' then apply_now('cold-apply') end
+    end
+  end
+  release_lock(fs)
+  local verb=request.action=='create' and '创建' or '删除'
+  reply(ok and {ok=true,result=result,message='VLAN 已批量'..verb..'并应用。',detail=detail} or {ok=false,error=tostring(err),detail=detail})
 end
 
 -- update = pure application hot switch; create/remove = topology cold path;
@@ -373,6 +469,7 @@ function subscription()
       u:foreach('fastacl252','node',function(n) if n.owner==id then owned[n['.name']]=true; remove[#remove+1]=n['.name'] end end)
       u:foreach('fastacl252','device',function(d) assert(not owned[d.node] and not owned[d.preproxy],'订阅仍有设备绑定，请先解除绑定') end)
       u:foreach('fastacl252','wifi',function(w) assert(not owned[w.node] and not owned[w.preproxy],'订阅仍有 WiFi 绑定，请先解除绑定') end)
+      u:foreach('fastacl252','vlan',function(w) assert(not owned[w.node] and not owned[w.preproxy],'订阅仍有 VLAN 绑定，请先解除绑定') end)
       for _,n in ipairs(remove) do u:delete('fastacl252',n) end; u:delete('fastacl252',id)
     else
       assert(data.action=='save','订阅操作无效')
@@ -525,6 +622,7 @@ function delete_node()
     assert(u:get('fastacl252',id)=='node','节点不存在')
     u:foreach('fastacl252','device',function(d) assert(d.node~=id and d.preproxy~=id,'节点仍被设备使用，请先解除绑定') end)
     u:foreach('fastacl252','wifi',function(w) assert(w.node~=id and w.preproxy~=id,'节点仍被 WiFi 使用，请先解除绑定') end)
+    u:foreach('fastacl252','vlan',function(w) assert(w.node~=id and w.preproxy~=id,'节点仍被 VLAN 使用，请先解除绑定') end)
     u:delete('fastacl252',id); assert(u:commit('fastacl252'),'删除节点失败')
   end)
   if not ok then u:revert('fastacl252') end

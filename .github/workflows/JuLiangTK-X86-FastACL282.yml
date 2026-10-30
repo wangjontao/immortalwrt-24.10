@@ -1,0 +1,237 @@
+name: X86 FastACL 2.8.2 Build
+run-name: 'FastACL 2.8.2 - X86_64 two-NIC VLAN gateway'
+
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+      - 2.8.2
+      - feature/x86-vlan-2.8.2
+    paths:
+      - '.github/workflows/JuLiangTK-X86-FastACL282.yml'
+      - 'profiles/fastacl-v252/**'
+      - 'scripts/integrate-fastacl252-dependencies.sh'
+      - 'scripts/integrate-fastacl282-x86.sh'
+      - 'build-configs/JuLiangTK-X86-64-FastACL282.txt'
+      - 'target/linux/x86/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fastacl282-x86-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: X86 VLAN architecture and UI gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+          cache: false
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lua5.1 nftables iproute2 curl shfmt
+          python3 -m venv .venv
+          .venv/bin/pip install lupa PyYAML playwright
+          .venv/bin/playwright install --with-deps chromium
+          curl -fL --retry 3 -o /tmp/sing-box.tgz \
+            https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
+          echo 'a1ec76e2b6b139eb747a1b1ebee7d14b8d4be5a833596cad8070a31ef960301f  /tmp/sing-box.tgz' | sha256sum -c -
+          mkdir /tmp/sing-box-core
+          tar -xzf /tmp/sing-box.tgz --strip-components=1 -C /tmp/sing-box-core
+          install -m755 /tmp/sing-box-core/sing-box /tmp/sing-box
+      - name: Validate VLAN and policy behavior
+        run: |
+          .venv/bin/python profiles/fastacl-v252/tests/test_vlan.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_vlan_policy.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_x86_vlan_assets.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_wifi_creation.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_tun_dataplane.py --sing-box /tmp/sing-box
+          .venv/bin/python profiles/fastacl-v252/tests/test_control.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_traffic_ui.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_traffic_totals.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
+          python3 profiles/fastacl-v252/tests/test_online_upgrade.py
+          python3 profiles/fastacl-v252/tests/test_update_manifest.py
+      - name: Validate syntax and shell defaults
+        run: |
+          find profiles/fastacl-v252/root -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+          node -e "const fs=require('fs');const p='profiles/fastacl-v252/root/usr/lib/lua/luci/view/fastacl252/vlan.htm';const s=fs.readFileSync(p,'utf8').match(/<script[^>]*>([\\s\\S]*?)<\\/script>/)[1];new Function(s);"
+          find profiles/fastacl-v252/root -type f | while read -r file; do
+            if head -n1 "$file" | grep -q '^#!/bin/sh'; then
+              sh -n "$file"
+              shfmt -ln posix "$file" >/dev/null
+            fi
+          done
+          sh -n scripts/integrate-fastacl282-x86.sh
+          shfmt -ln posix scripts/integrate-fastacl282-x86.sh >/dev/null
+          grep -q 'CONFIG_TARGET_x86_64_DEVICE_generic=y' build-configs/JuLiangTK-X86-64-FastACL282.txt
+          grep -q 'option vlan_mode' profiles/fastacl-v252/root/etc/config/fastacl252 ||
+            grep -q 'vlan_mode' profiles/fastacl-v252/root/etc/uci-defaults/99-juliangtk-fastacl252-x86
+      - name: Validate FastACL and VLAN pages in Chromium
+        run: |
+          cd profiles/fastacl-v252/tests
+          ../../../.venv/bin/python test_browser.py
+          ../../../.venv/bin/python test_x86_vlan_browser.py
+      - name: Validate DNS relay
+        run: |
+          (cd profiles/fastacl-v252/dns && \
+            go mod tidy && go mod vendor && \
+            go test -mod=vendor -race -timeout 2m ./... && \
+            go build -mod=vendor -trimpath -o /tmp/fastacl252-dns .)
+          for config in profiles/fastacl-v252/test-results/import-*.json; do
+            /tmp/sing-box check -c "$config"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FastACL282-X86-preflight-evidence
+          path: profiles/fastacl-v252/test-results/*
+          if-no-files-found: warn
+          retention-days: 14
+
+  build:
+    name: Build JuLiang OS X86_64 FastACL 2.8.2
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl dosfstools flex gawk genisoimage gettext gcc-multilib g++-multilib gdisk git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm mtools nano ninja-build parted p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip uuid-runtime wget xmlto xxd zlib1g-dev zstd
+          sudo timedatectl set-timezone Asia/Shanghai
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "WRT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          mkdir -p .ccache
+          echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+          cache: false
+      - name: Restore source and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: fastacl282-x86-${{ hashFiles('build-configs/JuLiangTK-X86-64-FastACL282.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dependencies.config', 'profiles/fastacl-v252/dns/go.mod') }}
+          restore-keys: |
+            fastacl282-x86-
+      - name: Update feeds
+        run: |
+          sh scripts/ci-update-feeds.sh
+          ./scripts/feeds install -a
+          ./scripts/feeds install -f -p packages nps npc || true
+          ./scripts/feeds install -f -p luci luci-app-nps luci-i18n-nps-zh-cn luci-app-autoreboot || true
+      - name: Add Argon and NPS defaults
+        run: |
+          rm -rf package/luci-theme-argon package/luci-app-argon-config
+          git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+          git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+          NPS_CONFIG_FILE="$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f 2>/dev/null | head -n1)"
+          if [ -n "$NPS_CONFIG_FILE" ]; then
+            cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
+          config nps
+            option enabled '1'
+            option server_addr 'nps.jontao.top'
+            option server_port '8024'
+            option protocol 'tcp'
+            option compress '1'
+            option crypt '1'
+            option vkey 'WANMAC'
+            option log_level '4'
+          NPS_CONFIG
+          fi
+      - name: Integrate FastACL X86
+        run: |
+          sh scripts/integrate-fastacl282-x86.sh
+          grep -qx 'CONFIG_TARGET_x86_64_DEVICE_generic=y' .config
+          grep -qx 'CONFIG_PACKAGE_juliangtk-sing-box=y' .config
+          grep -q 'sing-box-.*-linux-amd64.tar.gz' package/juliangtk-sing-box/Makefile
+          grep -q 'vlan_mode' package/fastacl252/files/etc/uci-defaults/75-juliangtk-x86-network
+          test -s package/fastacl252/files/usr/lib/lua/luci/view/fastacl252/vlan.htm
+      - name: Download sources
+        run: |
+          make download -j"$(nproc)" || make download -j1 V=s
+          find dl -type f -size -1024c -print -delete
+      - name: Compile X86 firmware
+        run: |
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          make tools/install -j"$(nproc)" || make tools/install -j1 V=s
+          make toolchain/install -j"$(nproc)" || make toolchain/install -j1 V=s
+          make target/linux/compile -j"$(nproc)" V=s
+          kernel=$(find build_dir/target-x86_64* -path '*/linux-x86_64/linux-6.6*/.config' | head -n1)
+          test -n "$kernel"
+          grep -q '^CONFIG_NF_CONNTRACK=y' "$kernel"
+          grep -q '^CONFIG_NFT_TPROXY=y' "$kernel"
+          make buildinfo
+          make package/compile -j"$(nproc)" || make package/compile -j1 V=s
+          make -j1 V=s
+      - name: Verify and collect X86 firmware
+        run: |
+          mkdir -p upload
+          image_dir=bin/targets/x86/64
+          mapfile -t images < <(find "$image_dir" -maxdepth 1 -type f \
+            \( -name '*combined-efi.img.gz' -o -name '*combined.img.gz' -o -name '*image-efi.iso' \) \
+            -size +20M | sort)
+          [ "${#images[@]}" -ge 2 ] || {
+            echo 'ERROR: X86 boot images missing'
+            find "$image_dir" -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+            exit 1
+          }
+          cp -a "${images[@]}" upload/
+          manifest="$(find "$image_dir" -maxdepth 1 -type f -name '*.manifest' -print -quit)"
+          [ -s "$manifest" ] || { echo 'ERROR: package manifest missing'; exit 1; }
+          for pkg in fastacl252 juliangtk-sing-box lyaml luci-theme-argon luci-app-argon-config luci-app-ttyd luci-app-autoreboot nps luci-app-nps npc sqm-scripts kmod-sched-cake kmod-ifb; do
+            grep -q "^$pkg " "$manifest" || { echo "$pkg missing from firmware"; exit 1; }
+          done
+          if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then
+            echo 'ERROR: iStore/QuickStart unexpectedly present'
+            exit 1
+          fi
+          if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then
+            echo 'ERROR: forbidden proxy plugin present'
+            exit 1
+          fi
+          cp .config upload/build.config
+          cp "$manifest" upload/x86-64.manifest
+          find "$image_dir" -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
+          cp JuLiang-OS-X86-64-fastacl282-final.config profiles/fastacl-v252/README-2.8.2.md upload/
+          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.2\ndevice=generic-x86-64\nnic_model=two-port-trunk-management\n' \
+            "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" > upload/LITE-BUILD.txt
+          sha256sum upload/* | tee upload/SHA256SUMS
+          ls -lh upload
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JuLiang-OS-X86-64-FastACL282-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload build failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastACL282-X86-build-failure-${{ github.run_id }}
+          path: |
+            logs/
+            .config
+            JuLiang-OS-X86-64-fastacl282-final.config
+          if-no-files-found: ignore
+          retention-days: 14

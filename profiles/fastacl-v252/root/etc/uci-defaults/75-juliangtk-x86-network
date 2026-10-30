@@ -1,0 +1,88 @@
+#!/bin/sh
+set -eu
+
+physical=""
+for path in /sys/class/net/*; do
+  [ -e "$path/device" ] || continue
+  name="${path##*/}"
+  case "$name" in
+    lo|br-*|vlan*|bond*|virbr*|docker*|veth*) continue ;;
+  esac
+  physical="$physical $name"
+done
+set -- $physical
+[ "$#" -ge 2 ] || exit 0
+
+wan_if="$1"
+lan_if="$2"
+
+uci -q delete network.wan || true
+uci set network.wan='interface'
+uci set network.wan.proto='dhcp'
+uci set network.wan.device="$wan_if"
+uci set network.wan.metric='10'
+
+uci -q delete network.wan6 || true
+uci set network.wan6='interface'
+uci set network.wan6.proto='dhcpv6'
+uci set network.wan6.device='@wan'
+
+uci set network.lan='interface'
+uci set network.lan.proto='static'
+uci set network.lan.device="$lan_if"
+uci set network.lan.ipaddr='192.168.7.1'
+uci set network.lan.netmask='255.255.255.0'
+uci set network.lan.delegate='0'
+
+uci set dhcp.lan='dhcp'
+uci set dhcp.lan.interface='lan'
+uci set dhcp.lan.start='100'
+uci set dhcp.lan.limit='100'
+uci set dhcp.lan.leasetime='12h'
+
+uci set firewall.wan='zone'
+uci set firewall.wan.name='wan'
+uci set firewall.wan.input='REJECT'
+uci set firewall.wan.output='ACCEPT'
+uci set firewall.wan.forward='REJECT'
+uci set firewall.wan.masq='1'
+uci set firewall.wan.mtu_fix='1'
+uci -q delete firewall.wan.network || true
+uci add_list firewall.wan.network='wan'
+
+uci set firewall.lan='zone'
+uci set firewall.lan.name='lan'
+uci set firewall.lan.input='ACCEPT'
+uci set firewall.lan.output='ACCEPT'
+uci set firewall.lan.forward='ACCEPT'
+uci -q delete firewall.lan.network || true
+uci add_list firewall.lan.network='lan'
+
+lan_forward=""
+for section in $(uci show firewall 2>/dev/null | sed -n "s/^firewall\.\([^.=]*\)=forwarding$/\1/p"); do
+  if [ "$(uci -q get "firewall.$section.src" || true)" = lan ] &&
+     [ "$(uci -q get "firewall.$section.dest" || true)" = wan ]; then
+    lan_forward="$section"
+    break
+  fi
+done
+if [ -z "$lan_forward" ]; then
+  lan_forward="$(uci add firewall forwarding)"
+fi
+uci set "firewall.$lan_forward.src='lan'"
+uci set "firewall.$lan_forward.dest='wan'"
+
+uci set fastacl252.main.vlan_mode='1'
+uci set fastacl252.main.vlan_trunk="$lan_if"
+uci set fastacl252.main.vlan_wan="$wan_if"
+uci set fastacl252.main.max_wifi_5g='0'
+uci set fastacl252.main.max_wifi_2g='0'
+uci set system.@system[0].hostname='JuLiangTK-X86'
+
+uci commit system
+uci commit network
+uci commit dhcp
+uci commit firewall
+uci commit fastacl252
+
+exit 0

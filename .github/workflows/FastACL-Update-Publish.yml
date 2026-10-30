@@ -74,7 +74,8 @@ jobs:
           release_dir="publish/releases/$version"
           mkdir -p "$release_dir"
           find artifacts -type f \
-            \( -iname '*sysupgrade.bin' -o -iname '*sysupgrade.itb' \) \
+            \( -iname '*sysupgrade.bin' -o -iname '*sysupgrade.itb' \
+               -o -iname '*x86*generic*combined-efi.img.gz' \) \
             -print0 |
           while IFS= read -r -d '' image; do
             target="$release_dir/$(basename "$image")"

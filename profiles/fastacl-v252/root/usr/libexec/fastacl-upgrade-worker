@@ -110,10 +110,25 @@ download_manifest() {
 }
 
 find_model_entry() {
-	local board="$1" boards index=0 item
+	local board="$1" boards index=0 item fallback=""
 	boards="$(jsonfilter -i "$MANIFEST" -e '@.models[*].board' 2>/dev/null || true)"
 	for item in $boards; do
 		if [ "$item" = "$board" ]; then
+			MODEL_INDEX="$index"
+			MODEL_IMAGE="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].image")"
+			MODEL_SHA256="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].sha256")"
+			MODEL_SIZE="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].size")"
+			return 0
+		fi
+		index=$((index + 1))
+	done
+	case "$(uname -m 2>/dev/null)" in
+		x86_64|amd64) fallback=x86-64-generic ;;
+	esac
+	[ -n "$fallback" ] || return 1
+	index=0
+	for item in $boards; do
+		if [ "$item" = "$fallback" ]; then
 			MODEL_INDEX="$index"
 			MODEL_IMAGE="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].image")"
 			MODEL_SHA256="$(jsonfilter -i "$MANIFEST" -e "@.models[$index].sha256")"

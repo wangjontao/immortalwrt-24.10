@@ -49,13 +49,18 @@ end
 function M.nft(c)
  local sets,out={},{};local cn=false
  local lan_proxy=c.lan_default and c.lan_default.mode=='proxy'
+ local function interface_for(network)
+  if not network or network==c.network then return c.interface end
+  for _,w in ipairs(c.wifis or {}) do if w.network==network then return w.interface end end
+  return c.interface
+ end
  local function one(x,scope)
   if x.mode~='proxy' then return end
   local mode,custom=M.parse(x);if mode=='all' then return end
   for _,r in ipairs(custom) do out[#out+1]=scope..'ip daddr '..r.cidr..' counter '..(r.action=='direct' and 'return' or 'drop') end
   if mode=='smart' then cn=true;out[#out+1]=scope..'ip daddr @cn_ipv4 counter return' end
  end
- for _,d in ipairs(c.devices) do local scope='iifname "'..c.interface..'" ether saddr '..d.mac..' ip saddr '..d.ip..' ';one(d,scope);if lan_proxy then out[#out+1]=scope..'counter return' end end
+ for _,d in ipairs(c.devices) do local scope='iifname "'..interface_for(d.network)..'" ether saddr '..d.mac..' ip saddr '..d.ip..' ';one(d,scope);if lan_proxy and (not d.network or d.network==c.network) then out[#out+1]=scope..'counter return' end end
  for _,w in ipairs(c.wifis or {}) do one(w,'iifname "'..w.interface..'" ip saddr '..w.subnet..' ') end
  if lan_proxy then local cidr=require('fastacl252').cidr(c.router_ip,c.netmask);one(c.lan_default,'iifname "'..c.interface..'" ip saddr '..cidr..' ') end
  if cn then sets[1]='set cn_ipv4 { type ipv4_addr; flags interval; auto-merge; elements = { '..table.concat(M.networks(),', ')..' }; }\n' end

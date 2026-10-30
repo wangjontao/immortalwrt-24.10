@@ -126,7 +126,9 @@ function status()
   local wan=json.parse(sys.exec('ubus call network.interface.wan status 2>/dev/null')) or {}
   local ip=''; for _,a in ipairs(wan['ipv4-address'] or {}) do if a.address then ip=a.address break end end
   local wifi=0; u:foreach('wireless','wifi-iface',function(s) if s.disabled~='1' then wifi=wifi+1 end end)
-  local managed=0; u:foreach('fastacl252','wifi',function() managed=managed+1 end)
+  local managed=0
+  u:foreach('fastacl252','wifi',function() managed=managed+1 end)
+  u:foreach('fastacl252','vlan',function() managed=managed+1 end)
   local fast=json.parse(sys.exec('/usr/bin/fastacl252 status 2>/dev/null')) or {}
   local up=tonumber(sys.exec("cut -d. -f1 /proc/uptime 2>/dev/null") or '0') or 0
   local dev=wan.l3_device or wan.device or '';local counters={}

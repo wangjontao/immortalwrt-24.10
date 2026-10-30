@@ -15,6 +15,7 @@ defaults = (PROFILE / 'root/etc/uci-defaults/99-juliangtk-fastacl252').read_text
 
 assert "usign -V -m \"$MANIFEST\" -x \"$SIGNATURE\" -p \"$PUBLIC_KEY\"" in worker
 assert 'find_model_entry "$board"' in worker
+assert 'fallback=x86-64-generic' in worker
 assert 'sysupgrade -T "$IMAGE"' in worker
 assert 'sysupgrade -v "$IMAGE"' in worker
 assert "--proto '=https' --proto-redir '=https'" in worker
