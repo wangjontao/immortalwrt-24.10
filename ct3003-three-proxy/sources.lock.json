@@ -1,0 +1,46 @@
+{
+  "passwall2": {
+    "repo": "Openwrt-Passwall/openwrt-passwall2",
+    "ref": "26.10.20-1",
+    "sha": "20ecdbeed1c2f58bcf730e05284f9ff9a236f805"
+  },
+  "helloworld": {
+    "repo": "fw876/helloworld",
+    "ref": "v198.2",
+    "sha": "45893d778767f3bdb2fcb6e873cf8f9a667d94d4"
+  },
+  "openclash": {
+    "repo": "vernesong/OpenClash",
+    "ref": "v0.48.002",
+    "sha": "e553e82e01c697aefbe1555261a503f425e00ccd"
+  },
+  "packages": {
+    "repo": "immortalwrt/packages",
+    "ref": "openwrt-24.10",
+    "sha": "27a0f631a93f63bff9865526a9b4a74a10ca82f5"
+  },
+  "luci": {
+    "repo": "immortalwrt/luci",
+    "ref": "openwrt-24.10",
+    "sha": "7f9ad99d611a7548125e73b7e375b6d1793ca1ef"
+  },
+  "routing": {
+    "repo": "openwrt/routing",
+    "ref": "openwrt-24.10",
+    "sha": "00619bc7bc60d8b67ecc490121e45298b122cd6e"
+  },
+  "telephony": {
+    "repo": "openwrt/telephony",
+    "ref": "openwrt-24.10",
+    "sha": "92892fa285360b8981f62bf4e0a097e6449e7e33"
+  },
+  "pwpackages": {
+    "repo": "Openwrt-Passwall/openwrt-passwall-packages",
+    "sha": "ae518eceb8ce99cf7b6ecd3c256b8ffc945ab1e3"
+  },
+  "firmware": {
+    "repo": "immortalwrt/immortalwrt",
+    "ref": "openwrt-24.10",
+    "sha": "817ba5c0958c64fad5d067c330678892b90e716c"
+  }
+}

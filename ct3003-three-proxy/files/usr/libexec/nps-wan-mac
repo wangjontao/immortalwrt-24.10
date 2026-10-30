@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+LOCK=${NPS_MAC_LOCK:-/tmp/nps-wan-mac.lock}
+SYS_NET=${NPS_SYS_NET:-/sys/class/net}
+NPS_INIT=${NPS_INIT:-/etc/init.d/nps}
+[ -x "$NPS_INIT" ] || exit 1
+mkdir "$LOCK" 2>/dev/null || exit 0
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+valid_mac(){
+ case "$1" in ''|00:00:00:00:00:00|ff:ff:ff:ff:ff:ff) return 1;; esac
+ printf '%s\n' "$1" | grep -Eq '^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$'
+}
+WAN_MAC=''
+tries=0
+while [ "$tries" -lt 60 ]; do
+ WAN_DEV=$(uci -q get network.wan.device 2>/dev/null || true)
+ WAN_DEV=${WAN_DEV#@}
+ [ -n "$WAN_DEV" ] || WAN_DEV=$(ip route 2>/dev/null | awk '/default/ {print $5;exit}')
+ if [ -n "$WAN_DEV" ] && [ -r "$SYS_NET/$WAN_DEV/address" ]; then
+  WAN_MAC=$(cat "$SYS_NET/$WAN_DEV/address")
+  valid_mac "$WAN_MAC" && break
+ fi
+ for lower in "$SYS_NET/$WAN_DEV"/lower_*; do
+  [ -r "$lower/address" ] || continue
+  WAN_MAC=$(cat "$lower/address")
+  valid_mac "$WAN_MAC" && break
+ done
+ valid_mac "$WAN_MAC" && break
+ tries=$((tries+1)); sleep 2
+done
+valid_mac "$WAN_MAC" || { logger -t nps-wan-mac 'No physical WAN MAC found; NPS configuration unchanged'; exit 1; }
+NPS_KEY=$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')
+uci -q set nps.@nps[0].enabled='1'
+uci -q set nps.@nps[0].server_addr='47.83.9.208'
+uci -q set nps.@nps[0].server_port='8024'
+uci -q set nps.@nps[0].protocol='tcp'
+uci -q set nps.@nps[0].compress='1'
+uci -q set nps.@nps[0].crypt='1'
+uci -q set nps.@nps[0].vkey="$NPS_KEY"
+uci -q commit nps
+mkdir -p /tmp/etc
+"$NPS_INIT" enable
+"$NPS_INIT" restart
+logger -t nps-wan-mac "NPS initialized using $WAN_DEV MAC"

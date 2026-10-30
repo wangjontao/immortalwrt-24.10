@@ -1,0 +1,23 @@
+{
+  "sing-box": {
+    "version": "1.14.4",
+    "source": "sing-box-1.14.4-linux-arm64-musl.tar.gz",
+    "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64-musl.tar.gz",
+    "sha256": "b95e25f921dc5e17a4cf13327243d1177642c7e35425bf5372862c477c359f56",
+    "binary": "sing-box"
+  },
+  "mihomo": {
+    "version": "1.19.33",
+    "source": "mihomo-linux-arm64-v1.19.33.gz",
+    "url": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-arm64-v1.19.33.gz",
+    "sha256": "ba408b317080ee265c46cb923a50018c1b82cbd708551cdd46a1e3e307396187",
+    "binary": "mihomo"
+  },
+  "xray-core": {
+    "version": "26.10.21",
+    "source": "Xray-linux-arm64-v8a.zip",
+    "url": "https://github.com/XTLS/Xray-core/releases/download/v26.10.21/Xray-linux-arm64-v8a.zip",
+    "sha256": "d1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c",
+    "binary": "xray"
+  }
+}

