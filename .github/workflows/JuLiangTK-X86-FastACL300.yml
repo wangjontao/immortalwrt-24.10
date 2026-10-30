@@ -1,25 +1,25 @@
-name: X86 FastACL 2.8.2 Build
-run-name: 'FastACL 2.8.2 - X86_64 two-NIC VLAN gateway'
+name: X86 FastACL 3.0 Build
+run-name: 'FastACL 3.0 - X86_64 two-NIC VLAN gateway'
 
 'on':
   workflow_dispatch: {}
   push:
     branches:
-      - 2.8.2
-      - feature/x86-vlan-2.8.2
+      - 3.0
+      - feature/fastacl-3.0-x86-vlan
     paths:
-      - '.github/workflows/JuLiangTK-X86-FastACL282.yml'
+      - '.github/workflows/JuLiangTK-X86-FastACL300.yml'
       - 'profiles/fastacl-v252/**'
       - 'scripts/integrate-fastacl252-dependencies.sh'
-      - 'scripts/integrate-fastacl282-x86.sh'
-      - 'build-configs/JuLiangTK-X86-64-FastACL282.txt'
+      - 'scripts/integrate-fastacl300-x86.sh'
+      - 'build-configs/JuLiangTK-X86-64-FastACL300.txt'
       - 'target/linux/x86/**'
 
 permissions:
   contents: read
 
 concurrency:
-  group: fastacl282-x86-${{ github.ref }}-${{ github.run_id }}
+  group: fastacl300-x86-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -59,6 +59,9 @@ jobs:
           .venv/bin/python profiles/fastacl-v252/tests/test_traffic_ui.py
           .venv/bin/python profiles/fastacl-v252/tests/test_traffic_totals.py
           .venv/bin/python profiles/fastacl-v252/tests/test_fixed_exit.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_import.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_split_data.py
+          .venv/bin/python profiles/fastacl-v252/tests/test_subscription.py
           python3 profiles/fastacl-v252/tests/test_online_upgrade.py
           python3 profiles/fastacl-v252/tests/test_update_manifest.py
       - name: Validate syntax and shell defaults
@@ -71,9 +74,9 @@ jobs:
               shfmt -ln posix "$file" >/dev/null
             fi
           done
-          sh -n scripts/integrate-fastacl282-x86.sh
-          shfmt -ln posix scripts/integrate-fastacl282-x86.sh >/dev/null
-          grep -q 'CONFIG_TARGET_x86_64_DEVICE_generic=y' build-configs/JuLiangTK-X86-64-FastACL282.txt
+          sh -n scripts/integrate-fastacl300-x86.sh
+          shfmt -ln posix scripts/integrate-fastacl300-x86.sh >/dev/null
+          grep -q 'CONFIG_TARGET_x86_64_DEVICE_generic=y' build-configs/JuLiangTK-X86-64-FastACL300.txt
           grep -q 'option vlan_mode' profiles/fastacl-v252/root/etc/config/fastacl252 ||
             grep -q 'vlan_mode' profiles/fastacl-v252/root/etc/uci-defaults/99-juliangtk-fastacl252-x86
       - name: Validate FastACL and VLAN pages in Chromium
@@ -93,13 +96,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: FastACL282-X86-preflight-evidence
+          name: FastACL300-X86-preflight-evidence
           path: profiles/fastacl-v252/test-results/*
           if-no-files-found: warn
           retention-days: 14
 
   build:
-    name: Build JuLiang OS X86_64 FastACL 2.8.2
+    name: Build JuLiang OS X86_64 FastACL 3.0
     needs: preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 360
@@ -129,9 +132,9 @@ jobs:
           path: |
             dl
             .ccache
-          key: fastacl282-x86-${{ hashFiles('build-configs/JuLiangTK-X86-64-FastACL282.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dependencies.config', 'profiles/fastacl-v252/dns/go.mod') }}
+          key: fastacl300-x86-${{ hashFiles('build-configs/JuLiangTK-X86-64-FastACL300.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dependencies.config', 'profiles/fastacl-v252/dns/go.mod') }}
           restore-keys: |
-            fastacl282-x86-
+            fastacl300-x86-
       - name: Update feeds
         run: |
           sh scripts/ci-update-feeds.sh
@@ -159,9 +162,11 @@ jobs:
           fi
       - name: Integrate FastACL X86
         run: |
-          sh scripts/integrate-fastacl282-x86.sh
+          sh scripts/integrate-fastacl300-x86.sh
           grep -qx 'CONFIG_TARGET_x86_64_DEVICE_generic=y' .config
           grep -qx 'CONFIG_PACKAGE_juliangtk-sing-box=y' .config
+          grep -q 'PKG_VERSION:=3.0' package/fastacl252/Makefile
+          grep -q "version='3.0'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
           grep -q 'sing-box-.*-linux-amd64.tar.gz' package/juliangtk-sing-box/Makefile
           grep -q 'vlan_mode' package/fastacl252/files/etc/uci-defaults/75-juliangtk-x86-network
           test -s package/fastacl252/files/usr/lib/lua/luci/view/fastacl252/vlan.htm
@@ -212,15 +217,15 @@ jobs:
           cp .config upload/build.config
           cp "$manifest" upload/x86-64.manifest
           find "$image_dir" -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
-          cp JuLiang-OS-X86-64-fastacl282-final.config profiles/fastacl-v252/README-2.8.2.md upload/
-          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=2.8.2\ndevice=generic-x86-64\nnic_model=two-port-trunk-management\n' \
+          cp JuLiang-OS-X86-64-fastacl300-final.config profiles/fastacl-v252/README-3.0.md upload/
+          printf 'branch=%s\ncommit=%s\nsource_commit=%s\nsystem=JuLiang OS\nversion=3.0\ndevice=generic-x86-64\nnic_model=two-port-trunk-management\n' \
             "$GITHUB_REF_NAME" "$GITHUB_SHA" "$SOURCE_COMMIT" > upload/LITE-BUILD.txt
           sha256sum upload/* | tee upload/SHA256SUMS
           ls -lh upload
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JuLiang-OS-X86-64-FastACL282-${{ env.BUILD_DATE }}
+          name: JuLiang-OS-X86-64-FastACL300-${{ env.BUILD_DATE }}
           path: upload/*
           if-no-files-found: error
           retention-days: 30
@@ -228,10 +233,10 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FastACL282-X86-build-failure-${{ github.run_id }}
+          name: FastACL300-X86-build-failure-${{ github.run_id }}
           path: |
             logs/
             .config
-            JuLiang-OS-X86-64-fastacl282-final.config
+            JuLiang-OS-X86-64-fastacl300-final.config
           if-no-files-found: ignore
           retention-days: 14

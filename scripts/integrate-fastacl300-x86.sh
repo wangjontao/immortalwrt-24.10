@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-test -f build-configs/JuLiangTK-X86-64-FastACL282.txt
+test -f build-configs/JuLiangTK-X86-64-FastACL300.txt
 test -f profiles/fastacl-v252/root/usr/lib/lua/fastacl252_vlan.lua
 test -f profiles/fastacl-v252/root/usr/lib/lua/luci/view/fastacl252/vlan.htm
 
@@ -10,6 +10,29 @@ cp profiles/fastacl-v252/package-Makefile package/fastacl252/Makefile
 cp profiles/fastacl-v252/singbox-Makefile package/juliangtk-sing-box/Makefile
 rm -rf package/fastacl252/files
 cp -a profiles/fastacl-v252/root package/fastacl252/files
+
+# FastACL 3.0 is the X86 VLAN gateway product. The shared router profile
+# remains on its own release line until the 3.0 branch is promoted.
+sed -i \
+  -e 's/^PKG_VERSION:=2\.8\.2$/PKG_VERSION:=3.0/' \
+  -e 's/FastACL 2\.8\.2/FastACL 3.0/' \
+  package/fastacl252/Makefile
+sed -i \
+  -e "s/version='2\.8\.2'/version='3.0'/g" \
+  -e "s/V2\.8\.2/V3.0/g" \
+  -e "s/FastACL 2\.8\.2/FastACL 3.0/g" \
+  package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua \
+  package/fastacl252/files/usr/lib/lua/luci/controller/juliang_center.lua \
+  package/fastacl252/files/usr/lib/lua/luci/view/fastacl252/console.htm \
+  package/fastacl252/files/usr/lib/lua/luci/view/juliang_center/home.htm
+sed -i \
+  -e "s/option version '2\.8\.2'/option version '3.0'/" \
+  package/fastacl252/files/etc/config/fastacl252
+sed -i \
+  -e "s/main\.version=2\.8\.2/main.version=3.0/g" \
+  -e "s/main\.version='2\.8\.2'/main.version='3.0'/g" \
+  package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252 \
+  package/fastacl252/files/etc/uci-defaults/99-juliangtk-fastacl252-x86
 
 (
   cd profiles/fastacl-v252/dns
@@ -33,7 +56,7 @@ for root in files package/base-files/files; do
   \) -delete
 done
 
-cp build-configs/JuLiangTK-X86-64-FastACL282.txt .config
+cp build-configs/JuLiangTK-X86-64-FastACL300.txt .config
 make defconfig
 sh scripts/integrate-fastacl252-dependencies.sh
 
@@ -75,8 +98,9 @@ chmod 755 package/fastacl252/files/usr/bin/fastacl252 \
   package/fastacl252/files/usr/libexec/fastacl252-enable.sh
 chmod 600 package/fastacl252/files/etc/config/fastacl252
 
-grep -q "PKG_VERSION:=2.8.2" package/fastacl252/Makefile
+grep -q "PKG_VERSION:=3.0" package/fastacl252/Makefile
+grep -q "version='3.0'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
 grep -q "TARGET_x86_64" package/juliangtk-sing-box/Makefile
 grep -q "sing-box-.*-linux-amd64.tar.gz" package/juliangtk-sing-box/Makefile
 file package/fastacl252/files/usr/bin/fastacl252-dns | grep -q 'x86-64'
-./scripts/diffconfig.sh > JuLiang-OS-X86-64-fastacl282-final.config
+./scripts/diffconfig.sh > JuLiang-OS-X86-64-fastacl300-final.config

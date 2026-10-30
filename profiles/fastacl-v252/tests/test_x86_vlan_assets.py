@@ -8,7 +8,7 @@ PROFILE = ROOT / "profiles/fastacl-v252"
 
 class X86VlanAssetTests(unittest.TestCase):
     def test_build_target_and_architecture_specific_dependencies(self):
-        config = (ROOT / "build-configs/JuLiangTK-X86-64-FastACL282.txt").read_text(
+        config = (ROOT / "build-configs/JuLiangTK-X86-64-FastACL300.txt").read_text(
             encoding="utf-8"
         )
         self.assertIn("CONFIG_TARGET_x86_64=y", config)
@@ -24,11 +24,12 @@ class X86VlanAssetTests(unittest.TestCase):
         )
         self.assertIn("TARGET_mediatek_filogic||TARGET_x86_64", singbox)
 
-        integration = (ROOT / "scripts/integrate-fastacl282-x86.sh").read_text(
+        integration = (ROOT / "scripts/integrate-fastacl300-x86.sh").read_text(
             encoding="utf-8"
         )
         self.assertIn("GOARCH=amd64", integration)
-        self.assertIn("JuLiangTK-X86-64-FastACL282.txt", integration)
+        self.assertIn("JuLiangTK-X86-64-FastACL300.txt", integration)
+        self.assertIn("PKG_VERSION:=3.0", integration)
 
     def test_default_two_nic_layout_keeps_management_lan_untagged(self):
         defaults = (
@@ -57,13 +58,25 @@ class X86VlanAssetTests(unittest.TestCase):
 
     def test_workflow_builds_both_bios_and_efi_images(self):
         workflow = (
-            ROOT / ".github/workflows/JuLiangTK-X86-FastACL282.yml"
+            ROOT / ".github/workflows/JuLiangTK-X86-FastACL300.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("combined-efi.img.gz", workflow)
         self.assertIn("combined.img.gz", workflow)
         self.assertIn("image-efi.iso", workflow)
         self.assertIn("test_vlan.py", workflow)
         self.assertIn("test_vlan_policy.py", workflow)
+
+    def test_x86_build_uses_fastacl_3_version(self):
+        config = (ROOT / "build-configs/JuLiangTK-X86-64-FastACL300.txt").read_text(
+            encoding="utf-8"
+        )
+        integration = (ROOT / "scripts/integrate-fastacl300-x86.sh").read_text(
+            encoding="utf-8"
+        )
+        readme = (PROFILE / "README-3.0.md").read_text(encoding="utf-8")
+        self.assertIn('CONFIG_VERSION_CODE="FastACL3.0-X86"', config)
+        self.assertIn("PKG_VERSION:=3.0", integration)
+        self.assertIn("FastACL 3.0", readme)
 
 
 if __name__ == "__main__":
