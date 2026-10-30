@@ -1,5 +1,5 @@
-name: S20L S20P JDCloud FastACL 2.6.8 Unlimited
-run-name: 'FastACL 2.6.8 - BBR and unlimited connections - S20L S20P JDCloud'
+name: S20L S20P JDCloud GL-MT6000 N60 Pro FastACL 2.6.8 Unlimited
+run-name: 'FastACL 2.6.8 - BBR and unlimited connections - S20L S20P JDCloud GL-MT6000 N60 Pro'
 # 2.6.8 release build trigger for the signed 8443 update endpoint.
 
 'on':
@@ -110,6 +110,12 @@ jobs:
           - device: jdcloud_re-cp-03
             tag: JDCloud-RE-CP-03
             label: JDCloud Baili RE-CP-03 AX6000
+          - device: glinet_gl-mt6000
+            tag: GL-iNet-GL-MT6000
+            label: GL.iNet GL-MT6000
+          - device: netcore_n60-pro
+            tag: Netcore-N60-Pro
+            label: Netcore N60 Pro
     env:
       DEVICE: ${{ matrix.device }}
       DEVICE_TAG: ${{ matrix.tag }}
