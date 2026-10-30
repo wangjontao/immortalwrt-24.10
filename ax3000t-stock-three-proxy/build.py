@@ -45,7 +45,7 @@ def prepare():
   if item.is_file() and item.read_bytes().startswith(b'#!/bin/sh'):item.chmod(0o755)
  shutil.copy2(P/'ax3000t-stock.config','.config')
  run('make','defconfig')
- required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t=y','CONFIG_TARGET_ROOTFS_INITRAMFS=y','CONFIG_PACKAGE_kmod-mt7915e=y','CONFIG_PACKAGE_kmod-mt7981-firmware=y','CONFIG_PACKAGE_mt7981-wo-firmware=y','CONFIG_PACKAGE_luci-app-passwall2=y','CONFIG_PACKAGE_geoview=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-theme-argon=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y','CONFIG_IMAGEOPT=y','CONFIG_VERSIONOPT=y','CONFIG_VERSION_DIST="JuLiang OS"','CONFIG_VERSION_PRODUCT="JuLiang OS"']
+ required=['CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-112m=y','CONFIG_TARGET_ROOTFS_INITRAMFS=y','CONFIG_PACKAGE_kmod-mt7915e=y','CONFIG_PACKAGE_kmod-mt7981-firmware=y','CONFIG_PACKAGE_mt7981-wo-firmware=y','CONFIG_PACKAGE_luci-app-passwall2=y','CONFIG_PACKAGE_geoview=y','CONFIG_PACKAGE_luci-app-ssr-plus=y','CONFIG_PACKAGE_luci-app-openclash=y','CONFIG_PACKAGE_sing-box=y','CONFIG_PACKAGE_xray-core=y','CONFIG_PACKAGE_mihomo=y','CONFIG_PACKAGE_luci-theme-argon=y','CONFIG_PACKAGE_luci-app-nps=y','CONFIG_PACKAGE_npc=y','CONFIG_IMAGEOPT=y','CONFIG_VERSIONOPT=y','CONFIG_VERSION_DIST="JuLiang OS"','CONFIG_VERSION_PRODUCT="JuLiang OS"']
  config=Path('.config').read_text()
  for line in required:assert line in config,line
  assert 'CONFIG_PACKAGE_luci-app-passwall=y' not in config
@@ -91,14 +91,14 @@ def corecheck():
  run('qemu-aarch64','-cpu','max',str(out/'mihomo'),'-t','-d',str(out),'-f',str(out/'mihomo-anytls.yaml'),timeout=60)
 def artifacts():
  src=Path('bin/targets/mediatek/filogic');out=Path('upload');shutil.rmtree(out,ignore_errors=True);out.mkdir()
- manifest=next(src.glob('*xiaomi_mi-router-ax3000t.manifest'));text=manifest.read_text()
+ manifest=next(src.glob('*xiaomi_mi-router-ax3000t-112m.manifest'));text=manifest.read_text()
  for pkg,version in [('luci-app-nps','1.1'),('npc','0.26.24'),('luci-app-passwall2','26.10.20'),('geoview','0.1.10'),('luci-app-ssr-plus','198'),('luci-app-openclash','0.48.002'),('luci-theme-argon',''),('luci-app-argon-config',''),*[(k,v['version']) for k,v in CORES.items()]]:
   assert any(l.startswith(pkg+' - ') and version in l for l in text.splitlines()),(pkg,version)
  assert not any(l.startswith('luci-app-passwall - ') for l in text.splitlines()),'PassWall 1 must not be installed'
  for pkg in ['v2ray-geoip','v2ray-geosite']:
   assert any(l.startswith(pkg+' - ') for l in text.splitlines()),pkg
- sysupgrade=list(src.glob('*xiaomi_mi-router-ax3000t*sysupgrade.bin'));assert len(sysupgrade)==1,sysupgrade
- factory=list(src.glob('*xiaomi_mi-router-ax3000t*initramfs-factory.ubi'));assert len(factory)==1,factory
+ sysupgrade=list(src.glob('*xiaomi_mi-router-ax3000t-112m*sysupgrade.bin'));assert len(sysupgrade)==1,sysupgrade
+ factory=list(src.glob('*xiaomi_mi-router-ax3000t-112m*initramfs-factory.ubi'));assert len(factory)==1,factory
  assert sysupgrade[0].read_bytes()[257:262]==b'ustar',sysupgrade[0]
  assert factory[0].read_bytes()[:4]==b'UBI#',factory[0]
  for p in sysupgrade+factory+[manifest]+list(src.glob('*.buildinfo')):

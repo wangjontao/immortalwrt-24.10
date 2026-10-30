@@ -1,0 +1,41 @@
+name: AX3000T 112M U-Boot
+run-name: 'hanwckf AX3000T 112M U-Boot - mesh/reset Web failsafe'
+'on':
+  workflow_dispatch: {}
+  push:
+    branches:
+      - codex/ax3000t-stock-juliang-os
+    paths:
+      - ax3000t-stock-uboot/**
+      - .github/workflows/AX3000T-112M-UBoot.yml
+permissions:
+  contents: read
+concurrency:
+  group: ax3000t-112m-uboot-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential gcc-aarch64-linux-gnu flex bison libssl-dev device-tree-compiler python3 python-is-python3 bc git
+      - name: Build U-Boot
+        env:
+          BUILD_ROOT: ${{ runner.temp }}/bl-mt798x-build
+          OUT_DIR: ${{ github.workspace }}/uboot-out
+        run: bash ax3000t-stock-uboot/build.sh
+      - name: Verify U-Boot feature strings
+        run: |
+          grep -a -F -q '112m(ubi)' uboot-out/mt7981_ax3000t-fip-fixed-parts-multi-layout.bin
+          grep -a -F -q 'Mesh or reset button pressed, starting Web failsafe' uboot-out/mt7981_ax3000t-fip-fixed-parts-multi-layout.bin
+          grep -a -F -q 'Start Web failsafe' uboot-out/mt7981_ax3000t-fip-fixed-parts-multi-layout.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AX3000T-112M-UBoot-${{ github.run_id }}
+          path: uboot-out/*
+          if-no-files-found: error
+          retention-days: 30

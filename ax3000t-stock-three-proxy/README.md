@@ -1,7 +1,7 @@
 # JuLiang OS / Xiaomi AX3000T traditional U-Boot
 
-适用于小米 AX3000T 的 **112 MiB 大分区传统 U-Boot 布局**。构建输出
-`xiaomi_mi-router-ax3000t` 的 `squashfs-sysupgrade.bin` 和
+适用于小米 AX3000T 的 **单 UBI 112 MiB 大分区传统 U-Boot 布局**。构建输出
+`xiaomi_mi-router-ax3000t-112m` 的 `squashfs-sysupgrade.bin` 和
 `initramfs-factory.ubi`。factory UBI 用于传统 U-Boot 首次引导安装，完成后再
 使用 sysupgrade 固件升级。该产物不能用于 OpenWrt U-Boot 布局或小分区原厂布局。
 构建保留 AX3000T 的 DTS、分区和刷机兼容标识，仅替换系统显示名称。

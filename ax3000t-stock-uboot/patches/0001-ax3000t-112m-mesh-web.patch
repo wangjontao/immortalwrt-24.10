@@ -1,0 +1,72 @@
+diff --git a/uboot-mtk-20230718-09eda825/arch/arm/dts/mt7981-ax3000t.dts b/uboot-mtk-20230718-09eda825/arch/arm/dts/mt7981-ax3000t.dts
+index 169f24d..8c49715 100644
+--- a/uboot-mtk-20230718-09eda825/arch/arm/dts/mt7981-ax3000t.dts
++++ b/uboot-mtk-20230718-09eda825/arch/arm/dts/mt7981-ax3000t.dts
+@@ -24,19 +24,19 @@
+ 	mtd-layout {
+ 		layout@0 {
+ 			label = "default";
+-			// mtd layout for xiaomi stock ubi or openwrt-stock/immortalwrt-stock firmware
++			// Default to the single 112M UBI layout used by JuLiang OS.
+ 			cmdline = "console=ttyS0,115200n1 loglevel=8 swiotlb=512 firmware=0 mtd=ubi uart_en=1";
+ 			mtdids = "nmbm0=nmbm0";
+-			mtdparts = "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),34816k(ubi_kernel),79872k(ubi),256k(KF)";
+-			boot_part = "ubi_kernel"; // ubi boot part, default is "ubi"
+-			factory_part = "ubi_kernel"; // factory firmware write part, default is "ubi"
+-			sysupgrade_kernel_ubipart = "ubi_kernel"; // sysupgrade kernel write part (ubi volume: kernel), default is "ubi"
+-			sysupgrade_rootfs_ubipart = "ubi"; // sysupgrade rootfs write part (ubi volume: rootfs, rootfs_data)
++			mtdparts = "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),112m(ubi),256k(KF)";
+ 		};
+ 
+ 		layout@1 {
+-			label = "immortalwrt-112m";
+-			// mtd layout for immortalwrt/openwrt 112M ubi firmware
++			label = "stock";
++			// Original split layout for stock Xiaomi firmware or OpenWrt stock layout.
+ 			mtdids = "nmbm0=nmbm0";
+-			mtdparts = "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),112m(ubi),256k(KF)";
++			mtdparts = "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),34816k(ubi_kernel),79872k(ubi),256k(KF)";
++			boot_part = "ubi_kernel";
++			factory_part = "ubi_kernel";
++			sysupgrade_kernel_ubipart = "ubi_kernel";
++			sysupgrade_rootfs_ubipart = "ubi";
+ 		};
+diff --git a/uboot-mtk-20230718-09eda825/board/mediatek/common/cmd_mtkboardboot.c b/uboot-mtk-20230718-09eda825/board/mediatek/common/cmd_mtkboardboot.c
+index 9037d12..6951dd9 100644
+--- a/uboot-mtk-20230718-09eda825/board/mediatek/common/cmd_mtkboardboot.c
++++ b/uboot-mtk-20230718-09eda825/board/mediatek/common/cmd_mtkboardboot.c
+@@ -6,8 +6,10 @@
+  * Author: Weijie Gao <weijie.gao@mediatek.com>
+  *
+  * Generic image booting command
+  */
+ 
++#include <button.h>
++#include <vsprintf.h>
+ #include <command.h>
+ #include <linux/types.h>
+ 
+@@ -15,8 +16,23 @@
++static int button_is_pressed(const char *label)
++{
++	struct udevice *button;
++
++	return !button_get_by_label(label, &button) &&
++	       button_get_state(button) == BUTTON_ON;
++}
++
+ static int do_mtkboardboot(struct cmd_tbl *cmdtp, int flag, int argc,
+ 			   char *const argv[])
+ {
+ 	int ret = CMD_RET_SUCCESS;
+ 
++	if (IS_ENABLED(CONFIG_MTK_WEB_FAILSAFE) &&
++	    (button_is_pressed("mesh") || button_is_pressed("reset"))) {
++		printf("Mesh or reset button pressed, starting Web failsafe\n");
++		run_command("httpd", 0);
++		return CMD_RET_SUCCESS;
++	}
++
+ 	ret = board_boot_default();
+ 	if (ret)
+ 		ret = CMD_RET_FAILURE;

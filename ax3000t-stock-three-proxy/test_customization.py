@@ -20,7 +20,7 @@ class CustomizationTest(unittest.TestCase):
 
     def test_juliang_customer_defaults(self):
         config = (P / 'ax3000t-stock.config').read_text(encoding='utf-8')
-        self.assertIn('CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t=y', config)
+        self.assertIn('CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-112m=y', config)
         self.assertIn('CONFIG_TARGET_ROOTFS_INITRAMFS=y', config)
         self.assertIn('CONFIG_PACKAGE_kmod-mt7915e=y', config)
         self.assertIn('CONFIG_PACKAGE_kmod-mt7981-firmware=y', config)
