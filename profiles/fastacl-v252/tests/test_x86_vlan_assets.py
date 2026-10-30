@@ -22,7 +22,8 @@ class X86VlanAssetTests(unittest.TestCase):
             "a1ec76e2b6b139eb747a1b1ebee7d14b8d4be5a833596cad8070a31ef960301f",
             singbox,
         )
-        self.assertIn("TARGET_mediatek_filogic||TARGET_x86_64", singbox)
+        self.assertIn("SING_BOX_ARCH:=arm64", singbox)
+        self.assertNotIn("DEPENDS:=@(TARGET_mediatek_filogic", singbox)
 
         integration = (ROOT / "scripts/integrate-fastacl300-x86.sh").read_text(
             encoding="utf-8"

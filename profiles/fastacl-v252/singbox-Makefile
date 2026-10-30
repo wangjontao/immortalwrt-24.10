@@ -4,14 +4,12 @@ PKG_NAME:=juliangtk-sing-box
 PKG_VERSION:=1.12.25
 PKG_RELEASE:=1
 
-ifeq ($(ARCH),x86_64)
-  SING_BOX_ARCH:=amd64
-  PKG_HASH:=a1ec76e2b6b139eb747a1b1ebee7d14b8d4be5a833596cad8070a31ef960301f
-else ifeq ($(ARCH),aarch64)
+ifneq ($(filter aarch64,$(ARCH)),)
   SING_BOX_ARCH:=arm64
   PKG_HASH:=719b76196c8b31efa636b2d8f669e314547e0da0a5ab38a75e1882d307bbd154
 else
-  $(error juliangtk-sing-box supports aarch64 and x86_64 only)
+  SING_BOX_ARCH:=amd64
+  PKG_HASH:=a1ec76e2b6b139eb747a1b1ebee7d14b8d4be5a833596cad8070a31ef960301f
 endif
 
 PKG_SOURCE:=sing-box-$(PKG_VERSION)-linux-$(SING_BOX_ARCH).tar.gz
@@ -25,7 +23,6 @@ define Package/juliangtk-sing-box
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Pinned official sing-box for FastACL TPROXY/TUN
-  DEPENDS:=@(TARGET_mediatek_filogic||TARGET_x86_64)
   CONFLICTS:=sing-box
 endef
 
