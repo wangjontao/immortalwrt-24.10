@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+uci set network.lan.proto='static'
+uci set network.lan.ipaddr='192.168.9.1'
+uci set network.lan.netmask='255.255.255.0'
+uci commit network
+ROOT_HASH='$6$rounds=10000$zpZa8DrdyI7twqYV$dHFsEq9HM0DYNgAcIOe2SpygVhcD4SAAg0VrrM2ayX7nwfLMraGiQFSy5vFYjYXCtFdR6MNAcrbkiKXYZWR9j/'
+awk -F: -v hash="$ROOT_HASH" 'BEGIN {OFS=":"} $1=="root" {$2=hash} {print}' /etc/shadow > /etc/shadow.ax3000t-stock-new
+chmod 600 /etc/shadow.ax3000t-stock-new
+mv /etc/shadow.ax3000t-stock-new /etc/shadow
+uci -q set nps.@nps[0].enabled='0'
+uci -q set nps.@nps[0].server_addr='47.83.9.208'
+uci -q set nps.@nps[0].server_port='8024'
+uci -q set nps.@nps[0].protocol='tcp'
+uci -q commit nps
+chmod 755 /usr/libexec/nps-wan-mac /etc/init.d/nps-wan-mac
+/etc/init.d/nps-wan-mac enable
+/etc/init.d/nps-wan-mac start
+exit 0

@@ -1,0 +1,53 @@
+#!/bin/sh
+uci -q set passwall2.@global[0].enabled='0'
+uci -q set shadowsocksr.@global[0].global_server='nil'
+uci -q set shadowsocksr.@global[0].enabled='0'
+uci -q set openclash.config.enable='0'
+uci -q commit passwall2
+uci -q commit shadowsocksr
+uci -q commit openclash
+for service in passwall2 shadowsocksr openclash; do
+ [ ! -x "/etc/init.d/$service" ] || "/etc/init.d/$service" disable
+done
+
+uci set luci.main.lang='zh_cn'
+uci set luci.main.mediaurlbase='/luci-static/argon'
+uci commit luci
+
+if [ -f /etc/board.json ]; then
+  lua /usr/libexec/juliang-branding.lua
+fi
+lua /usr/libexec/juliang-login-theme.lua
+
+for radio in $(uci show wireless 2>/dev/null | sed -n 's/^wireless\.\([^.=]*\)=wifi-device$/\1/p'); do
+  band=$(uci -q get "wireless.$radio.band" || true)
+  case "$band" in
+    2g|2g4|2.4g|2.4ghz|2ghz) ssid='JuLiang-2.4G' ;;
+    5g|5ghz) ssid='JuLiang-5G' ;;
+    *) continue ;;
+  esac
+
+  uci set "wireless.$radio.disabled='0'"
+  uci set "wireless.$radio.country='CN'"
+  iface=
+  for candidate in $(uci show wireless 2>/dev/null | sed -n 's/^wireless\.\([^.=]*\)=wifi-iface$/\1/p'); do
+    if [ "$(uci -q get "wireless.$candidate.device" || true)" = "$radio" ] &&
+       [ "$(uci -q get "wireless.$candidate.mode" || true)" = 'ap' ]; then
+      iface=$candidate
+      break
+    fi
+  done
+  if [ -z "$iface" ]; then
+    iface=$(uci add wireless wifi-iface)
+  fi
+  uci set "wireless.$iface.device=$radio"
+  uci set "wireless.$iface.network='lan'"
+  uci set "wireless.$iface.mode='ap'"
+  uci set "wireless.$iface.ssid=$ssid"
+  uci set "wireless.$iface.encryption='psk2+ccmp'"
+  uci set "wireless.$iface.key='66668888'"
+  uci set "wireless.$iface.disabled='0'"
+done
+uci -q commit wireless
+
+exit 0

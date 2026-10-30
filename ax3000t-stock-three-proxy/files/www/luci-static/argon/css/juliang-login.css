@@ -1,0 +1,262 @@
+/* JuLiang login, scoped to the Argon authentication page. */
+html:has(.juliang-login),
+body:has(.juliang-login) {
+  min-height: 100%;
+  height: auto;
+  overflow: auto;
+  background: #1d2b30;
+}
+
+.login-page.juliang-login {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  padding: 32px 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #1d2b30;
+}
+
+.login-page.juliang-login::before {
+  content: "";
+  position: fixed;
+  inset: -12px;
+  z-index: 0;
+  background: url("/luci-static/argon/img/juliang-login-bg.jpg") center center / cover no-repeat;
+  filter: blur(1.5px) saturate(.82);
+  transform: scale(1.015);
+}
+
+.login-page.juliang-login::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(30, 38, 39, .25);
+  pointer-events: none;
+}
+
+.login-page.juliang-login .main-bg,
+.login-page.juliang-login .video,
+.login-page.juliang-login .login-container > .brand {
+  display: none !important;
+}
+
+.login-page.juliang-login .login-container {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 2;
+  display: block;
+  width: min(620px, 100%) !important;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0;
+  margin: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  transform: none !important;
+}
+
+.login-page.juliang-login .login-container .login-form {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 38px 42px 40px;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: 28px;
+  background: rgba(235, 240, 246, .94);
+  box-shadow: 0 24px 70px rgba(11, 22, 28, .34);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.login-page.juliang-login .login-container .login-form .brand {
+  display: block !important;
+  position: relative;
+  margin: 0 0 26px !important;
+  padding: 20px 20px 28px;
+  border: 2px solid #bad6e8;
+  border-radius: 20px;
+  background: rgba(245, 250, 252, .86);
+  text-align: center;
+  overflow: hidden;
+}
+
+.login-page.juliang-login .login-container .login-form .brand::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 12px;
+  height: 5px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #557cb8, #48b6a2 54%, #8768cf);
+}
+
+.login-page.juliang-login .login-container .login-form .brand .icon {
+  display: none !important;
+}
+
+.login-page.juliang-login .login-container .login-form .brand .brand-text {
+  display: block;
+  margin: 0 !important;
+  color: #29436b !important;
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif !important;
+  font-size: 34px !important;
+  font-weight: 760 !important;
+  line-height: 1.25;
+  letter-spacing: 0 !important;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.login-page.juliang-login .login-container .login-form .form-login {
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.login-page.juliang-login .login-container .login-form .input-group {
+  position: relative;
+  margin: 0 0 20px !important;
+  min-height: 64px;
+  overflow: hidden;
+  border: 2px solid #bdd9eb;
+  border-radius: 16px;
+  background: #fbfdff;
+  box-shadow: 0 5px 14px rgba(49, 74, 104, .06);
+}
+
+.login-page.juliang-login .login-container .login-form .input-group:focus-within {
+  border-color: #709bbf;
+  box-shadow: 0 0 0 4px rgba(82, 126, 181, .13);
+}
+
+.login-page.juliang-login .login-container .login-form .input-group input {
+  width: 100% !important;
+  height: 64px !important;
+  min-height: 64px;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 12px 20px 12px 66px !important;
+  border: none !important;
+  border-radius: 16px;
+  background-color: transparent !important;
+  color: #1e3552 !important;
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif !important;
+  font-size: 17px !important;
+  line-height: 1.4;
+  box-shadow: none !important;
+}
+
+.login-page.juliang-login .login-container .login-form .input-group input[name="luci_username"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f87ae' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 22px center !important;
+  background-size: 27px 27px !important;
+}
+
+.login-page.juliang-login .login-container .login-form .input-group input[name="luci_password"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f87ae' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='10' width='16' height='11' rx='2'/%3E%3Cpath d='M8 10V7a4 4 0 0 1 8 0v3'/%3E%3Ccircle cx='12' cy='15.5' r='1.2' fill='%235f87ae' stroke='none'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 22px center !important;
+  background-size: 27px 27px !important;
+}
+
+.login-page.juliang-login .login-container .login-form .input-group input::placeholder {
+  color: #8294a8;
+  opacity: .9;
+}
+
+.login-page.juliang-login .login-container .login-form .input-group .border,
+.login-page.juliang-login .login-container .login-form .input-group::before {
+  display: none !important;
+}
+
+.login-page.juliang-login .login-container .login-form .cbi-button-apply {
+  width: 100% !important;
+  min-height: 64px;
+  margin: 5px 0 0 !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #4d86b4 !important;
+  color: #fff !important;
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 750;
+  letter-spacing: .12em !important;
+  box-shadow: 0 8px 18px rgba(49, 93, 132, .24) !important;
+}
+
+.login-page.juliang-login .login-container .login-form .cbi-button-apply:hover {
+  background: #427aa8 !important;
+}
+
+.login-page.juliang-login .login-container .login-form .errorbox {
+  margin: 0 0 16px !important;
+  padding: 10px 12px !important;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #a92f39 !important;
+  font-size: 13px;
+}
+
+.login-page.juliang-login .login-container footer {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .login-page.juliang-login {
+    padding: 18px 14px;
+  }
+
+  .login-page.juliang-login .login-container .login-form {
+    padding: 24px 20px 26px;
+    border-radius: 22px;
+  }
+
+  .login-page.juliang-login .login-container .login-form .brand {
+    margin-bottom: 20px !important;
+    padding: 18px 12px 25px;
+    border-radius: 17px;
+  }
+
+  .login-page.juliang-login .login-container .login-form .brand .brand-text {
+    font-size: 27px !important;
+  }
+
+  .login-page.juliang-login .login-container .login-form .input-group {
+    min-height: 58px;
+    margin-bottom: 15px !important;
+  }
+
+  .login-page.juliang-login .login-container .login-form .input-group input {
+    height: 58px !important;
+    min-height: 58px;
+    padding-left: 58px !important;
+    background-position: 18px center !important;
+  }
+
+  .login-page.juliang-login .login-container .login-form .cbi-button-apply {
+    min-height: 58px;
+    font-size: 20px !important;
+  }
+}
+
+@media (max-height: 620px) {
+  .login-page.juliang-login {
+    align-items: flex-start;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
