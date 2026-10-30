@@ -45,7 +45,7 @@ jobs:
   publish:
     name: Verify, sign and deploy update
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 600
     environment: release
     steps:
       - uses: actions/checkout@v4
@@ -167,8 +167,18 @@ jobs:
             ssh $ssh_options "$target" \
               "chmod -R u+rwX '$RELEASE_ROOT/staging/$version' 2>/dev/null || true; rm -rf '$RELEASE_ROOT/staging/$version'"
           fi
+          version_base="${version%.*}"
+          version_patch="${version##*.}"
+          previous_version="$version_base.$((version_patch - 1))"
+          if ! ssh $ssh_options "$target" "test -d '$RELEASE_ROOT/releases/$previous_version'"; then
+            previous_version="$version_base.$((version_patch - 2))"
+          fi
+          if ssh $ssh_options "$target" "test -d '$RELEASE_ROOT/releases/$previous_version'"; then
+            ssh $ssh_options "$target" \
+              "cp -al '$RELEASE_ROOT/releases/$previous_version' '$RELEASE_ROOT/staging/$version'"
+          fi
           ssh $ssh_options "$target" "mkdir -p '$RELEASE_ROOT/staging/$version'"
-          rsync -az --partial --info=progress2 --chmod=D755,F644 -e "ssh $ssh_options" \
+          rsync -az --delete --partial --info=progress2 --chmod=D755,F644 -e "ssh $ssh_options" \
             "publish/releases/$version/" \
             "$target:$RELEASE_ROOT/staging/$version/"
           ssh $ssh_options "$target" \
