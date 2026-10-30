@@ -100,7 +100,8 @@ chmod 600 package/fastacl252/files/etc/config/fastacl252
 
 grep -q "PKG_VERSION:=3.0" package/fastacl252/Makefile
 grep -q "version='3.0'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
-grep -q "TARGET_x86_64" package/juliangtk-sing-box/Makefile
-grep -q "sing-box-.*-linux-amd64.tar.gz" package/juliangtk-sing-box/Makefile
+grep -q "SING_BOX_ARCH:=amd64" package/juliangtk-sing-box/Makefile
+grep -Fq 'sing-box-$(PKG_VERSION)-linux-$(SING_BOX_ARCH).tar.gz' package/juliangtk-sing-box/Makefile
+grep -q 'a1ec76e2b6b139eb747a1b1ebee7d14b8d4be5a833596cad8070a31ef960301f' package/juliangtk-sing-box/Makefile
 file package/fastacl252/files/usr/bin/fastacl252-dns | grep -q 'x86-64'
 ./scripts/diffconfig.sh > JuLiang-OS-X86-64-fastacl300-final.config
