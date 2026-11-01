@@ -170,7 +170,7 @@ jobs:
             cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
           config nps
             option enabled '1'
-            option server_addr 'nps.jontao.top'
+            option server_addr 'nps.66ccs.com'
             option server_port '8024'
             option protocol 'tcp'
             option compress '1'
@@ -229,7 +229,7 @@ jobs:
             cp "$manifest" "upload/${device}.manifest"
           done
           grep -q '2.6.8' package/fastacl252/Makefile
-          grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
+          grep -q 'nps.66ccs.com' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
           cp "JuLiang-OS-${DEVICE_GROUP}-final.config" profiles/fastacl-v252/README-2.6.8.md upload/

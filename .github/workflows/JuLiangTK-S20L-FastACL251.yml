@@ -132,7 +132,7 @@ jobs:
     - name: Add source-feed NPS and Argon (no proxy plugins)
       run: "# Install the mutually compatible NPS packages supplied by this source.\n./scripts/feeds install -f -p packages nps npc\n./scripts/feeds install -f -p\
         \ luci luci-app-nps luci-i18n-nps-zh-cn\nNPS_CONFIG_FILE=\"$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head\
-        \ -n1)\"\ntest -n \"$NPS_CONFIG_FILE\"\ncat > \"$NPS_CONFIG_FILE\" <<'NPS_CONFIG'\nconfig nps\n        option enabled '1'\n        option server_addr '47.83.9.208'\n\
+        \ -n1)\"\ntest -n \"$NPS_CONFIG_FILE\"\ncat > \"$NPS_CONFIG_FILE\" <<'NPS_CONFIG'\nconfig nps\n        option enabled '1'\n        option server_addr 'nps.66ccs.com'\n\
         \        option server_port '8024'\n        option protocol 'tcp'\n        option compress '1'\n        option crypt '1'\n        option vkey 'WANMAC'\n \
         \       option log_level '4'\nNPS_CONFIG\n\nrm -rf package/luci-theme-argon package/luci-app-argon-config\ngit clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git\
         \ package/luci-theme-argon\ngit clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config\n"
@@ -147,7 +147,7 @@ jobs:
         \ continue\n                WAN_MAC=\"$(cat \"$LOWER/address\")\"\n                valid_mac \"$WAN_MAC\" && return 0\n        done\n        return 1\n}\n\
         tries=0\nwhile [ \"$tries\" -lt 60 ]; do get_wan_mac && break; tries=$((tries + 1)); sleep 2; done\nvalid_mac \"$WAN_MAC\" || { logger -t nps-wan-mac 'ERROR:\
         \ physical WAN MAC not found'; exit 1; }\nNPS_KEY=\"$(printf '%s' \"$WAN_MAC\" | tr -d ':' | tr '[:lower:]' '[:upper:]')\"\nuci -q set nps.@nps[0].enabled='1'\n\
-        uci -q set nps.@nps[0].server_addr='47.83.9.208'\nuci -q set nps.@nps[0].server_port='8024'\nuci -q set nps.@nps[0].protocol='tcp'\nuci -q set nps.@nps[0].compress='1'\n\
+        uci -q set nps.@nps[0].server_addr='nps.66ccs.com'\nuci -q set nps.@nps[0].server_port='8024'\nuci -q set nps.@nps[0].protocol='tcp'\nuci -q set nps.@nps[0].compress='1'\n\
         uci -q set nps.@nps[0].crypt='1'\nuci -q set nps.@nps[0].vkey=\"$NPS_KEY\"\nuci -q commit nps\n/etc/init.d/nps enable\n/etc/init.d/nps restart\ntouch \"$DONE\"\
         \nlogger -t nps-wan-mac \"NPS configured from physical WAN MAC $WAN_DEV\"\nNPS_MAC\n\ncat > package/base-files/files/etc/init.d/nps-wan-mac <<'NPS_INIT'\n\
         #!/bin/sh /etc/rc.common\nSTART=98\nSTOP=10\nstart() { [ -e /etc/nps-wan-mac.done ] || /usr/libexec/nps-wan-mac >/dev/null 2>&1 & }\nNPS_INIT\n\ncat > package/base-files/files/etc/hotplug.d/iface/99-nps-wan-mac\

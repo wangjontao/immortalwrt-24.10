@@ -14,7 +14,7 @@ This branch removes the legacy HOTFIX-6 first-boot substitutions. Native UCI wri
 
 Both Lite CI gates run shell/Lua syntax checks, import/subscription regressions, native Go tests with the race detector, persistent DNS TCP-session and daemon PID tests, runtime lifecycle/rollback tests, native dae configuration validation and browser UI tests. The shell lifecycle tests stub external commands and do not prove eBPF behavior. Real S20L cold boot, WiFi radio operation, simultaneous device/WiFi switching, failure isolation and measured switching latency remain hardware acceptance checks. CI success alone is not a hardware pass.
 
-The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS uses nps.jontao.top:8024 with an uppercase physical-WAN-MAC VKey. Restricted LuCI operator access is included; SSH uses port 20022.
+The firmware excludes iStore, QuickStart, PassWall, PassWall2, HomeProxy and OpenClash. NPS uses nps.66ccs.com:8024 with an uppercase physical-WAN-MAC VKey. Restricted LuCI operator access is included; SSH uses port 20022.
 
 Official dae source: https://github.com/daeuniverse/dae/tree/v2.1.1 (AGPL-3.0).
 

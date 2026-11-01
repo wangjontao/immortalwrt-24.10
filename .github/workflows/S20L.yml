@@ -104,7 +104,7 @@ jobs:
           cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
           config nps
                   option enabled '1'
-                  option server_addr '47.83.9.208'
+                  option server_addr 'nps.66ccs.com'
                   option server_port '8024'
                   option protocol 'tcp'
                   option compress '1'
@@ -167,7 +167,7 @@ jobs:
           valid_mac "$WAN_MAC" || { logger -t nps-wan-mac 'ERROR: physical WAN MAC not found'; exit 1; }
           NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
           uci -q set nps.@nps[0].enabled='1'
-          uci -q set nps.@nps[0].server_addr='47.83.9.208'
+          uci -q set nps.@nps[0].server_addr='nps.66ccs.com'
           uci -q set nps.@nps[0].server_port='8024'
           uci -q set nps.@nps[0].protocol='tcp'
           uci -q set nps.@nps[0].compress='1'
@@ -237,7 +237,7 @@ jobs:
           ! grep -q '^CONFIG_PACKAGE_luci-app-npc=y' .config
           NPS_CONFIG_VERIFY="$(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f | head -n1)"
           test -n "$NPS_CONFIG_VERIFY"
-          grep -q "server_addr '47.83.9.208'" "$NPS_CONFIG_VERIFY"
+          grep -q "server_addr 'nps.66ccs.com'" "$NPS_CONFIG_VERIFY"
           grep -q "server_port '8024'" "$NPS_CONFIG_VERIFY"
           grep -q "compress '1'" "$NPS_CONFIG_VERIFY"
           grep -q "crypt '1'" "$NPS_CONFIG_VERIFY"
@@ -298,4 +298,4 @@ jobs:
             Wi-Fi: DulWiFi-5G / DulWiFi-2.4G retained; first boot adds A1-A15 on 5 GHz and A16-A20 on 2.4 GHz, password a1111111.
             Included: iStore, QuickStart home page, Argon, TTYD, common LuCI tools, scheduled reboot, LuCI Statistics, PassWall, PassWall2, HomeProxy, luci-app-nps client.
             Multi-WiFi: the supplied AP01-AP20 batch runs once after first boot settles, keeps the default Wi-Fi, creates one bridge and DHCP subnet per SSID (172.16.1.0/24 through 172.16.20.0/24), and uses the supplied PassWall/PassWall2 files verbatim; the AP firewall forwards to WAN as requested.
-            NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for 47.83.9.208:8024 TCP, compression and encryption enabled.
+            NPS client: source-feed nps/npc/luci-app-nps; first successful boot writes the uppercase physical WAN MAC without colons to vkey for nps.66ccs.com:8024 TCP, compression and encryption enabled.
