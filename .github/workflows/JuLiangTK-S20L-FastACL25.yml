@@ -111,7 +111,7 @@ jobs:
         cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
         config nps
                 option enabled '1'
-                option server_addr '47.83.9.208'
+                option server_addr 'nps.66ccs.com'
                 option server_port '8024'
                 option protocol 'tcp'
                 option compress '1'
@@ -158,7 +158,7 @@ jobs:
         valid_mac "$WAN_MAC" || { logger -t nps-wan-mac 'ERROR: physical WAN MAC not found'; exit 1; }
         NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
         uci -q set nps.@nps[0].enabled='1'
-        uci -q set nps.@nps[0].server_addr='47.83.9.208'
+        uci -q set nps.@nps[0].server_addr='nps.66ccs.com'
         uci -q set nps.@nps[0].server_port='8024'
         uci -q set nps.@nps[0].protocol='tcp'
         uci -q set nps.@nps[0].compress='1'

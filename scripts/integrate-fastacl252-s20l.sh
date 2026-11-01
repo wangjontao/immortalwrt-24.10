@@ -66,16 +66,16 @@ for root in files package/base-files/files; do
 done
 
 # NPS uses a domain in Lite. Keep the feed defaults and LuCI validator aligned
-# so nps.jontao.top can be displayed, edited and saved without an IP-only error.
+# so nps.66ccs.com can be displayed, edited and saved without an IP-only error.
 for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/root/etc/config/nps' -type f 2>/dev/null); do
-  sed -i 's/47\.83\.9\.208/nps.jontao.top/g' "$p"
+  sed -i 's/47\.83\.9\.208/nps.66ccs.com/g' "$p"
 done
 for p in $(find feeds/luci package/feeds/luci -path '*/luci-app-nps/*' -type f -name '*.lua' 2>/dev/null); do
   sed -i -e 's/server\.datatype[[:space:]]*=[[:space:]]*"ipaddr"/server.datatype = "host"/g' \
          -e "s/server\.datatype[[:space:]]*=[[:space:]]*'ipaddr'/server.datatype = 'host'/g" "$p"
 done
 if [ -f package/base-files/files/usr/libexec/nps-wan-mac ]; then
-  sed -i 's/47\.83\.9\.208/nps.jontao.top/g' package/base-files/files/usr/libexec/nps-wan-mac
+  sed -i 's/47\.83\.9\.208/nps.66ccs.com/g' package/base-files/files/usr/libexec/nps-wan-mac
 fi
 
 sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bin/config_generate

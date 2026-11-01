@@ -164,7 +164,7 @@ jobs:
             cat > "$NPS_CONFIG_FILE" <<'NPS_CONFIG'
           config nps
             option enabled '1'
-            option server_addr 'nps.jontao.top'
+            option server_addr 'nps.66ccs.com'
             option server_port '8024'
             option protocol 'tcp'
             option compress '1'
@@ -220,7 +220,7 @@ jobs:
           if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd) ' "$manifest"; then echo 'ERROR: iStore/QuickStart unexpectedly present'; exit 1; fi
           if grep -Ei '^(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-)' "$manifest"; then echo 'ERROR: forbidden proxy plugin present'; exit 1; fi
           grep -q '2.7.1' package/fastacl252/Makefile
-          grep -q 'nps.jontao.top' package/fastacl252/files/usr/libexec/nps-wan-mac
+          grep -q 'nps.66ccs.com' package/fastacl252/files/usr/libexec/nps-wan-mac
           cp .config upload/build.config
           cp "$manifest" "upload/${DEVICE}.manifest"
           find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;

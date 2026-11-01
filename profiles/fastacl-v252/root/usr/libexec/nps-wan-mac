@@ -50,7 +50,7 @@ done
 
 if [ ! -e "$DONE" ]; then
   NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-  uci -q set nps.@nps[0].server_addr='nps.jontao.top'
+  uci -q set nps.@nps[0].server_addr='nps.66ccs.com'
   uci -q set nps.@nps[0].server_port='8024'
   uci -q set nps.@nps[0].protocol='tcp'
   uci -q set nps.@nps[0].compress='1'
