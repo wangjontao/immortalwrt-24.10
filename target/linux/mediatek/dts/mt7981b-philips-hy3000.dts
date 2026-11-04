@@ -50,15 +50,17 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&status_led_pins>;
 
 		status_red_led: led-0 {
 			label = "red:status";
-			gpios = <&pio 8 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 8 GPIO_ACTIVE_LOW>;
 			};
 
 		status_green_led: led-1 {
 			label = "green:status";
-			gpios = <&pio 13 GPIO_ACTIVE_LOW>;
+			gpios = <&pio 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
@@ -117,7 +119,7 @@
 		reg = <0>;
 		phy-mode = "2500base-x";
 
-		nvmem-cells = <&macaddr_factory_74 0>;
+		nvmem-cells = <&macaddr_factory_74 (-1)>;
 		nvmem-cell-names = "mac-address";
 		fixed-link {
 			speed = <2500>;
@@ -154,6 +156,8 @@
 		port@0 {
 			reg = <0>;
 			label = "wan";
+			nvmem-cells = <&macaddr_factory_74 0>;
+			nvmem-cell-names = "mac-address";
 		};
 
 		port@1 {
@@ -186,6 +190,14 @@
 };
 
 &pio {
+	status_led_pins: status-led-pins {
+		pins {
+			pins = "JTAG_JTRST_N", "WO_JTAG_JTRST_N";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
 	mmc0_pins_default: mmc0-pins-default {
 		mux {
 			function = "flash";
