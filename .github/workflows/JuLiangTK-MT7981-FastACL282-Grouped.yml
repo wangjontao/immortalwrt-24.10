@@ -1,4 +1,5 @@
 name: MT7981 Series FastACL 2.8.2 Grouped Build
+# Build marker: temporary legacy HY3000 factory MAC layout.
 # Build marker: HY3000 LED and LAN/WAN MAC fixes included.
 run-name: 'FastACL 2.8.2 - native sing-box group for the 32-device MT7981 matrix'
 
