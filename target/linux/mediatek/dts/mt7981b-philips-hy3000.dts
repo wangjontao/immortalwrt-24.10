@@ -56,7 +56,7 @@
 		status_red_led: led-0 {
 			label = "red:status";
 			gpios = <&pio 8 GPIO_ACTIVE_LOW>;
-			};
+		};
 
 		status_green_led: led-1 {
 			label = "green:status";
@@ -98,12 +98,11 @@
 							reg = <0x0 0x1000>;
 						};
 
-						macaddr_factory_74: macaddr@74 {
+						macaddr_factory_24: macaddr@24 {
 							compatible = "mac-base";
-							reg = <0x74 0x6>;
+							reg = <0x24 0x6>;
 							#nvmem-cell-cells = <1>;
 						};
-
 					};
 				};
 			};
@@ -119,7 +118,7 @@
 		reg = <0>;
 		phy-mode = "2500base-x";
 
-		nvmem-cells = <&macaddr_factory_74 (-1)>;
+		nvmem-cells = <&macaddr_factory_24 1>;
 		nvmem-cell-names = "mac-address";
 		fixed-link {
 			speed = <2500>;
@@ -156,7 +155,7 @@
 		port@0 {
 			reg = <0>;
 			label = "wan";
-			nvmem-cells = <&macaddr_factory_74 0>;
+			nvmem-cells = <&macaddr_factory_24 0>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -171,9 +170,9 @@
 		};
 
 		port@3 {
-                        reg = <3>;
-                        label = "lan3";
-                };
+			reg = <3>;
+			label = "lan3";
+		};
 
 		port@6 {
 			reg = <6>;
