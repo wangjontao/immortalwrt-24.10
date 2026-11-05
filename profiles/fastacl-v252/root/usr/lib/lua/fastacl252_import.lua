@@ -97,7 +97,7 @@ function M.native(o,name)
   assert(type(o)=='table' and native[o.type] and type(o.server)=='string' and tonumber(o.server_port),'Unsupported native node')
   o.server_port=tonumber(o.server_port)
   assert(o.server_port>=1 and o.server_port<=65535,'Invalid node port')
-  -- Remove source-specific routing references; FastACL owns routing and DNS.
+  -- Remove source-specific routing references; JuLiang OS owns routing and DNS.
   o.tag=nil; o.detour=nil; o.domain_resolver=nil
   return {name=name or o.type..' '..o.server..':'..o.server_port,protocol=o.type,outbound=o}
 end

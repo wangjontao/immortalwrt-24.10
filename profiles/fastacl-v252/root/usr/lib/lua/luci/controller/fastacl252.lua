@@ -62,7 +62,7 @@ end
 
 function index()
   if not nixio.fs.access('/etc/config/fastacl252') then return end
-  local p=entry({'admin','juliang','fastacl'},template('fastacl252/console'),_('FastACL 控制台'),3)
+  local p=entry({'admin','juliang','fastacl'},template('fastacl252/console'),_('JuLiang OS 控制台'),3)
   p.dependent=false; gate(p)
   local old=gate(entry({'admin','services','fastacl252'},alias('admin','juliang','fastacl'),nil));old.leaf=true
   local e
@@ -102,7 +102,7 @@ function status()
   end)
   table.sort(subscriptions,function(a,b) return a.name<b.name end)
   local dns_stats=json.parse(require('luci.sys').exec('/usr/bin/fastacl252-dns -stats -config /tmp/fastacl252/dns.json 2>/dev/null') or '') or {}
-  reply({dns_stats=dns_stats,ok=true,version='2.8.2',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,direct_dns_type=c.direct_dns_type,direct_dns_ip=c.direct_dns_ip,direct_dns_name=c.direct_dns_name,proxy_dns=c.proxy_dns,proxy_dns_type=c.proxy_dns_type,proxy_dns_ip=c.proxy_dns_ip,proxy_dns_name=c.proxy_dns_name,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
+  reply({dns_stats=dns_stats,ok=true,version='2.8.5',enabled=c.enabled,dataplane=c.dataplane,tun_interface=c.tun_interface,tun_address=c.tun_address,tun_mtu=c.tun_mtu,tun_stack=c.tun_stack,devices=env.inventory(c,u),nodes=nodes,subscriptions=subscriptions,dns_catalog=dns.catalog(),direct_dns=c.direct_dns,direct_dns_type=c.direct_dns_type,direct_dns_ip=c.direct_dns_ip,direct_dns_name=c.direct_dns_name,proxy_dns=c.proxy_dns,proxy_dns_type=c.proxy_dns_type,proxy_dns_ip=c.proxy_dns_ip,proxy_dns_name=c.proxy_dns_name,wifi=wifi.status(u),network=c.network,router_ip=c.router_ip,runtime=runtime,job=fs.readfile('/tmp/fastacl252/apply.result'),apply_log=tail(fs.readfile('/tmp/fastacl252/apply.log') or '',3000),subscription_history=json.parse(fs.readfile('/tmp/fastacl252/subscription-history.json') or '') or {},subscription_running=fs.access('/tmp/fastacl252-subscribe.lock') or false})
 end
 
 -- Main-LAN device changes are application-layer hot changes. dnsmasq is reloaded
@@ -211,7 +211,7 @@ function save()
       end
     end
 
-    assert(u:commit('fastacl252'),'保存 FastACL 配置失败'); committed=true
+    assert(u:commit('fastacl252'),'保存 JuLiang OS 配置失败'); committed=true
     if dhcp_changed then assert(u:commit('dhcp'),'保存 DHCP 配置失败') end
     fs.chmod('/etc/config/fastacl252','600'); committed=true
     if dhcp_changed then sys.call('/etc/init.d/dnsmasq reload >/dev/null 2>&1') end
@@ -245,7 +245,7 @@ function import_nodes()
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor(); local original=fs.readfile('/etc/config/fastacl252'); local count=0
   local ok,err=pcall(function()
-    local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存 LuCI 中未提交的 FastACL 配置')
+    local pending=u:changes('fastacl252'); assert(not pending or not next(pending),'请先保存 LuCI 中未提交的 JuLiang OS 配置')
     local manager=require 'fastacl252_nodes'; manager.check(nodes); manager.add(u,nodes)
     assert(u:commit('fastacl252'),'保存节点失败'); count=#nodes
   end)
@@ -275,7 +275,7 @@ function wifi_action()
       elseif req.action=='preproxy_batch' then result=manager.update_preproxy_many(u,req)
       else manager.update(u,req) end
       require('fastacl252_env').read(u)
-      assert(u:commit('fastacl252'),'保存 FastACL WiFi 绑定失败'); committed=true; fs.chmod('/etc/config/fastacl252','600')
+      assert(u:commit('fastacl252'),'保存 JuLiang OS WiFi 绑定失败'); committed=true; fs.chmod('/etc/config/fastacl252','600')
       if u:get('fastacl252','main','enabled')=='1' then
         local aok,d=apply_now('hot-apply'); detail=d; assert(aok,'应用层快速切换失败：'..(d~='' and d or '未知错误'))
       end
@@ -396,7 +396,7 @@ function device_name()
   if not acquire_lock(fs) then return end
   local original=fs.readfile('/etc/config/fastacl252');local name
   local ok,err=pcall(function()
-    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 JuLiang OS 配置')
     local mac=assert(require('fastacl252').mac(h.formvalue('mac')),'设备 MAC 无效')
     local env=require'fastacl252_env';local known=false
     for _,d in ipairs(env.inventory(env.read(u,true),u)) do if d.mac==mac then known=true;break end end
@@ -478,7 +478,7 @@ function update_node()
   local u=require('uci').cursor();local original=fs.readfile('/etc/config/fastacl252')
   local committed=false;local detail='';local normalized
   local ok,err=pcall(function()
-    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 JuLiang OS 配置')
     assert(u:get('fastacl252',id)=='node','节点不存在')
     normalized=require('fastacl252_import').native(data.outbound,name)
     require('fastacl252_nodes').rename(u,id,name)
@@ -507,7 +507,7 @@ function rename_node()
   if not acquire_lock(fs) then return end
   local u=require('uci').cursor();local original=fs.readfile('/etc/config/fastacl252')
   local ok,err=pcall(function()
-    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 FastACL 配置')
+    local pending=u:changes('fastacl252');assert(not pending or not next(pending),'请先保存未提交的 JuLiang OS 配置')
     require('fastacl252_nodes').rename(u,h.formvalue('id'),h.formvalue('name'))
     assert(u:commit('fastacl252'),'保存节点名称失败')
   end)

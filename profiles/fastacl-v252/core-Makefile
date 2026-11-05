@@ -11,7 +11,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/juliangtk-dae
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Pinned official dae core for FastACL 2.5.2 ARM64
+  TITLE:=Pinned official dae core for JuLiang OS legacy ARM64
   DEPENDS:=@TARGET_mediatek_filogic +ip-full +tc-full +kmod-sched-core +kmod-sched-bpf +kmod-veth +ca-bundle
   CONFLICTS:=dae
 endef

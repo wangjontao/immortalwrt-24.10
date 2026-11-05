@@ -1,0 +1,11 @@
+		{% if (!blank_page): %}
+			</main>
+			<footer class="juliang-footer">
+				<span>JuLiang OS v2.8.5 / {{ version.distname ?? 'JuLiang OS' }} {{ version.distversion ?? '' }}</span>
+				<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+			</footer>
+		</div>
+		<script>L.require('menu-juliang')</script>
+		{% endif %}
+	</body>
+</html>

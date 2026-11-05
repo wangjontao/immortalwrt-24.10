@@ -1,6 +1,6 @@
 {
   "juliang-center": {
-    "description": "JuLiangTK control center status",
+    "description": "JuLiang OS control center status",
     "read": {
       "uci": [
         "network",
@@ -33,7 +33,7 @@
     }
   },
   "juliang-fastacl252": {
-    "description": "JuLiangTK FastACL 2.5.2 dae operator access",
+    "description": "JuLiang OS JuLiang OS 2.5.2 dae operator access",
     "read": {
       "uci": [
         "fastacl252",

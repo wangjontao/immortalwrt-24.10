@@ -4,7 +4,7 @@ if not nixio.fs.access("/etc/config/nps")then
 return
 end
 local e
-e=entry({"admin","system","nps"},cbi("nps"),_("JuLiang管理"),70)
+e=entry({"admin","system","nps"},cbi("nps"),_("JuLiang OS 管理"),70)
 e.i18n="nps"
 e.dependent=true
 e.acl_depends = { "luci-app-nps" }

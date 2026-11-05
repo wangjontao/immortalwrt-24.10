@@ -125,7 +125,7 @@ acquire_lock(){
         fi;;
     esac
     i=$((i+1))
-    [ "$i" -lt 30 ] || { echo 'FastACL apply busy' >&2; return 1; }
+    [ "$i" -lt 30 ] || { echo 'JuLiang OS apply busy' >&2; return 1; }
     pause_fast
   done
   printf '%s\n' "$$" > "$LOCK/pid"
@@ -422,8 +422,8 @@ start_dns_next(){
 }
 
 start_singbox_tproxy_next(){
-  command -v sing-box >/dev/null 2>&1 || { echo '[FastACL] sing-box is not installed' >&2; return 1; }
-  singbox_tproxy_routes_start || { echo '[FastACL] failed to install TPROXY routes' >&2; return 1; }
+  command -v sing-box >/dev/null 2>&1 || { echo '[JuLiang OS] sing-box is not installed' >&2; return 1; }
+  singbox_tproxy_routes_start || { echo '[JuLiang OS] failed to install TPROXY routes' >&2; return 1; }
   cp "$R/singbox.next.json" "$R/singbox.json"
   /sbin/start-stop-daemon -S -b -m -p "$R/singbox.pid" -x /usr/bin/sing-box -- \
     run -c "$R/singbox.json" >"$R/singbox-tproxy.log" 2>&1 || {
@@ -543,7 +543,7 @@ tun_firewall_ensure(){
       zone=$section
     fi
   done
-  [ -n "$zone" ] || { echo '[FastACL] LAN firewall zone not found' >&2; return 1; }
+  [ -n "$zone" ] || { echo '[JuLiang OS] LAN firewall zone not found' >&2; return 1; }
 
   desired=''
   for id in $(uci -q show fastacl252 2>/dev/null |
@@ -623,14 +623,14 @@ start_tun_core(){
 }
 
 start_tun_next(){
-  command -v sing-box >/dev/null 2>&1 || { echo '[FastACL] sing-box is not installed' >&2; return 1; }
+  command -v sing-box >/dev/null 2>&1 || { echo '[JuLiang OS] sing-box is not installed' >&2; return 1; }
   tun_routes_prepare
   start_tun_core
   # Keep policy rules and LAN routes present, but delay the default TUN route
   # until network-manager startup has settled.
   sleep 4
   tun_routes_activate || {
-    echo '[FastACL] failed to install isolated TUN routes' >&2
+    echo '[JuLiang OS] failed to install isolated TUN routes' >&2
     tun_stop
     return 1
   }
@@ -647,7 +647,7 @@ reload_dns_next(){
   cp "$R/dns.next.json" "$R/dns.json.pending"
   mv "$R/dns.json.pending" "$R/dns.json"
   if fastacl252-dns -reload -config "$R/dns.json" >"$R/dns-reload.log" 2>&1; then return 0; fi
-  echo '[FastACL] DNS reload rejected; keeping the running policy and listener' >&2
+  echo '[JuLiang OS] DNS reload rejected; keeping the running policy and listener' >&2
   cat "$R/dns-reload.log" >&2
   cp "$R/dns.prev.json" "$R/dns.json.pending"
   mv "$R/dns.json.pending" "$R/dns.json"
@@ -721,7 +721,7 @@ cold_apply(){
 
 ensure_runtime(){
   if core_ready && dns_ready && firewall_ready; then return 0; fi
-  echo '[FastACL] runtime unhealthy; recovering only failed components' >&2
+  echo '[JuLiang OS] runtime unhealthy; recovering only failed components' >&2
   hot_apply
 }
 

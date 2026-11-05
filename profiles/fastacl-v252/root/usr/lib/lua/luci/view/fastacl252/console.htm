@@ -356,13 +356,96 @@
 .f252 .f25-wifi-batch-actions .f25-batch-selected.is-ready{animation:f25-ready-pulse 1.4s ease-out 1}
 @keyframes f25-ready-pulse{0%{box-shadow:0 0 0 0 rgba(139,92,216,.5)}100%{box-shadow:0 0 0 10px rgba(139,92,216,0)}}
 @container(max-width:650px){.f252 .f25-wifi-batch-actions{display:grid;grid-template-columns:1fr 1fr}.f252 .f25-wifi-batch-actions select{grid-column:1/-1}.f252 .f25-wifi-batch-actions .cbi-button{width:100%;min-width:0}}
+
+/* JuLiang OS v2.8.5 network-console skin. */
+html,body{background:#06111b!important;color:#a9c0cc!important}
+body{font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",sans-serif!important}
+.f252{--jl-panel:#0b1d2b;--jl-panel-2:#102738;--jl-line:#203c4f;--jl-text:#edf7fa;--jl-soft:#a9c0cc;--jl-muted:#708b9c;--jl-cyan:#67dce7;--jl-cyan-2:#a7f7ff;--jl-green:#67e9ac;--jl-orange:#f1a75f;color:var(--jl-soft)!important}
+.f252 *{letter-spacing:0}
+.f252>.card,.f252 .card,.f252 .item,.f252 .node-row,.f252 .device-row,.f252 .subscription-row,.f252 .wifi-create-panel,.f252 .f25-main-lan-panel,.f252 .f25-existing-panel{border-color:var(--jl-line)!important;border-radius:7px!important;background:var(--jl-panel)!important;color:var(--jl-soft)!important;box-shadow:none!important}
+.f252 .f25-sticky{background:#07131f!important;box-shadow:none!important}
+.f252 .f25-topbar{border-color:#2a5368!important;border-radius:7px!important;background:linear-gradient(90deg,rgba(31,111,132,.38),rgba(25,81,107,.18) 42%,#0b1e2c)!important;box-shadow:inset 0 1px 0 rgba(152,239,246,.06)!important}
+.f252 .f25-brand{padding-left:15px}
+.f252 .f25-brand:before{width:4px!important;background:var(--jl-cyan)!important;box-shadow:0 0 10px rgba(103,220,231,.5)!important}
+.f252 .f25-brand h2,.f252 .f25-brand .f25-brand-text{color:var(--jl-cyan-2)!important;-webkit-text-fill-color:var(--jl-cyan-2)!important;-webkit-text-stroke:0!important;text-shadow:none!important;font-family:"Bahnschrift","Microsoft YaHei UI",sans-serif!important}
+.f252 .f25-version{color:#87a1b1!important;text-shadow:none!important}
+.f252 .f25-tools #f25-health{border-color:rgba(103,233,172,.24)!important;background:rgba(27,75,61,.3)!important;color:var(--jl-green)!important;text-shadow:none!important}
+.f252 .f25-tools #f25-health:before{background:var(--jl-green)}
+.f252 .f25-tools #f25-refresh{border-color:#3e7187!important;background:#102b3d!important;color:var(--jl-cyan-2)!important;text-shadow:none!important}
+.f252 .f25-tools #f25-search{border-color:#2d5064!important;background:#071521!important;color:var(--jl-text)!important;box-shadow:none!important}
+.f252 .f25-tabs,.f252 .f25-subtabs{border-color:#244355!important;background:#091a27!important;box-shadow:none!important}
+.f252 .f25-tabs button,.f252 .f25-subtabs button{border-color:transparent!important;border-radius:5px!important;background:transparent!important;color:#88a3b3!important;transform:none!important}
+.f252 .f25-tabs button[aria-selected="true"],.f252 .f25-subtabs button[aria-selected="true"]{border-color:#32758a!important;background:linear-gradient(90deg,rgba(45,139,158,.32),rgba(43,111,142,.22))!important;color:var(--jl-cyan-2)!important}
+.f252 .f25-sticky .msg{border-color:rgba(103,233,172,.28)!important;background:#102a28!important;color:#9cebc8!important;box-shadow:none!important}
+.f252 .f25-sticky .msg.bad{border-color:rgba(255,119,127,.32)!important;background:#3a1d26!important;color:#ffb0b5!important}
+.f252 .f25-sticky .msg.pending{border-color:rgba(103,220,231,.26)!important;background:#102738!important;color:#a8e9ef!important}
+.f252>.card .section-heading,.f252 .section-heading{border-color:var(--jl-line)!important;background:linear-gradient(90deg,rgba(34,100,119,.3),#102738)!important;color:var(--jl-cyan-2)!important;box-shadow:none!important}
+.f252>.card .section-heading h3,.f252 .section-heading h3{color:var(--jl-cyan-2)!important;text-shadow:none!important;font-family:"Bahnschrift","Microsoft YaHei UI",sans-serif!important}
+.f252>.card .section-heading:after{background:linear-gradient(90deg,var(--jl-cyan),#3f7fa5 55%,transparent)!important}
+.f252 .section-body,.f252 .f25-existing-body,.f252 .f25-content{background:#091a27!important}
+.f252 .f25-main-lan-head,.f252 .wifi-create-summary,.f252 .wifi-existing-header,.f252 .f25-overview>.head{background:#102738!important;color:var(--jl-text)!important}
+.f252 .f25-main-lan-head h4,.f252 .wifi-existing-header h4,.f252 .wifi-create-summary,.f252 .head>h3{color:var(--jl-cyan-2)!important;font-family:"Bahnschrift","Microsoft YaHei UI",sans-serif!important}
+.f252 .field label,.f252 .sub,.f252 .note,.f252 .meta{color:var(--jl-muted)!important;opacity:1!important}
+.f252 input,.f252 select,.f252 textarea{border-color:#2a4b5e!important;border-radius:4px!important;background:#071521!important;color:#d5e6ec!important;box-shadow:none!important}
+.f252 select:not(:disabled){border-color:#31566b!important;background:#0a1e2c!important;color:#d5e6ec!important}
+.f252 button.cbi-button{border-color:#315267!important;border-radius:5px!important;background:#0d2333!important;color:#c2d8e2!important;text-shadow:none!important}
+.f252 button.cbi-button-apply,.f252 button.cbi-button-add,.f252 button.cbi-button-positive,.f252 button.cbi-button-save{border-color:#5fcbd6!important;background:linear-gradient(100deg,#267f91,#316f93)!important;color:#f5fdff!important}
+.f252 button.cbi-button-negative,.f252 button.wifi-delete,.f252 button.danger{border-color:#a94b52!important;background:#47232c!important;color:#ffb0b5!important}
+.f252 .pill,.f252 .f25-nav-count{border-color:#315267!important;background:#102738!important;color:#a6c2cd!important}
+.f252 .f25-nav-count{border-color:rgba(103,220,231,.3)!important;color:var(--jl-cyan)!important}
+.f252 .f25-metric,.f252 .device-stat{border-color:var(--jl-line)!important;background:var(--jl-panel)!important;color:var(--jl-soft)!important}
+.f252 .f25-metric strong,.f252 .device-stat>strong{color:var(--jl-cyan-2)!important;font-family:"Bahnschrift","Consolas",monospace!important}
+.f252 .f25-metric:first-child strong,.f252 .f25-metric .ok,.f252 .device-stat.online>strong{color:var(--jl-green)!important}
+.f252 .node-row,.f252 .device-row,.f252 .subscription-row{border-top:1px solid rgba(84,133,154,.14)!important;border-bottom:1px solid rgba(84,133,154,.14)!important}
+.f252 .title,.f252 .node-endpoint,.f252 .device-title{color:var(--jl-text)!important}
+.f252 .row-number,.f252 .device-number,.f252 .subscription-number{border:1px solid #2b4b5e!important;border-radius:4px!important;background:#0d2333!important;color:#91bdca!important}
+.f252 .good,.f252 .f25-ok,.f252 .jc-ok{color:var(--jl-green)!important}
+.f252 .bad,.f252 .danger{color:#ff8a91!important}
+.f252 .msg,.f252 .probe-result,.f252 .node-name,.f252 .device-presence{color:#8fa9b8!important}
+.f252 .modal{background:rgba(2,9,15,.72)!important;backdrop-filter:blur(4px)}
+.f252 .modalbox{border:1px solid var(--jl-line)!important;border-radius:7px!important;background:var(--jl-panel)!important;color:var(--jl-soft)!important;box-shadow:0 24px 64px rgba(0,5,9,.5)!important}
+.f252 .modalnode{border:1px solid #29495c!important;background:#102738!important;color:var(--jl-cyan-2)!important}
+.f252 .wifi-create-summary .wifi-create-icon{border:1px solid #315267!important;background:#0a1e2c!important;color:var(--jl-cyan)!important}
+@container(max-width:650px){.f252 .f25-topbar{padding:9px 10px!important}.f252 .f25-brand h2{font-size:22px!important}.f252 .f25-sticky{background:#07131f!important}.f252>.card,.f252 .card{border-radius:6px!important}}
+.f252 .f25-content{background:#06111b!important}
+.f252 .f25-content>.card{border-color:var(--jl-line)!important;background:#0a1b29!important;box-shadow:0 8px 24px rgba(0,6,11,.14)!important}
+.f252 .f25-content>.card>.head,.f252 .f25-content>.card>h3{border-color:var(--jl-line)!important;background:linear-gradient(90deg,rgba(34,100,119,.26),var(--jl-panel-2))!important;color:var(--jl-cyan-2)!important;box-shadow:inset 4px 0 0 var(--jl-cyan)!important}
+.f252 .f25-content>.card>.head h3,.f252 .f25-content>.card>h3{color:var(--jl-cyan-2)!important}
+.f252 .f25-content>.card>.head h3:before,.f252 .f25-content>.card>h3:before{background:var(--jl-green)!important}
+.f252 .f25-content>.card>.head .pill{border-color:#315267!important;background:#102738!important;color:var(--jl-cyan)!important;box-shadow:none!important}
+.f252 .f25-content>.card>.bar .cbi-button{border-color:#315267!important;background:#0d2333!important;color:#c2d8e2!important;text-shadow:none!important;box-shadow:none!important}
+.f252 .f25-content>.card>.bar .cbi-button-add,.f252 .f25-content>.card>.bar .cbi-button-apply,.f252 .f25-content>.card>.bar .cbi-button-positive,.f252 .f25-content>.card>.bar .cbi-button-save{border-color:#5fcbd6!important;background:linear-gradient(100deg,#267f91,#316f93)!important;color:#f5fdff!important}
+.f252 .f25-content>.card>.bar .cbi-button-negative,.f252 .f25-content>.card>.bar .cbi-button-remove{border-color:#a94b52!important;background:#47232c!important;color:#ffb0b5!important}
+.f252 input:disabled,.f252 select:disabled,.f252 textarea:disabled{border-color:#29475a!important;background:#112736!important;color:#668493!important;opacity:1!important}
+.f252 .f25-content>.card.f25-overview .f25-overview-head,.f252 .f25-overview-head{border-color:var(--jl-line)!important;background:linear-gradient(90deg,rgba(34,100,119,.26),var(--jl-panel))!important;box-shadow:inset 4px 0 0 var(--jl-cyan)!important}
+.f252 .f25-overview-head h3{color:var(--jl-cyan-2)!important}
+.f252 .f25-overview-head h3:before{background:var(--jl-green)!important}
+.f252 .f25-quickbar{border-color:var(--jl-line)!important;background:#0a1b29!important}
+.f252 .f25-quickbar>b{color:var(--jl-text)!important}
+.f252 .f25-quickbar .cbi-button{border-color:#315267!important;background:#0d2333!important;color:#c2d8e2!important;text-shadow:none!important;box-shadow:none!important}
+.f252 .f25-quickbar .cbi-button:hover{border-color:#43768c!important;background:#123044!important;color:var(--jl-cyan-2)!important}
+.f252 .f25-batch-drawer,.f252 .f25-batch-drawer>summary,.f252 .wifi-bulk-toolbar,.f252 .wifi-create-body,.f252 .f25-existing-body,.f252 .f25-main-lan-panel .fields{border-color:var(--jl-line)!important;background:#0a1b29!important;color:var(--jl-soft)!important;box-shadow:none!important}
+.f252 .f25-batch-drawer>summary{color:var(--jl-text)!important;font-weight:700!important}
+.f252 .f25-batch-drawer>.bar{border-color:var(--jl-line)!important}
+.f252 .f25-existing-panel>.wifi-existing-header{background:#102738!important;color:var(--jl-cyan-2)!important}
+.f252 .f25-existing-panel>.wifi-existing-header:after{color:var(--jl-cyan)!important}
+.f252 .field select:not(:disabled),.f252 .field select:not(:disabled):hover,.f252 .field select:not(:disabled):focus{border-color:#31566b!important;background:#071521!important;color:#d5e6ec!important;box-shadow:none!important}
+.f252 .field select option{background:#071521!important;color:#d5e6ec!important}
+.f252 .field input:not([type="checkbox"]):not([type="radio"]),.f252 .field textarea{border-color:#2a4b5e!important;background:#071521!important;color:#d5e6ec!important}
+.f252 .wifi-choice,.f252 .wifi-bulk-toolbar .note{color:#8ca7b6!important}
+.f252 .f25-wifi-batch-actions .cbi-button{border-color:#315267!important;background:#0d2333!important;color:#c2d8e2!important;box-shadow:none!important}
+.f252 .f25-wifi-batch-actions .f25-batch-primary,.f252 .f25-wifi-batch-actions .f25-batch-primary:hover{border-color:#5fcbd6!important;background:linear-gradient(100deg,#267f91,#316f93)!important;color:#f5fdff!important}
+.f252 .f25-wifi-batch-actions .f25-batch-selected,.f252 .f25-wifi-batch-actions .f25-batch-selected:hover{border-color:#537a9e!important;background:#17344b!important;color:#b8daea!important}
+.f252 .f25-wifi-batch-actions .f25-batch-selected:disabled{border-color:#355367!important;background:#102738!important;color:#6f8e9f!important;-webkit-text-fill-color:#6f8e9f!important}
+.f252 .wifi-delete,.f252 .wifi-delete:hover,.f252 .wifi-delete:disabled{border-color:#a94b52!important;background:#47232c!important;color:#ffb0b5!important;-webkit-text-fill-color:#ffb0b5!important}
+.f252 .wifi-visibility,.f252 .wifi-visibility:hover,.f252 .wifi-visibility:disabled{border-color:#466d8f!important;background:#17344b!important;color:#b9daea!important;-webkit-text-fill-color:#b9daea!important}
 </style>
 <div class="f252">
-  <div class="f25-sticky" aria-label="FastACL 状态与操作提示">
+  <div class="f25-sticky" aria-label="JuLiang OS 状态与操作提示">
     <div class="f25-topbar">
       <div class="f25-brand">
-        <h2><span class="f25-brand-text">FastACL</span></h2>
-        <span class="f25-version">JuLiangTK · V2.8.2</span>
+        <h2><span class="f25-brand-text">JuLiang OS</span></h2>
+        <span class="f25-version">JuLiang OS · V2.8.5</span>
       </div>
       <div class="f25-tools">
         <span id="f25-health">读取状态…</span>
@@ -370,7 +453,7 @@
         <input id="f25-search" placeholder="搜索设备 / MAC / IP" aria-label="搜索设备">
       </div>
     </div>
-    <nav class="f25-tabs" role="tablist" aria-label="FastACL 功能菜单">
+    <nav class="f25-tabs" role="tablist" aria-label="JuLiang OS 功能菜单">
       <button type="button" role="tab" data-f25-view="overview" aria-selected="true">概览</button>
       <button type="button" role="tab" data-f25-view="nodes" aria-selected="false">节点与订阅 <span class="f25-nav-count" id="f25-nav-nodes">0</span></button>
       <button type="button" role="tab" data-f25-view="devices" aria-selected="false">单 WiFi 多设备分配模式 <span class="f25-nav-count" id="f25-nav-devices">0</span></button>

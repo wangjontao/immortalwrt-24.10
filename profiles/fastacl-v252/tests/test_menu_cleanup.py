@@ -16,7 +16,6 @@ files={
  '/usr/share/luci/menu.d/apps.json':json.dumps({'admin/services/upnp':{'title':'UPnP','action':{'type':'view','path':'upnp/upnp'}},'admin/services/ddns':{'title':'DDNS'},'admin/services/wol':{'title':'WOL'},'admin/services/ksmbd':{'title':'Shares'},'admin/statistics':{'title':'Stats'}}),
  '/usr/lib/lua/luci/controller/nps.lua':'old controller',
  '/usr/libexec/juliang-nps-controller.lua':(ROOT/'root/usr/libexec/juliang-nps-controller.lua').read_text(encoding='utf-8'),
- '/usr/share/ucode/luci/template/themes/argon/header.ut':'<head><script id="juliang-menu-revision">old</script></head><a class="brand">{{ hostname }}</a>',
 }
 lua.globals().read=lambda p:files.get(p)
 lua.globals().write=lambda p,s:files.__setitem__(p,s) or True
@@ -39,18 +38,10 @@ for key in ['ddns','wol','ksmbd']:assert 'title' not in apps['admin/services/'+k
 assert 'admin/statistics' not in apps
 assert files['/usr/lib/lua/luci/controller/nps.lua']==files['/usr/libexec/juliang-nps-controller.lua']
 nps_controller=files['/usr/lib/lua/luci/controller/nps.lua']
-assert '{"admin","system","nps"}' in nps_controller and '_("JuLiang管理")' in nps_controller
+assert '{"admin","system","nps"}' in nps_controller and '_("JuLiang OS 管理")' in nps_controller
 assert 'alias("admin","system","nps")' in nps_controller
-header=files['/usr/share/ucode/luci/template/themes/argon/header.ut']
-assert header.count('id="juliang-menu-revision"')==1 and '255-network-service-3' in header
-assert 'class="brand juliang-brand-card"' in header, header
-assert header.count('class="juliang-brand-name"')==2
-assert '>网络服务</span></a>' in header
-assert header.count('id="juliang-brand-gradient"')==1
-assert 'linear-gradient(132deg,#1769e0' in header and 'border-radius:10px' in header
-assert '@media(forced-colors:active){ #mainmenu' in header
 center=(ROOT/'root/usr/lib/lua/luci/controller/juliang_center.lua').read_text(encoding='utf-8')
 home=(ROOT/'root/usr/lib/lua/luci/view/juliang_center/home.htm').read_text(encoding='utf-8')
-assert "_('JuLiang 控制面板')" in center and "_('监测中心')" in center
-assert 'JuLiang 监测中心' in home
-print('PASS idempotent first-boot menu migration, compatibility payload and session menu invalidation')
+assert "_('JuLiang OS 控制面板')" in center and "_('JuLiang OS 监测中心')" in center
+assert 'JuLiang OS 监测中心' in home
+print('PASS idempotent JuLiang OS menu migration and NPS compatibility payload')

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+uci -q set luci.themes.JuLiang='/luci-static/juliang'
+
+if [ "$PKG_UPGRADE" != 1 ]; then
+	uci -q set luci.main.mediaurlbase='/luci-static/juliang'
+fi
+
+uci -q commit luci
+exit 0

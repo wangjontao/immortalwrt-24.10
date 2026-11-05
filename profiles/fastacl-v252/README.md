@@ -1,6 +1,6 @@
-# FastACL 2.8.2
+# JuLiang OS v2.8.5
 
-FastACL 2.8.2 is the native sing-box branch. It does not use dae as a dataplane,
+JuLiang OS v2.8.5 is the native sing-box release. It does not use dae as a dataplane,
 configuration compiler, node validator, probe, or runtime dependency.
 
 - `sing-box TPROXY` is the default mode and uses an isolated IPv4 nft table,
@@ -15,5 +15,5 @@ configuration compiler, node validator, probe, or runtime dependency.
 The DNS helper uses `fastacl252_relay.lua` for resolver and slot policy.
 Imported nodes are validated directly by `sing-box check`.
 
-See `README-2.8.2.md` for the release summary. The `2.8.1` branch remains the
+See `README-2.8.5.md` for the release summary. The `2.8.2` branch remains the
 rollback branch.

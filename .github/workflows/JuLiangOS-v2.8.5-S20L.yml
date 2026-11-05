@@ -1,0 +1,192 @@
+name: JuLiang OS v2.8.5 S20L
+run-name: 'JuLiang OS v2.8.5 S20L - independent LuCI theme validation'
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - codex/juliang-os-v285
+    paths:
+      - '.github/workflows/JuLiangOS-v2.8.5-S20L.yml'
+      - 'build-configs/JuLiang-OS-S20L-v2.8.5.txt'
+      - 'package/luci-theme-juliang/**'
+      - 'profiles/fastacl-v252/**'
+      - 'scripts/integrate-juliang-os-285.sh'
+      - 'scripts/integrate-fastacl252-dependencies.sh'
+      - 'scripts/ci-update-feeds.sh'
+      - 'scripts/patch-fastacl260-mtwifi.py'
+      - 'target/linux/mediatek/dts/mt7986a-clx-s20l.dts'
+      - 'target/linux/mediatek/image/filogic.mk'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: juliang-os-v285-s20l
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate theme and integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1 nodejs shfmt
+
+      - name: Validate source
+        run: |
+          sh -n scripts/integrate-juliang-os-285.sh
+          sh -n scripts/integrate-fastacl252-dependencies.sh
+          sh -n package/luci-theme-juliang/root/etc/uci-defaults/30_luci-theme-juliang
+          find profiles/fastacl-v252/root -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+          node --check package/luci-theme-juliang/htdocs/luci-static/resources/menu-juliang.js
+          python3 profiles/fastacl-v252/tests/test_juliang_theme.py
+          test -s package/luci-theme-juliang/ucode/template/themes/juliang/header.ut
+          test -s package/luci-theme-juliang/ucode/template/themes/juliang/footer.ut
+          test -s package/luci-theme-juliang/ucode/template/themes/juliang/sysauth.ut
+          test -s package/luci-theme-juliang/htdocs/luci-static/juliang/juliang.css
+          ! grep -R "JuLiang OS OS\|JuLiangTK" profiles/fastacl-v252/root package/luci-theme-juliang
+          ! grep -R "FastACL" profiles/fastacl-v252/root/usr/lib/lua/luci package/luci-theme-juliang
+          grep -q 'PKG_VERSION:=2.8.5' profiles/fastacl-v252/package-Makefile
+          grep -q "option version '2.8.5'" profiles/fastacl-v252/root/etc/config/fastacl252
+
+  build:
+    name: Compile S20L JuLiang OS v2.8.5
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      DEVICE: clx_s20l
+      DEVICE_TAG: S20L
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler flex gawk gettext gcc-multilib \
+            g++-multilib git gnutls-dev gperf help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
+            libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+            libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm nano ninja-build p7zip-full \
+            patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
+            re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs unzip wget xmlto xxd zlib1g-dev zstd
+          sudo timedatectl set-timezone Asia/Shanghai
+          echo "BUILD_DATE=$(date +'%Y.%m.%d-%H.%M.%S')" >> "$GITHUB_ENV"
+          echo "WRT_HASH=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          mkdir -p .ccache
+          echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+          cache: false
+
+      - name: Restore source and compiler cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            dl
+            .ccache
+          key: juliang-os-v285-s20l-${{ hashFiles('build-configs/JuLiang-OS-S20L-v2.8.5.txt', 'profiles/fastacl-v252/package-Makefile', 'profiles/fastacl-v252/singbox-Makefile', 'profiles/fastacl-v252/dns/go.mod', 'package/luci-theme-juliang/**') }}
+          restore-keys: |
+            juliang-os-v285-s20l-
+
+      - name: Update feeds
+        run: |
+          sh scripts/ci-update-feeds.sh
+          ./scripts/feeds install -a
+          ./scripts/feeds install -f -p packages nps npc || true
+          ./scripts/feeds install -f -p luci luci-app-nps luci-i18n-nps-zh-cn luci-app-autoreboot || true
+          rm -rf package/luci-theme-argon package/luci-app-argon-config
+
+      - name: Integrate JuLiang OS theme and control center
+        run: |
+          sh scripts/integrate-juliang-os-285.sh "$DEVICE"
+          grep -q 'PKG_VERSION:=2.8.5' package/fastacl252/Makefile
+          grep -q "version='2.8.5'" package/fastacl252/files/usr/lib/lua/luci/controller/fastacl252.lua
+          grep -q '^CONFIG_PACKAGE_luci-theme-juliang=y' .config
+          ! grep -q '^CONFIG_PACKAGE_luci-theme-argon=y' .config
+          ! grep -q '^CONFIG_PACKAGE_luci-app-argon-config=y' .config
+          ! grep -Eq '^CONFIG_PACKAGE_(luci-app-store|luci-app-quickstart|quickstart|taskd)=y$' .config
+          ! grep -Eq '^CONFIG_PACKAGE_(luci-app-ddns|ddns-scripts|luci-app-upnp|luci-app-wol|luci-app-filemanager)=y$' .config
+          ! grep -Eq '^CONFIG_PACKAGE_(luci-app-(passwall2?|homeproxy|openclash)|luci-i18n-(passwall2?|homeproxy|openclash)-[^=]+)=(y|m)$' .config
+
+      - name: Download sources
+        run: |
+          make download -j"$(nproc)"
+          find dl -type f -size -1024c -print -delete
+
+      - name: Compile firmware
+        run: |
+          rm -rf dl/go-mod-cache
+          mkdir -p dl/go-mod-cache
+          make tools/install -j"$(nproc)" || make tools/install -j1 V=s
+          make toolchain/install -j"$(nproc)" || make toolchain/install -j1 V=s
+          make target/linux/compile -j"$(nproc)" V=s
+          kernel=$(find build_dir/target-* -path '*/linux-mediatek_filogic/linux-6.6*/.config' | head -n1)
+          test -n "$kernel"
+          sh profiles/fastacl-v252/check-kernel.sh "$kernel"
+          make buildinfo
+          for metadata in config feeds version; do
+            test -s "bin/targets/mediatek/filogic/${metadata}.buildinfo"
+          done
+          make package/compile -j"$(nproc)" || make package/compile -j1 V=s
+          make -j1 V=s
+
+      - name: Verify and collect firmware
+        run: |
+          mkdir -p upload
+          mapfile -t images < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -iname '*clx_s20l*sysupgrade*' -size +5M)
+          [ "${#images[@]}" -gt 0 ] || { echo 'ERROR: S20L sysupgrade image missing'; exit 1; }
+          cp -a "${images[@]}" upload/
+          mapfile -t manifests < <(find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*clx_s20l*.manifest')
+          [ "${#manifests[@]}" -gt 0 ] || { echo 'ERROR: S20L manifest missing'; exit 1; }
+          for pkg in fastacl252 juliangtk-sing-box luci-theme-juliang luci-app-ttyd luci-app-autoreboot nps luci-app-nps luci-i18n-nps-zh-cn npc sqm-scripts kmod-sched-cake kmod-ifb; do
+            grep -q "^$pkg " "${manifests[0]}" || { echo "ERROR: $pkg missing from firmware"; exit 1; }
+          done
+          if grep -Ei '^(luci-theme-argon|luci-app-argon-config) ' "${manifests[0]}"; then
+            echo 'ERROR: Argon unexpectedly present'
+            exit 1
+          fi
+          if grep -Ei '^(luci-app-store|luci-app-quickstart|quickstart|taskd|luci-app-ddns|ddns-scripts|luci-app-upnp|luci-app-wol|luci-app-filemanager) ' "${manifests[0]}"; then
+            echo 'ERROR: excluded package unexpectedly present'
+            exit 1
+          fi
+          test -n "$(find bin/targets/mediatek/filogic/packages -type f -name 'luci-theme-juliang_2.8.5-*.ipk' -print -quit)"
+          cp "${manifests[0]}" upload/
+          cp .config upload/build.config
+          find bin/targets/mediatek/filogic -maxdepth 1 -type f -name '*.buildinfo' -exec cp -a {} upload/ \;
+          cp profiles/fastacl-v252/README-2.8.5.md upload/
+          printf 'system=JuLiang OS\nversion=v2.8.5\ndevice=S20L\ntheme=luci-theme-juliang\nsource_commit=%s\n' "$GITHUB_SHA" > upload/BUILD.txt
+          sha256sum upload/* | tee upload/SHA256SUMS
+          ls -lh upload
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JuLiang-OS-v2.8.5-S20L-${{ env.BUILD_DATE }}
+          path: upload/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JuLiang-OS-v2.8.5-S20L-failure-${{ github.run_id }}
+          path: |
+            logs/
+            .config
+            JuLiang-OS-*-final.config
+          if-no-files-found: ignore
+          retention-days: 14

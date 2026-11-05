@@ -23,7 +23,7 @@ local function next_name(u)
     local id=string.format('jfa25w%02d',i)
     if not u:get('network',id) and not u:get('wireless',id) and not u:get('fastacl252',id) then return id end
   end
-  fail('FastACL 多 WiFi 配置名称已用尽')
+  fail('JuLiang OS 多 WiFi 配置名称已用尽')
 end
 local function used_subnets(u)
   local used={}; local policy=require 'fastacl252'
@@ -161,9 +161,9 @@ function M.create(u,req)
     add(u,'dhcp','dhcp',id,{interface=id,start='100',limit='120',leasetime='12h',ra='disabled',dhcpv6='disabled',ndp='disabled',dhcp_option={'3,'..ip,'6,'..ip}},id)
     add(u,'wireless','wifi-iface',id,{device=radio,network=id,mode='ap',ssid=ssid,encryption='psk2+ccmp',key=key,isolate='0',disabled='0',hidden=hidden and '1' or '0'},id)
     add(u,'firewall','zone',id,{name=id,network={id},device={dev},input='REJECT',output='ACCEPT',forward='REJECT',masq='1'},id)
-    add(u,'firewall','rule',id..'_dhcp',{name='FastACL '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
-    add(u,'firewall','rule',id..'_dns',{name='FastACL '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
-    add(u,'firewall','rule',id..'_tproxy',{name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT'},id)
+    add(u,'firewall','rule',id..'_dhcp',{name='JuLiang OS '..id..' DHCP',src=id,proto='udp',dest_port='67',family='ipv4',target='ACCEPT'},id)
+    add(u,'firewall','rule',id..'_dns',{name='JuLiang OS '..id..' DNS',src=id,proto='tcp udp',dest_port='53 12553',family='ipv4',target='ACCEPT'},id)
+    add(u,'firewall','rule',id..'_tproxy',{name='JuLiang OS '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT'},id)
     add(u,'firewall','forwarding',id..'_wan',{src=id,dest='wan'},id)
     add(u,'fastacl252','wifi',id,{network=id,ssid=ssid,band=band,subnet=cidr,mode=mode,node=node,preproxy=pre},id)
     set_dns(u,id,req,mode); created[#created+1]={id=id,ssid=ssid,band=band,network=id,subnet=cidr}
@@ -175,7 +175,7 @@ end
 
 function M.update(u,req)
   local id=tostring(req.id or ''); local s=u:get_all('fastacl252',id)
-  assert(s and s['.type']=='wifi' and owned(s),'FastACL WiFi 不存在')
+  assert(s and s['.type']=='wifi' and owned(s),'JuLiang OS WiFi 不存在')
   local mode,node,pre=validate_binding(u,req.node,req.preproxy)
   local split={mode=(req.node and req.node~='') and 'proxy' or s.mode,platforms=req.platforms or s.platforms or '',dns_split=req.dns_split or s.dns_split or '0',block_domains=req.block_domains or s.block_domains or '',split_mode=req.split_mode or s.split_mode or 'all',split_rules=req.split_rules or s.split_rules or ''}; require('fastacl252_split').parse(split)
   u:set('fastacl252',id,'platforms',split.platforms)
@@ -300,7 +300,7 @@ function M.hide_one(u,id,hidden)
  assert(type(id)=='string' and id:match('^jfa25w%d+$'),'附加 WiFi 编号无效')
  assert(type(hidden)=='boolean','SSID 显示状态无效')
  local s=u:get_all('fastacl252',id);local w=u:get_all('wireless',id)
- assert(s and s['.type']=='wifi' and owned(s) and s.network==id,'只能修改 FastACL 建立的附加 WiFi')
+ assert(s and s['.type']=='wifi' and owned(s) and s.network==id,'只能修改 JuLiang OS 建立的附加 WiFi')
  assert(w and w['.type']=='wifi-iface' and owned(w) and w.network==id and w.mode=='ap','附加 WiFi 接口不存在或不匹配')
  assert(u:set('wireless',id,'hidden',hidden and '1' or '0'),'保存 SSID 显示状态失败')
  return {id=id,hidden=hidden}
@@ -317,7 +317,7 @@ end
 
 function M.remove(u,id)
   id=tostring(id or ''); local s=u:get_all('fastacl252',id)
-  assert(s and s['.type']=='wifi' and owned(s),'FastACL WiFi 不存在')
+  assert(s and s['.type']=='wifi' and owned(s),'JuLiang OS WiFi 不存在')
   local net=s.network; assert(net and net~='','WiFi 网络信息缺失')
   for _,cfg in ipairs(CONFIGS) do
     local del={}
@@ -338,7 +338,7 @@ function M.remove_many(u,ids)
  for _,id in ipairs(ids) do
   assert(type(id)=='string' and id:match('^jfa25w%d+$') and not seen[id],'附加 WiFi 编号无效或重复');seen[id]=true
   local s=u:get_all('fastacl252',id)
-  assert(s and s['.type']=='wifi' and owned(s) and s.network==id and id~=main and id~='lan','只能删除 FastACL 建立的附加 WiFi')
+  assert(s and s['.type']=='wifi' and owned(s) and s.network==id and id~=main and id~='lan','只能删除 JuLiang OS 建立的附加 WiFi')
  end
  for _,id in ipairs(ids) do M.remove(u,id) end
  return {ids=ids,count=#ids}
@@ -354,7 +354,7 @@ function M.hide_many(u,ids,hidden)
  for _,id in ipairs(ids) do
   assert(type(id)=='string' and id:match('^jfa25w%d+$') and not seen[id],'附加 WiFi 编号无效或重复');seen[id]=true
   local f=u:get_all('fastacl252',id);local w=u:get_all('wireless',id)
-  assert(f and f['.type']=='wifi' and owned(f) and f.network==id,'只能修改 FastACL 建立的附加 WiFi')
+  assert(f and f['.type']=='wifi' and owned(f) and f.network==id,'只能修改 JuLiang OS 建立的附加 WiFi')
   assert(w and w['.type']=='wifi-iface' and owned(w) and w.network==id and w.mode=='ap','附加 WiFi 接口不存在或不匹配')
  end
  for _,id in ipairs(ids) do M.hide_one(u,id,hidden) end
@@ -397,7 +397,7 @@ function M.sync_tproxy_rules(u)
   local name=id..'_tproxy'
   if u:get('firewall',name)~='rule' then u:set('firewall',name,'rule');changed=changed+1 end
   if u:get('firewall',name,'dest_port')~=nil then u:delete('firewall',name,'dest_port');changed=changed+1 end
-  local values={name='FastACL '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT',jfa25_owner=OWNER,jfa25_network=id}
+  local values={name='JuLiang OS '..id..' TPROXY',src=id,proto='tcp udp',mark='0x2028',family='ipv4',target='ACCEPT',jfa25_owner=OWNER,jfa25_network=id}
   for key,value in pairs(values) do
    if u:get('firewall',name,key)~=value then u:set('firewall',name,key,value);changed=changed+1 end
   end

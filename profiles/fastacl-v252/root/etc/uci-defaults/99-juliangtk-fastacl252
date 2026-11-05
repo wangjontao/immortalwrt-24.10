@@ -3,7 +3,7 @@ set -eu
 
 provisioned="$(uci -q get fastacl252.main.provisioned || true)"
 if [ "$provisioned" != 0 ]; then
-	uci set 'fastacl252.main.version=2.8.2'
+	uci set 'fastacl252.main.version=2.8.5'
 	uci set 'fastacl252.main.dataplane=singbox'
 	uci set 'fastacl252.main.provisioned=1'
 	uci commit fastacl252
@@ -12,7 +12,7 @@ if [ "$provisioned" != 0 ]; then
 	exit 0
 fi
 
-uci set 'system.@system[0].hostname=JuLiangTK-S20L'
+uci set 'system.@system[0].hostname=JuLiang-OS-S20L'
 uci set 'network.lan.ipaddr=192.168.7.1'
 uci set 'network.lan.netmask=255.255.255.0'
 uci commit system; uci commit network
@@ -33,7 +33,7 @@ for radio in $(uci show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-device$/
   esac
 done
 for iface in $(uci show wireless | sed -n 's/^wireless\.\([^.=]*\)=wifi-iface$/\1/p'); do
-  uci set "wireless.$iface.ssid=JuLiangTK"
+  uci set "wireless.$iface.ssid=JuLiang OS"
   uci set "wireless.$iface.network=lan"
   uci set "wireless.$iface.encryption=psk2+ccmp"
   uci set "wireless.$iface.key=a1111111"
@@ -42,7 +42,7 @@ done
 uci commit wireless
 uci set 'dropbear.@dropbear[0].Port=20022'; uci commit dropbear
 uci set 'fastacl252.main.fixed_exit=0'
-uci set 'fastacl252.main.version=2.8.2'
+uci set 'fastacl252.main.version=2.8.5'
 uci set 'fastacl252.main.dataplane=singbox'
 uci set 'fastacl252.main.provisioned=1'; uci commit fastacl252
 /usr/libexec/fastacl252-enable.sh --config-only

@@ -1,6 +1,6 @@
 {
   "juliang-bbr": {
-    "description": "JuLiangTK BBR TCP acceleration",
+    "description": "JuLiang OS BBR TCP acceleration",
     "read": {
       "uci": [
         "juliang_bbr"

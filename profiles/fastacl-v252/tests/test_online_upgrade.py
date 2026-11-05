@@ -33,7 +33,7 @@ assert "https://up.juliangtk.top:8443" in upgrade_config
 assert "option provisioned '0'" in fastacl_config
 assert 'if [ "$provisioned" != 0 ]; then' in defaults
 assert "uci set 'fastacl252.main.provisioned=1'" in defaults
-assert "uci set 'fastacl252.main.version=2.8.2'" in defaults
+assert "uci set 'fastacl252.main.version=2.8.5'" in defaults
 
 script = re.search(r'<script>(.*?)</script>', view, re.DOTALL)
 assert script, 'Upgrade page JavaScript was not found'
@@ -42,4 +42,4 @@ with tempfile.NamedTemporaryFile('w', suffix='.js', encoding='utf-8', delete=Fal
     script_path = handle.name
 subprocess.run(['node', '--check', script_path], check=True)
 Path(script_path).unlink()
-print('FastACL online upgrade safety and UI: OK')
+print('JuLiang OS online upgrade safety and UI: OK')
