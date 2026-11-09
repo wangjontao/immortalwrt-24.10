@@ -21,11 +21,16 @@ assert "if [ \"$(uci -q get wireless.$name)\" = 'wifi-iface' ]" in wifi
 assert "mk_iface live24g" in wifi
 assert "mk_iface live5g" in wifi
 
-assert "uci set 'luci.main.mediaurlbase=/luci-static/argon'" in defaults
+assert "uci set 'luci.main.mediaurlbase=/luci-static/juliang'" in defaults
 assert "ensure_fastacl_live" in defaults
 assert "/etc/init.d/juliang-wifi enable" in defaults
 
 assert "uci -q set luci.main.mediaurlbase='/luci-static/juliang'" not in theme
-assert "juliang-tech.css?v=1.5" in argon
+theme_migration = (
+    ROOT / "package/luci-theme-juliang/root/etc/init.d/juliang-theme"
+).read_text(encoding="utf-8")
+assert "mediaurlbase='/luci-static/juliang'" in theme_migration
+assert "ui_migration='1.5-juliang'" in theme_migration
+assert "ui_assets='juliang-1.5-r1'" in theme_migration
 
 print("Live 1.5 boot migration and WiFi persistence: OK")
