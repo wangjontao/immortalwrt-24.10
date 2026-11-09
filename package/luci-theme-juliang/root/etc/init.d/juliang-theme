@@ -31,13 +31,13 @@ boot() {
 	fi
 
 	# Migrate a provisioned pre-1.5 overlay to the tuned Argon interface once.
-	if [ "$(uci -q get fastacl252.main.ui_migration)" != '1.5' ] &&
+	if [ "$(uci -q get fastacl252.main.ui_migration)" != '1.5-juliang' ] &&
 	   [ "$(uci -q get fastacl252.main.version)" = '1.5' ]; then
 		uci -q set luci.themes.JuLiang='/luci-static/juliang'
 		uci -q set luci.main.mediaurlbase='/luci-static/juliang'
 		uci -q set luci.main.lang='zh_cn'
 		uci -q commit luci
-		uci -q set fastacl252.main.ui_migration='1.5'
+		uci -q set fastacl252.main.ui_migration='1.5-juliang'
 		uci -q commit fastacl252
 	fi
 
