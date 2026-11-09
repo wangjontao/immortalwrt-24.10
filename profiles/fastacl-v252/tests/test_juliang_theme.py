@@ -3,13 +3,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 THEME = ROOT / "package/luci-theme-juliang"
-CONFIG = ROOT / "build-configs/JuLiang-OS-S20L-v2.8.6.txt"
+CONFIG = ROOT / "build-configs/JuLiang-OS-Live1.3-SR503.txt"
 
 
 header = (THEME / "ucode/template/themes/juliang/header.ut").read_text(encoding="utf-8")
 footer = (THEME / "ucode/template/themes/juliang/footer.ut").read_text(encoding="utf-8")
 login = (THEME / "ucode/template/themes/juliang/sysauth.ut").read_text(encoding="utf-8")
-menu = (THEME / "htdocs/luci-static/resources/menu-juliang.js").read_text(encoding="utf-8")
+nav = (THEME / "htdocs/luci-static/juliang/nav-r4.js").read_text(encoding="utf-8")
 css = (THEME / "htdocs/luci-static/juliang/juliang.css").read_text(encoding="utf-8")
 makefile = (THEME / "Makefile").read_text(encoding="utf-8")
 config = CONFIG.read_text(encoding="utf-8")
@@ -29,15 +29,18 @@ luci_session = (
 ).read_text(encoding="utf-8")
 
 assert "JuLiang OS" in header
-assert "v2.8.6" in header and "v2.8.6" in footer
+assert "v1.5" in header and "v1.5" in footer
 assert "routeTitles['admin-juliang-home']" not in header
 assert "const routeTitles = {\n\t\t'': 'JuLiang OS 监测中心'" in header
 assert "炬量网络控制台" in login
 assert "juliang-access-mark" not in login
 assert "juliang-login-version" not in login
 assert 'name="luci_username"' in login and 'name="luci_password"' in login
-assert "L.require('menu-juliang')" in footer
-assert "menu-juliang" not in header
+assert "nav-r4.js" in footer
+assert "L.require('menu-juliang')" not in footer
+assert "menu-juliang" not in header + footer
+assert "国际互联" in header and "PassWall2" in header and "HomeProxy" in header
+assert "dropdown-menu" in nav
 assert "juliang-theme" in css and "--jl-cyan: #67dce7" in css
 assert "linear-gradient" in css and "@media (max-width: 900px)" in css
 assert "letter-spacing: -" not in css
@@ -45,7 +48,7 @@ assert "-webkit-font-smoothing: antialiased" in css and "text-rendering: auto" i
 assert "overflow-y: auto" in css
 assert ".juliang-theme input:disabled" in css and ".juliang-theme select:disabled" in css
 assert "html body.juliang-theme button:disabled" in css
-assert "juliang.css?v=285-r2" in header
+assert "juliang.css?v=1.5-r4" in header
 assert "html body:has(.f252){height:auto!important" in console
 assert "body:has(.f252) .f25-content{flex:none!important" in console
 assert ".f252 .field select:disabled" in console and "background:#0d2231!important" in console
@@ -56,11 +59,11 @@ assert "color:var(--jl-cyan-2,#a7f7ff)!important" in console
 assert "#eef9ff" not in console and "#f3f7ff" not in console
 assert ".f252 .split-platforms label.split-platform-chip" in console
 assert "bootstrap-dark" not in header
-assert "menu-bootstrap" not in footer and "argon" not in (header + footer + menu).lower()
-assert "luci-theme-juliang" in makefile and "PKG_VERSION:=2.8.6" in makefile
+assert "menu-bootstrap" not in footer and "argon" not in (header + footer + nav).lower()
+assert "luci-theme-juliang" in makefile and "PKG_VERSION:=1.5" in makefile
+assert "PKG_RELEASE:=4" in makefile
 assert "include $(TOPDIR)/feeds/luci/luci.mk" in makefile
-assert "mediaurlbase='/luci-static/juliang'" in theme_defaults
-assert "lang='zh_cn'" in theme_defaults
+assert "luci.themes.JuLiang='/luci-static/juliang'" in theme_defaults
 assert "No related RPC reply" in login and "clearPreauthRpcNotice" in login
 assert "PKG_UPGRADE" not in theme_defaults
 assert "luci.sauth.sessiontime='86400'" in luci_session
@@ -81,10 +84,9 @@ for package in (
     "luci-app-quickstart",
     "luci-app-ddns",
     "ddns-scripts",
-    "luci-app-upnp",
     "luci-app-wol",
     "luci-app-filemanager",
 ):
     assert f"CONFIG_PACKAGE_{package}=y" not in config, package
 
-print("PASS JuLiang OS v2.8.6 independent theme and clean build profile")
+print("PASS JuLiang OS v1.5 independent theme and clean build profile")

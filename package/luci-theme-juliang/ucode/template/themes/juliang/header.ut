@@ -31,7 +31,7 @@
 		<meta name="theme-color" content="#07131f">
 		<title>{{ pageTitle }} - JuLiang OS</title>
 		<link rel="stylesheet" href="{{ media }}/cascade.css">
-		<link rel="stylesheet" href="{{ media }}/juliang.css?v=1.5-r3">
+		<link rel="stylesheet" href="{{ media }}/juliang.css?v=1.5-r4">
 		<link rel="icon" href="{{ media }}/logo.svg" sizes="any">
 		{% if (node?.css): %}
 		<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
@@ -72,7 +72,57 @@
 				</div>
 			</div>
 			<div class="juliang-nav-caption">控制台</div>
-			<ul class="nav" id="topmenu" style="display:none"></ul>
+			<ul class="nav" id="topmenu">
+				<li data-nav-prefix="/cgi-bin/luci/admin/home">
+					<a href="{{ dispatcher.build_url('admin','home') }}"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">首页</span></a>
+				</li>
+				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/status">
+					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">状态概览</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{{ dispatcher.build_url('admin','status','overview') }}">概览</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','status','routes') }}">路由</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','status','nftables') }}">防火墙状态</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','status','logs') }}">系统日志</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','status','processes') }}">进程</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','status','realtime') }}">实时图表</a></li>
+					</ul>
+				</li>
+				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/system">
+					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">系统管理</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{{ dispatcher.build_url('admin','system','system') }}">系统</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','admin') }}">管理权</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','flash') }}">备份与更新</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','reboot') }}">重启</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','leds') }}">LED 配置</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','ttyd') }}">终端</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','autoreboot') }}">定时重启</a></li>
+					</ul>
+				</li>
+				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/services">
+					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">国际互联</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{{ dispatcher.build_url('admin','services','passwall2') }}">PassWall2</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','services','live') }}">直播 Live</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','services','homeproxy') }}">HomeProxy</a></li>
+					</ul>
+				</li>
+				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/network">
+					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">网络配置</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{{ dispatcher.build_url('admin','network','network') }}">接口</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','wireless') }}">无线</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','dhcp') }}">DHCP/DNS</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','arpbind') }}">IP/MAC 绑定</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','sqm') }}">SQM 队列管理</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','firewall') }}">防火墙</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','network','upnp') }}">UPnP IGD 和 PCP</a></li>
+					</ul>
+				</li>
+				<li data-nav-prefix="/cgi-bin/luci/admin/logout">
+					<a href="{{ dispatcher.build_url('admin','logout') }}"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">退出</span></a>
+				</li>
+			</ul>
 			<div class="juliang-sidebar-foot">
 				<span>JULIANG NETWORK FABRIC</span>
 				<strong>OS 1.5</strong>
@@ -126,4 +176,4 @@
 
 				<div id="tabmenu" class="juliang-tabmenu" style="display:none"></div>
 		{% endif %}
-		<script defer src="{{ media }}/status-r3.js?v=1.5-r3"></script>
+		<script defer src="{{ media }}/status-r4.js?v=1.5-r4"></script>
