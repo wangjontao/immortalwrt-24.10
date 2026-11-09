@@ -2,6 +2,9 @@ name: JuLiang OS v1.5 MT7981 Full Series
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/live-1.5-egress-ip
 
 permissions:
   contents: read
