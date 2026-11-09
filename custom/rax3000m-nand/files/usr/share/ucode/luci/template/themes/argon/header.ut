@@ -91,7 +91,7 @@
 	<link rel="manifest" href="{{ media }}/icon/manifest.json" crossorigin="use-credentials">
 
 	<link rel="stylesheet" href="{{ media }}/css/cascade.css?v=2.4.3">
-        <link rel="stylesheet" href="{{ media }}/css/juliang-tech.css?v=1.3">
+        <link rel="stylesheet" href="{{ media }}/css/juliang-tech.css?v=1.5">
 	<style title="text/css">
 		{% if (mode == 'normal'): %}
 			@media (prefers-color-scheme: dark) {

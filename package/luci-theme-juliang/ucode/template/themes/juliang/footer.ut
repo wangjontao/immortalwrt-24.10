@@ -1,7 +1,7 @@
 		{% if (!blank_page): %}
 			</main>
 			<footer class="juliang-footer">
-				<span>JuLiang OS v1.3</span>
+				<span>JuLiang OS v1.5</span>
 				<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
 			</footer>
 		</div>

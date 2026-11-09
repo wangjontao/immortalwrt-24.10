@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 PKG_NAME:=fastacl252
 PKG_VERSION:=1.5
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 PKG_LICENSE:=AGPL-3.0-only
 include $(INCLUDE_DIR)/package.mk
 define Package/fastacl252
@@ -32,7 +32,7 @@ define Package/fastacl252/install
 	$(LN) ../bin/fastacl252-dns $(1)/usr/libexec/fastacl252-exit-probe
 	chmod 755 $(1)/usr/bin/fastacl252-dns $(1)/usr/bin/fastacl252 $(1)/usr/bin/wan-watchdog $(1)/usr/libexec/fastacl252-enable.sh $(1)/usr/libexec/juliang-reboot.sh $(1)/usr/libexec/juliang-traffic-setup $(1)/usr/libexec/nps-wan-mac $(1)/etc/init.d/fastacl252 $(1)/etc/init.d/wan-watchdog $(1)/etc/init.d/nps-wan-mac $(1)/etc/init.d/juliang-traffic $(1)/etc/hotplug.d/iface/99-nps-wan-mac $(1)/etc/hotplug.d/iface/99-juliang-traffic
 	if [ -d $(1)/etc/uci-defaults ]; then chmod 755 $(1)/etc/uci-defaults/*; fi
-	chmod 755 $(1)/usr/libexec/juliang-bbr $(1)/etc/init.d/juliang-bbr $(1)/usr/libexec/fastacl252-timezone-sync
+	chmod 755 $(1)/usr/libexec/juliang-bbr $(1)/etc/init.d/juliang-bbr $(1)/etc/init.d/juliang-wifi $(1)/usr/libexec/fastacl252-timezone-sync
 	chmod 600 $(1)/etc/config/fastacl252 $(1)/etc/config/wan-watchdog
 endef
 $(eval $(call BuildPackage,fastacl252))

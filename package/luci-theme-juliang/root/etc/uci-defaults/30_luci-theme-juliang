@@ -1,7 +1,5 @@
 #!/bin/sh
 
 uci -q set luci.themes.JuLiang='/luci-static/juliang'
-uci -q set luci.main.mediaurlbase='/luci-static/juliang'
-uci -q set luci.main.lang='zh_cn'
 uci -q commit luci
 exit 0

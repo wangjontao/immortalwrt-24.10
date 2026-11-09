@@ -1,6 +1,32 @@
 #!/bin/sh
 set -eu
 
+ensure_fastacl_live()
+{
+	[ "$(uci -q get fastacl252.jfa25w1)" = wifi ] ||
+		uci set fastacl252.jfa25w1=wifi
+	[ -n "$(uci -q get fastacl252.jfa25w1.network)" ] ||
+		uci set fastacl252.jfa25w1.network=jfa25w1
+	[ -n "$(uci -q get fastacl252.jfa25w1.ssid)" ] ||
+		uci set fastacl252.jfa25w1.ssid='Live WiFi'
+	[ -n "$(uci -q get fastacl252.jfa25w1.band)" ] ||
+		uci set fastacl252.jfa25w1.band='Live-5G / Live-2.4G'
+	[ -n "$(uci -q get fastacl252.jfa25w1.subnet)" ] ||
+		uci set fastacl252.jfa25w1.subnet=172.16.1.0/24
+	[ -n "$(uci -q get fastacl252.jfa25w1.mode)" ] ||
+		uci set fastacl252.jfa25w1.mode=direct
+	[ -n "$(uci -q get fastacl252.jfa25w1.dns_split)" ] ||
+		uci set fastacl252.jfa25w1.dns_split=1
+	[ -n "$(uci -q get fastacl252.jfa25w1.split_mode)" ] ||
+		uci set fastacl252.jfa25w1.split_mode=smart
+	[ -n "$(uci -q get fastacl252.jfa25w1.dns)" ] ||
+		uci set fastacl252.jfa25w1.dns=inherit
+	[ -n "$(uci -q get fastacl252.jfa25w1.jfa25_owner)" ] ||
+		uci set fastacl252.jfa25w1.jfa25_owner=fastacl252-dev2
+	[ -n "$(uci -q get fastacl252.jfa25w1.jfa25_network)" ] ||
+		uci set fastacl252.jfa25w1.jfa25_network=jfa25w1
+}
+
 provisioned="$(uci -q get fastacl252.main.provisioned || true)"
 if [ "$provisioned" != 0 ]; then
 	uci set 'fastacl252.main.version=1.5'
@@ -11,12 +37,15 @@ if [ "$provisioned" != 0 ]; then
 	uci set 'fastacl252.main.provisioned=1'
 	uci set 'system.@system[0].hostname=JuLiang-OS'
 	uci set 'luci.main.mediaurlbase=/luci-static/argon'
+	uci set 'luci.themes.Argon=/luci-static/argon'
 	uci set 'luci.main.lang=zh_cn'
+	ensure_fastacl_live
 	uci commit fastacl252
 	uci commit system
 	uci commit luci
 	/etc/init.d/fastacl252 enable
 	/etc/init.d/wan-watchdog enable
+	/etc/init.d/juliang-wifi enable
 	exit 0
 fi
 
@@ -84,8 +113,11 @@ uci set 'fastacl252.main.dataplane=singbox'
 uci set 'fastacl252.main.auto_timezone=1'
 uci set 'fastacl252.main.max_wifi_5g=14'
 uci set 'fastacl252.main.max_wifi_2g=10'
-uci set 'fastacl252.main.provisioned=1'; uci commit fastacl252
+uci set 'fastacl252.main.provisioned=1'
+ensure_fastacl_live
+uci commit fastacl252
 /usr/libexec/fastacl252-enable.sh --config-only
 /etc/init.d/fastacl252 enable
 /etc/init.d/wan-watchdog enable
+/etc/init.d/juliang-wifi enable
 exit 0
