@@ -586,6 +586,27 @@ textarea {
 	content: "";
 }
 
+body.juliang-navigating .juliang-appbar::after {
+	right: 0;
+	left: 0;
+	width: auto;
+	height: 2px;
+	background: linear-gradient(90deg, transparent, var(--jl-cyan), var(--jl-green));
+	transform-origin: left center;
+	animation: juliang-navigation-progress 900ms ease-out both;
+}
+
+@keyframes juliang-navigation-progress {
+	from {
+		transform: scaleX(0.05);
+		opacity: 0.4;
+	}
+	to {
+		transform: scaleX(0.94);
+		opacity: 1;
+	}
+}
+
 .juliang-menu-button {
 	display: none;
 	width: 34px;

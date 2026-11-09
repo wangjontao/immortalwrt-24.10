@@ -77,14 +77,18 @@ for label in (
     "PassWall2",
     "直播 Live",
     "HomeProxy",
+    "JuLiang OS 管理",
 ):
     assert label in header, label
+assert "dispatcher.build_url('admin','system','nps')" in header
 assert "loginUser === 'admin'" in header
 assert "{% if (!limitedAdmin): %}" in header
 assert "ctx.authuser" in header
 assert "dropdown-menu" in nav and "aria-expanded" in nav
 assert "renderPageTabs" in nav and "ui.menu.load" in nav
 assert "getElementById('tabmenu')" in nav
+assert "prefetchLink" in nav and "request.rel = 'prefetch'" in nav
+assert "juliang-navigating" in nav and "juliang-navigation-progress" in css
 assert "admin/home_status" in status and "egress" in status
 assert "primary.items" in status and "renderEgress" in status
 assert not list(theme_root.rglob("menu-juliang*.js"))

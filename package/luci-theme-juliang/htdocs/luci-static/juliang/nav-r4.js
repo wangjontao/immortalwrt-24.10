@@ -120,5 +120,43 @@
 		});
 	}
 
+	var prefetched = Object.create(null);
+
+	function prefetchLink(link) {
+		if (!link || link.target || link.hasAttribute('download') ||
+		    link.origin !== window.location.origin ||
+		    navigator.connection?.saveData ||
+		    prefetched[link.href])
+			return;
+		prefetched[link.href] = true;
+		var request = document.createElement('link');
+		request.rel = 'prefetch';
+		request.as = 'document';
+		request.href = link.href;
+		document.head.appendChild(request);
+	}
+
+	function linkFromEvent(event) {
+		var target = event.target;
+		return target && target.closest
+			? target.closest('a[href]') : null;
+	}
+
+	document.addEventListener('pointerover', function (event) {
+		prefetchLink(linkFromEvent(event));
+	});
+	document.addEventListener('focusin', function (event) {
+		prefetchLink(linkFromEvent(event));
+	});
+	document.addEventListener('click', function (event) {
+		var link = linkFromEvent(event);
+		if (!link || event.defaultPrevented || event.button !== 0 ||
+		    event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+		    link.target || link.origin !== window.location.origin ||
+		    link.hash && link.pathname === window.location.pathname)
+			return;
+		body.classList.add('juliang-navigating');
+	});
+
 	renderPageTabs();
 })();

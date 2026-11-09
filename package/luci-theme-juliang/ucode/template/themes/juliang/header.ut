@@ -96,6 +96,7 @@
 					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">系统管理</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
 					<ul class="dropdown-menu">
 						<li><a href="{{ dispatcher.build_url('admin','system','system') }}">系统</a></li>
+						<li><a href="{{ dispatcher.build_url('admin','system','nps') }}">JuLiang OS 管理</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','system','admin') }}">管理权</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','system','flash') }}">备份与更新</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','system','reboot') }}">重启</a></li>
