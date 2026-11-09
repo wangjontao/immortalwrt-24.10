@@ -2224,6 +2224,38 @@ html body.juliang-theme .f252 .cbi-button-action{
 	color:#f5fdff!important;
 	border-color:#5fcbd6!important
 }
+
+.juliang-proxy-row{
+	display:grid;
+	grid-column:1/-1;
+	grid-template-columns:auto minmax(0,1fr);
+	gap:4px 10px;
+	margin-top:8px;
+	padding-top:9px;
+	border-top:1px solid var(--jl-line-soft)
+}
+.juliang-proxy-row>span{
+	color:var(--jl-muted);
+	font-size:9px;
+	font-weight:650
+}
+.juliang-proxy-row>strong{
+	justify-self:end;
+	overflow:hidden;
+	color:var(--jl-cyan-bright);
+	font-family:var(--jl-data);
+	font-size:11px;
+	font-weight:750;
+	text-overflow:ellipsis;
+	white-space:nowrap
+}
+.juliang-proxy-row>small{
+	grid-column:1/-1;
+	color:var(--jl-text-soft);
+	font-family:var(--jl-data);
+	font-size:8px;
+	font-weight:650
+}
 html body.juliang-theme .f252 .pill,
 html body.juliang-theme .f252 .f25-nav-count,
 html body.juliang-theme .f252 #f25-node-count,

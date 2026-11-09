@@ -5,7 +5,7 @@
 				<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
 			</footer>
 		</div>
-		<script>L.require('menu-juliang')</script>
+		<script>L.require('menu-juliang-r3')</script>
 		{% endif %}
 	</body>
 </html>

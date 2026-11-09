@@ -31,7 +31,7 @@
 		<meta name="theme-color" content="#07131f">
 		<title>{{ pageTitle }} - JuLiang OS</title>
 		<link rel="stylesheet" href="{{ media }}/cascade.css">
-		<link rel="stylesheet" href="{{ media }}/juliang.css?v=1.5-r2">
+		<link rel="stylesheet" href="{{ media }}/juliang.css?v=1.5-r3">
 		<link rel="icon" href="{{ media }}/logo.svg" sizes="any">
 		{% if (node?.css): %}
 		<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
@@ -64,6 +64,11 @@
 					</div>
 					<span>{{ hostname }}</span>
 					<small>DUAL BAND WIFI</small>
+					<div class="juliang-proxy-row">
+						<span>当前代理 IP</span>
+						<strong id="juliang-proxy-ip">检测中</strong>
+						<small id="juliang-proxy-location">正在识别地区</small>
+					</div>
 				</div>
 			</div>
 			<div class="juliang-nav-caption">控制台</div>
@@ -121,3 +126,4 @@
 
 				<div id="tabmenu" class="juliang-tabmenu" style="display:none"></div>
 		{% endif %}
+		<script defer src="{{ media }}/status-r3.js?v=1.5-r3"></script>
