@@ -53,11 +53,12 @@ def load_devices():
 
 
 def replace_setting(lines, key, value):
-    replacement = (
-        f"{key}={value}"
-        if value in ("y", "m", "n")
-        else f'{key}="{value}"'
-    )
+    if value == "n":
+        replacement = f"# {key} is not set"
+    elif value in ("y", "m"):
+        replacement = f"{key}={value}"
+    else:
+        replacement = f'{key}="{value}"'
     kept = []
     replaced = False
     for line in lines:
@@ -148,7 +149,6 @@ def verify_config(config_path):
     expected_settings = {
         "CONFIG_TARGET_MULTI_PROFILE": "y",
         "CONFIG_TARGET_PER_DEVICE_ROOTFS": "y",
-        "CONFIG_TARGET_IMAGES_GZIP": "n",
         "CONFIG_IMAGEOPT": "y",
         "CONFIG_VERSIONOPT": "y",
         "CONFIG_VERSION_NUMBER": "v1.5",
@@ -160,6 +160,8 @@ def verify_config(config_path):
             raise ValueError(f"{key} must be {value}")
     if settings.get("CONFIG_TARGET_ALL_PROFILES") == "y":
         raise ValueError("CONFIG_TARGET_ALL_PROFILES must be disabled")
+    if settings.get("CONFIG_TARGET_IMAGES_GZIP") == "y":
+        raise ValueError("CONFIG_TARGET_IMAGES_GZIP must be disabled")
     print(f"Verified {len(expected)} MT7981 targets in {config_path}")
 
 
