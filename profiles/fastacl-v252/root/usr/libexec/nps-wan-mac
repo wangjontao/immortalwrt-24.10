@@ -49,12 +49,15 @@ done
 [ "$ready" = 1 ] || { logger -t nps-wan-mac 'ERROR: WAN route or physical MAC not found'; exit 1; }
 
 NPS_KEY="$(printf '%s' "$WAN_MAC" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
-uci -q set nps.@nps[0].server_addr='nps.jontao.top'
-uci -q set nps.@nps[0].server_port='8024'
-uci -q set nps.@nps[0].protocol='tcp'
-uci -q set nps.@nps[0].compress='1'
-uci -q set nps.@nps[0].crypt='1'
-uci -q set nps.@nps[0].vkey="$NPS_KEY"
+CURRENT_KEY="$(uci -q get nps.@nps[0].vkey 2>/dev/null || true)"
+if [ ! -e "$DONE" ] || [ "$CURRENT_KEY" != "$NPS_KEY" ]; then
+	uci -q set nps.@nps[0].server_addr='nps.jontao.top'
+	uci -q set nps.@nps[0].server_port='8024'
+	uci -q set nps.@nps[0].protocol='tcp'
+	uci -q set nps.@nps[0].compress='1'
+	uci -q set nps.@nps[0].crypt='1'
+	uci -q set nps.@nps[0].vkey="$NPS_KEY"
+fi
 uci -q set nps.@nps[0].enabled='1'
 uci -q commit nps
 /etc/init.d/nps enable

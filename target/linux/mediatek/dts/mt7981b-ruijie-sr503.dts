@@ -15,6 +15,7 @@
 		led-failsafe = &led_status_red;
 		led-running = &led_status_green;
 		led-upgrade = &led_status_green;
+		label-mac-device = &gmac0;
 	};
 
 	chosen {
@@ -62,6 +63,8 @@
 	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
+		nvmem-cells = <&macaddr_factory_4>;
+		nvmem-cell-names = "mac-address";
 		phy-mode = "2500base-x";
 
 		fixed-link {
@@ -131,6 +134,12 @@
 
 					eeprom_factory_0: eeprom@0 {
 						reg = <0x0 0x1000>;
+					};
+
+					macaddr_factory_4: macaddr@4 {
+						compatible = "mac-base";
+						reg = <0x4 0x6>;
+						#nvmem-cell-cells = <1>;
 					};
 				};
 			};

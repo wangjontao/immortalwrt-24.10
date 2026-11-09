@@ -13,7 +13,8 @@ assert "nps.jontao.top" in wan_mac
 assert "nps_domain=${NPS_DOMAIN:-nps.jontao.top}" in integration
 assert "option server_addr '${nps_domain}'" in integration
 assert "package/fastacl252/files/usr/libexec/nps-wan-mac" in integration
-assert 'if [ ! -e "$DONE" ]' not in wan_mac
+assert 'CURRENT_KEY="$(uci -q get nps.@nps[0].vkey' in wan_mac
+assert '[ "$CURRENT_KEY" != "$NPS_KEY" ]' in wan_mac
 assert "uci -q set nps.@nps[0].server_addr='nps.jontao.top'" in wan_mac
 assert "nps.66ccs.com" not in integration
 assert "nps.66ccs.com" not in wan_mac
