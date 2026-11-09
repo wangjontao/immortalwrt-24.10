@@ -1,0 +1,29 @@
+{
+  "juliang-admin-wireless": {
+    "description": "JuLiang OS admin wireless configuration access",
+    "write": {
+      "cgi-io": [
+        "exec"
+      ],
+      "file": {
+        "/sbin/wifi": [
+          "exec"
+        ]
+      },
+      "ubus": {
+        "hostapd.*": [
+          "del_client",
+          "wps_start",
+          "wps_cancel",
+          "wps_status"
+        ],
+        "iwinfo": [
+          "scan"
+        ]
+      },
+      "uci": [
+        "wireless"
+      ]
+    }
+  }
+}

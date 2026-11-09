@@ -79,6 +79,9 @@ for label in (
     "HomeProxy",
 ):
     assert label in header, label
+assert "loginUser === 'admin'" in header
+assert "{% if (!limitedAdmin): %}" in header
+assert "ctx.authuser" in header
 assert "dropdown-menu" in nav and "aria-expanded" in nav
 assert "renderPageTabs" in nav and "ui.menu.load" in nav
 assert "getElementById('tabmenu')" in nav

@@ -8,6 +8,8 @@
 
 	const boardinfo = ubus.call('system', 'board');
 	const hostname = striptags(boardinfo?.hostname ?? 'JuLiang OS');
+	const loginUser = ctx.authuser ?? '';
+	const limitedAdmin = loginUser === 'admin';
 	const routeTitles = {
 		'': 'JuLiang OS 监测中心',
 		'admin-juliang-home': 'JuLiang OS 监测中心',
@@ -78,6 +80,7 @@
 				<li data-nav-prefix="/cgi-bin/luci/admin/home">
 					<a href="{{ dispatcher.build_url('admin','home') }}"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">首页</span></a>
 				</li>
+				{% if (!limitedAdmin): %}
 				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/status">
 					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">状态概览</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
 					<ul class="dropdown-menu">
@@ -101,6 +104,7 @@
 						<li><a href="{{ dispatcher.build_url('admin','system','autoreboot') }}">定时重启</a></li>
 					</ul>
 				</li>
+				{% endif %}
 				<li class="dropdown" data-nav-prefix="/cgi-bin/luci/admin/services">
 					<a class="menu" href="#"><span class="juliang-nav-glyph" aria-hidden="true"></span><span class="juliang-nav-title">国际互联</span><span class="juliang-nav-chevron" aria-hidden="true">›</span></a>
 					<ul class="dropdown-menu">
@@ -114,11 +118,13 @@
 					<ul class="dropdown-menu">
 						<li><a href="{{ dispatcher.build_url('admin','network','network') }}">接口</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','network','wireless') }}">无线</a></li>
+						{% if (!limitedAdmin): %}
 						<li><a href="{{ dispatcher.build_url('admin','network','dhcp') }}">DHCP/DNS</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','network','arpbind') }}">IP/MAC 绑定</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','network','sqm') }}">SQM 队列管理</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','network','firewall') }}">防火墙</a></li>
 						<li><a href="{{ dispatcher.build_url('admin','network','upnp') }}">UPnP IGD 和 PCP</a></li>
+						{% endif %}
 					</ul>
 				</li>
 				<li data-nav-prefix="/cgi-bin/luci/admin/logout">
