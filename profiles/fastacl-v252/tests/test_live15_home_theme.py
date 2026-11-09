@@ -33,7 +33,7 @@ assert "admin/home/status" not in home
 assert "mediaurlbase='/luci-static/juliang'" in theme
 assert "mediaurlbase='/luci-static/argon'" not in theme
 assert "ui_assets" in theme and "ui_migration" in theme
-assert "juliang.css?v=fix7" in header
+assert "juliang.css?v=1.5-r2" in header
 assert "JuLiang Live hard theme" in css
 assert "background:#0a1b29!important" in css
 assert "background:#163246!important" in css

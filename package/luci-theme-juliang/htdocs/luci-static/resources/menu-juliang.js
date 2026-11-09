@@ -12,7 +12,7 @@ return baseclass.extend({
 		var body = document.body;
 		var button = document.getElementById('juliang-menu-button');
 		var scrim = document.getElementById('juliang-scrim');
-		var revision = '285-2';
+		var revision = 'juliang-1.5-r2';
 
 		try {
 			var key = 'luci-session-store';

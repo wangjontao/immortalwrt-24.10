@@ -31,6 +31,6 @@ theme_migration = (
 ).read_text(encoding="utf-8")
 assert "mediaurlbase='/luci-static/juliang'" in theme_migration
 assert "ui_migration='1.5-juliang'" in theme_migration
-assert "ui_assets='juliang-1.5-r1'" in theme_migration
+assert "ui_assets='juliang-1.5-r2'" in theme_migration
 
 print("Live 1.5 boot migration and WiFi persistence: OK")

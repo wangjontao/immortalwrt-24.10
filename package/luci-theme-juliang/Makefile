@@ -8,7 +8,7 @@ LUCI_TITLE:=JuLiang OS Network Console Theme
 LUCI_DEPENDS:=+luci-base
 
 PKG_VERSION:=1.5
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_LICENSE:=Apache-2.0
 PKG_MAINTAINER:=JuLiang OS
 
