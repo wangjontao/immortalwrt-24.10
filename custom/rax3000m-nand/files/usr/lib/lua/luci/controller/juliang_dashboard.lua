@@ -4,6 +4,7 @@ local fs = require "nixio.fs"
 local jsonc = require "luci.jsonc"
 local sys = require "luci.sys"
 local util = require "luci.util"
+local uci = require "luci.model.uci".cursor()
 
 local TRAFFIC_STATE = "/etc/juliang-dashboard/traffic.json"
 local EGRESS_CACHE = "/tmp/juliang-dashboard-egress.state"
@@ -105,57 +106,117 @@ local function wired_ports()
 	return rows
 end
 
-local function fastacl_egress_tag()
-	if sys.call("pidof sing-box >/dev/null 2>&1") ~= 0 or
-	   not fs.access("/tmp/fastacl252/singbox.json") then
-		return nil
+local function read_egress_cache()
+	local cached = {}
+	for key, value in (fs.readfile(EGRESS_CACHE) or ""):gmatch("([^=\r\n]+)=([^\r\n]+)") do
+		cached[key] = value
 	end
+	return cached
+end
 
-	local tags = sys.exec(
-		"jsonfilter -i /tmp/fastacl252/singbox.json " ..
-		"-e '@.outbounds[*].tag' 2>/dev/null"
-	) or ""
-	local active
-	for tag in tags:gmatch("[^\r\n]+") do
-		tag = tag:gsub("^%s+", ""):gsub("%s+$", "")
-		if tag:match("^node%-[%w_%.%-]+$") then
-			active = tag
-		end
-	end
-	return active
+local function cached_egress(cached, key, label)
+	return {
+		label = label,
+		ip = cached[key .. ".ip"] or "",
+		country = cached[key .. ".country"] or "",
+		colo = cached[key .. ".colo"] or "",
+		updated = tonumber(cached[key .. ".updated"]) or 0
+	}
+end
+
+local function aggregate_egress(primary, items)
+	return {
+		label = primary.label,
+		ip = primary.ip,
+		country = primary.country,
+		colo = primary.colo,
+		updated = primary.updated,
+		mode = primary.mode,
+		node = primary.node,
+		source = primary.source,
+		items = items
+	}
 end
 
 local function read_egress()
-	local tag = fastacl_egress_tag()
-	local source = tag and ("proxy:" .. tag) or "direct"
-	local cached = {}
-	for key, value in (fs.readfile(EGRESS_CACHE) or ""):gmatch("([%w_]+)=([^\r\n]+)") do
-		cached[key] = value
+	local cached = read_egress_cache()
+	local config
+	if sys.call("pidof sing-box >/dev/null 2>&1") == 0 and
+	   fs.access("/tmp/fastacl252/singbox.json") then
+		config = jsonc.parse(fs.readfile("/tmp/fastacl252/singbox.json") or "")
 	end
-	local result = {
-		ip = cached.source == source and (cached.ip or "") or "",
-		country = cached.source == source and (cached.country or "") or "",
-		colo = cached.source == source and (cached.colo or "") or "",
-		updated = cached.source == source and (tonumber(cached.updated) or 0) or 0,
-		source = source,
-		mode = tag and "proxy" or "direct"
-	}
 
-	if tag then
-		result.node = tag:gsub("^node%-", "")
-		if result.node:match("^[%w_%.%-]+$") then
-			local name = sys.exec(
-				"uci -q get 'fastacl252." .. result.node .. ".name' 2>/dev/null"
-			) or ""
-			name = name:gsub("[\r\n]+", "")
-			if name ~= "" then
-				result.node = name
+	if not config then
+		local item = cached_egress(cached, "direct", "主网络")
+		item.mode = "direct"
+		item.node = ""
+		return aggregate_egress(item, { item })
+	end
+
+	local settings = uci:get_all("fastacl252") or {}
+	local wifi_labels = {}
+	local node_names = {}
+	for name, section in pairs(settings) do
+		if type(section) == "table" and section[".type"] == "wifi" then
+			if section.subnet and section.ssid then
+				wifi_labels[section.subnet] = section.ssid
+			end
+		elseif type(section) == "table" and section[".type"] == "node" then
+			node_names[name] = section.name or name
+		end
+	end
+
+	local by_outbound = {}
+	local routes = config.route and config.route.rules or {}
+	for _, rule in ipairs(routes) do
+		local outbound = rule.outbound
+		if type(outbound) == "string" and outbound:match("^node%-[%w_%.%-]+$") then
+			local item = by_outbound[outbound] or {
+				outbound = outbound,
+				sources = {}
+			}
+			for _, cidr in ipairs(rule.source_ip_cidr or {}) do
+				item.sources[#item.sources + 1] = cidr
+			end
+			by_outbound[outbound] = item
+		end
+	end
+
+	local items = {}
+	for outbound, item in pairs(by_outbound) do
+		local label
+		for _, cidr in ipairs(item.sources) do
+			if wifi_labels[cidr] then
+				label = wifi_labels[cidr]
+				break
 			end
 		end
-	else
-		result.node = ""
+		label = label or "主网络"
+		local result = cached_egress(cached, outbound, label)
+		local id = outbound:gsub("^node%-", "")
+		result.node = node_names[id] or id
+		result.mode = "proxy"
+		result.source = table.concat(item.sources, ", ")
+		result.priority = label == "主网络" and 0 or 1
+		items[#items + 1] = result
 	end
-	return result
+
+	table.sort(items, function(a, b)
+		if a.priority ~= b.priority then
+			return a.priority < b.priority
+		end
+		return a.label < b.label
+	end)
+
+	if #items == 0 then
+		local item = cached_egress(cached, "direct", "主网络")
+		item.mode = "direct"
+		item.node = ""
+		return aggregate_egress(item, { item })
+	end
+
+	local primary = items[1]
+	return aggregate_egress(primary, items)
 end
 
 local function reply(payload)

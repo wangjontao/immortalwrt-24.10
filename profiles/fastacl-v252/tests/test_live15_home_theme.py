@@ -45,13 +45,17 @@ assert 'entry({"admin", "home_status"}, call("dashboard_status"), nil)' in contr
 assert 'build_url("admin", "home_status")' in home
 assert "admin/home/status" not in controller
 assert "admin/home/status" not in home
+assert "jd-egress-list" in home and "items.slice(0, 4)" in home
+assert "createCountryIcon" in home and "jd-egress-icon" in home
+assert "color: #67e9ac" in home
 assert "/tmp/juliang-dashboard-egress.state" in controller
 assert "/tmp/fastacl252/singbox.json" in controller
-assert "outbounds[*].tag" in controller
-assert 'mode = tag and "proxy" or "direct"' in controller
+assert "source_ip_cidr" in controller and "items = items" in controller
 assert "sing-box tools fetch" in egress_probe
 assert "cdn-cgi/trace" in egress_probe
 assert "juliang-dashboard-egress.state" in egress_probe
+assert "outbounds[*].tag" in egress_probe
+assert "active_tags" in egress_probe and "for tag in $tags" in egress_probe
 assert "procd_set_param command /usr/libexec/juliang-egress-probe" in dashboard_init
 
 assert "mediaurlbase='/luci-static/juliang'" in theme
@@ -77,10 +81,12 @@ for label in (
     assert label in header, label
 assert "dropdown-menu" in nav and "aria-expanded" in nav
 assert "admin/home_status" in status and "egress" in status
+assert "primary.items" in status and "renderEgress" in status
 assert not list(theme_root.rglob("menu-juliang*.js"))
 assert (theme_root / "htdocs/luci-static/juliang/nav-r4.js").is_file()
 assert (theme_root / "htdocs/luci-static/juliang/status-r4.js").is_file()
 assert "JuLiang Live hard theme" in css
+assert "color:#67e9ac" in css
 assert "background:#0a1b29!important" in css
 assert "background:#163246!important" in css
 assert "#f25-wifi-count" in css

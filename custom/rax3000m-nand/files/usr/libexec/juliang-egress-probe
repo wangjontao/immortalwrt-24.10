@@ -4,11 +4,7 @@ CACHE=/tmp/juliang-dashboard-egress.state
 CONFIG=/tmp/fastacl252/singbox.json
 INTERVAL=30
 
-cache_value() {
-	sed -n "s/^$1=//p" "$CACHE" 2>/dev/null | tail -n 1
-}
-
-active_tag() {
+active_tags() {
 	pidof sing-box >/dev/null 2>&1 || return 0
 	[ -f "$CONFIG" ] || return 0
 
@@ -16,13 +12,13 @@ active_tag() {
 		case "$candidate" in
 			node-[A-Za-z0-9_.-]*) echo "$candidate" ;;
 		esac
-	done | tail -n 1
+	done | awk '!seen[$0]++'
 }
 
-write_cache() {
-	local source="$1"
+write_entry() {
+	local key="$1"
 	local trace="$2"
-	local ip country colo updated tmp
+	local ip country colo updated
 
 	ip=$(printf '%s\n' "$trace" | sed -n 's/^ip=//p' | head -n 1)
 	country=$(printf '%s\n' "$trace" | sed -n 's/^loc=//p' | head -n 1)
@@ -30,29 +26,38 @@ write_cache() {
 	updated=$(date +%s)
 	[ -n "$ip" ] && [ -n "$country" ] || return 1
 
-	tmp="${CACHE}.$$"
-	{
-		printf 'source=%s\n' "$source"
-		printf 'ip=%s\n' "$ip"
-		printf 'country=%s\n' "$country"
-		printf 'colo=%s\n' "$colo"
-		printf 'updated=%s\n' "$updated"
-	} > "$tmp" && mv -f "$tmp" "$CACHE"
+	printf '%s.ip=%s\n' "$key" "$ip"
+	printf '%s.country=%s\n' "$key" "$country"
+	printf '%s.colo=%s\n' "$key" "$colo"
+	printf '%s.updated=%s\n' "$key" "$updated"
+}
+
+preserve_entry() {
+	local prefix="$1."
+	[ -f "$CACHE" ] || return 0
+	awk -F= -v prefix="$prefix" 'index($0, prefix) == 1' "$CACHE"
 }
 
 sleep 5
 while true; do
-	tag=$(active_tag)
-	if [ -n "$tag" ]; then
-		source="proxy:$tag"
-		trace=$(/usr/bin/sing-box tools fetch -c "$CONFIG" -o "$tag" \
-			https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null)
+	tags=$(active_tags)
+	tmp="${CACHE}.$$"
+	: > "$tmp"
+
+	if [ -n "$tags" ]; then
+		for tag in $tags; do
+			trace=$(/usr/bin/sing-box tools fetch -c "$CONFIG" -o "$tag" \
+				https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null)
+			write_entry "$tag" "$trace" >> "$tmp" ||
+				preserve_entry "$tag" >> "$tmp"
+		done
 	else
-		source=direct
 		trace=$(curl -4 -m 5 -s \
 			https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null)
+		write_entry direct "$trace" >> "$tmp" ||
+			preserve_entry direct >> "$tmp"
 	fi
 
-	write_cache "$source" "$trace" || true
+	mv -f "$tmp" "$CACHE"
 	sleep "$INTERVAL"
 done

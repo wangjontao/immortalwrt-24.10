@@ -432,7 +432,7 @@
 .jd-egress {
 	position: relative;
 	display: grid;
-	grid-template-columns: 58px minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr);
 	align-items: center;
 	gap: 15px;
 	overflow: hidden;
@@ -499,6 +499,72 @@
 	flex-wrap: wrap;
 }
 
+.jd-egress-list {
+	display: grid;
+	gap: 7px;
+	margin-top: 7px;
+}
+
+.jd-egress-item {
+	display: grid;
+	grid-template-columns: 42px minmax(0, 1fr);
+	column-gap: 12px;
+	min-width: 0;
+	padding-top: 7px;
+	border-top: 1px solid rgba(151, 174, 197, 0.22);
+}
+
+.jd-egress-item:first-child {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.jd-egress-label {
+	display: block;
+	grid-column: 2;
+	color: #9db5c6;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.jd-egress-icon {
+	position: relative;
+	display: flex;
+	grid-row: 1 / span 3;
+	align-items: center;
+	justify-content: center;
+	align-self: start;
+	width: 42px;
+	height: 32px;
+	overflow: hidden;
+	border: 1px solid #3a566a;
+	border-radius: 5px;
+	background: #132535;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.jd-egress-icon img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.jd-egress-icon-fallback {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #132535;
+	color: #dceaf4;
+	font-size: 10px;
+	font-weight: 850;
+}
+
+.jd-egress-icon img.is-ready + .jd-egress-icon-fallback {
+	display: none;
+}
+
 .jd-mode {
 	padding: 3px 7px;
 	border: 1px solid #d3dde8;
@@ -517,8 +583,9 @@
 
 .jd-ip {
 	display: block;
+	grid-column: 2;
 	margin-top: 7px;
-	color: #2c4f70;
+	color: #67e9ac;
 	font-size: 20px;
 	font-weight: 850;
 	font-variant-numeric: tabular-nums;
@@ -527,6 +594,7 @@
 
 .jd-country {
 	display: block;
+	grid-column: 2;
 	margin-top: 5px;
 	color: #74869a;
 	font-size: 11px;
@@ -1220,7 +1288,6 @@
 
 .jd-system-line b,
 .jd-detail strong,
-.jd-ip,
 .jd-rate-pair b,
 .jd-total-row b {
 	color: #dceaf4;
@@ -1456,14 +1523,19 @@
 		</article>
 
 		<article class="jd-panel jd-egress">
-			<div class="jd-flag">
-				<img id="jd-country-flag" alt="国家或地区旗帜" referrerpolicy="no-referrer">
-				<span class="jd-flag-fallback" id="jd-country-code">--</span>
-			</div>
 			<div class="jd-egress-copy">
 				<h2>代理 / 出口 IP <span class="jd-mode" id="jd-egress-mode">检测中</span></h2>
-				<strong class="jd-ip" id="jd-egress-ip">--</strong>
-				<span class="jd-country" id="jd-country-name">正在识别出口国家</span>
+				<div class="jd-egress-list" id="jd-egress-list">
+					<div class="jd-egress-item">
+						<span class="jd-egress-icon">
+							<img alt="国家或地区旗帜" referrerpolicy="no-referrer">
+							<span class="jd-egress-icon-fallback">--</span>
+						</span>
+						<span class="jd-egress-label">主网络</span>
+						<strong class="jd-ip" id="jd-egress-ip">--</strong>
+						<span class="jd-country" id="jd-country-name">正在识别出口国家</span>
+					</div>
+				</div>
 			</div>
 		</article>
 	</section>
@@ -1623,31 +1695,30 @@
 		byId(id).style.setProperty("--value", clamp(value, 0, 100).toFixed(1));
 	}
 
-	function setCountry(code) {
+	function createCountryIcon(code) {
 		var normalized = (code || "").toUpperCase();
-		var flag = byId("jd-country-flag");
-		var fallback = byId("jd-country-code");
-		fallback.textContent = normalized || "--";
-		flag.classList.remove("is-ready");
-
+		var icon = createElement("span", "jd-egress-icon");
+		var image = document.createElement("img");
+		var fallback = createElement(
+			"span",
+			"jd-egress-icon-fallback",
+			normalized || "--"
+		);
+		image.alt = (countryNames[normalized] || normalized || "未知") + "旗帜";
+		image.referrerPolicy = "no-referrer";
 		if (/^[A-Z]{2}$/.test(normalized)) {
-			flag.onload = function() {
-				flag.classList.add("is-ready");
+			image.onload = function() {
+				image.classList.add("is-ready");
 			};
-			flag.onerror = function() {
-				flag.removeAttribute("src");
-				flag.classList.remove("is-ready");
+			image.onerror = function() {
+				image.removeAttribute("src");
+				image.classList.remove("is-ready");
 			};
-			flag.src = "https://flagcdn.com/w80/" + normalized.toLowerCase() + ".png";
-			flag.alt = (countryNames[normalized] || normalized) + "旗帜";
+			image.src = "https://flagcdn.com/w80/" + normalized.toLowerCase() + ".png";
 		}
-		else {
-			flag.removeAttribute("src");
-		}
-
-		byId("jd-country-name").textContent = normalized
-			? (countryNames[normalized] || normalized) + " · " + normalized
-			: "国家识别暂不可用";
+		icon.appendChild(image);
+		icon.appendChild(fallback);
+		return icon;
 	}
 
 	function renderWan(wan) {
@@ -1669,12 +1740,38 @@
 		var data = egress || {};
 		var mode = byId("jd-egress-mode");
 		var isProxy = data.mode === "proxy";
+		var items = Array.isArray(data.items) && data.items.length
+			? data.items : [data];
+		var root = byId("jd-egress-list");
 		mode.textContent = isProxy ? "PROXY" : "DIRECT";
 		mode.classList.toggle("proxy", isProxy);
-		byId("jd-egress-ip").textContent = data.ip || "获取失败";
-		setCountry(data.country || "");
-		if (data.node)
-			byId("jd-country-name").title = "当前节点：" + data.node;
+		root.textContent = "";
+		items.slice(0, 4).forEach(function (item, index) {
+			var row = createElement("div", "jd-egress-item");
+			var icon = createCountryIcon(item.country);
+			var label = createElement(
+				"span",
+				"jd-egress-label",
+				item.label || (index === 0 ? "主网络" : "代理出口")
+			);
+			var ip = createElement("strong", "jd-ip", item.ip || "获取失败");
+			var country = createElement(
+				"span",
+				"jd-country",
+				item.country ? item.country + " · " + String(item.mode || "").toUpperCase() : "地区未知"
+			);
+			if (index === 0) {
+				ip.id = "jd-egress-ip";
+				country.id = "jd-country-name";
+			}
+			if (item.node)
+				country.title = "当前节点：" + item.node;
+			row.appendChild(icon);
+			row.appendChild(label);
+			row.appendChild(ip);
+			row.appendChild(country);
+			root.appendChild(row);
+		});
 	}
 
 	function createElement(tag, className, text) {

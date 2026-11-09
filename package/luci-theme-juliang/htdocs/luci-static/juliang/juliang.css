@@ -2225,14 +2225,22 @@ html body.juliang-theme .f252 .cbi-button-action{
 	border-color:#5fcbd6!important
 }
 
-.juliang-proxy-row{
+.juliang-system-card>.juliang-proxy-list{
 	display:grid;
 	grid-column:1/-1;
-	grid-template-columns:auto minmax(0,1fr);
-	gap:4px 10px;
+	gap:7px;
 	margin-top:8px;
 	padding-top:9px;
 	border-top:1px solid var(--jl-line-soft)
+}
+.juliang-system-card>.juliang-proxy-list .juliang-proxy-row{
+	display:grid;
+	grid-column:auto;
+	grid-template-columns:auto minmax(0,1fr);
+	gap:4px 10px;
+	margin-top:0;
+	padding-top:0;
+	border-top:0
 }
 .juliang-proxy-row>span{
 	color:var(--jl-muted);
@@ -2242,7 +2250,7 @@ html body.juliang-theme .f252 .cbi-button-action{
 .juliang-proxy-row>strong{
 	justify-self:end;
 	overflow:hidden;
-	color:var(--jl-cyan-bright);
+	color:#67e9ac;
 	font-family:var(--jl-data);
 	font-size:11px;
 	font-weight:750;
@@ -2255,6 +2263,12 @@ html body.juliang-theme .f252 .cbi-button-action{
 	font-family:var(--jl-data);
 	font-size:8px;
 	font-weight:650
+}
+.juliang-proxy-row>span{
+	overflow:hidden;
+	max-width:92px;
+	text-overflow:ellipsis;
+	white-space:nowrap
 }
 html body.juliang-theme .f252 .pill,
 html body.juliang-theme .f252 .f25-nav-count,

@@ -64,10 +64,12 @@
 					</div>
 					<span>{{ hostname }}</span>
 					<small>DUAL BAND WIFI</small>
-					<div class="juliang-proxy-row">
-						<span>当前代理 IP</span>
-						<strong id="juliang-proxy-ip">检测中</strong>
-						<small id="juliang-proxy-location">正在识别地区</small>
+					<div class="juliang-proxy-list" id="juliang-proxy-list">
+						<div class="juliang-proxy-row">
+							<span>当前代理 IP</span>
+							<strong id="juliang-proxy-ip">检测中</strong>
+							<small id="juliang-proxy-location">正在识别地区</small>
+						</div>
 					</div>
 				</div>
 			</div>

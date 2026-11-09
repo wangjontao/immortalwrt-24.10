@@ -4,10 +4,37 @@
 	var statusUrl = '/cgi-bin/luci/admin/home_status';
 	var busy = false;
 
-	function setText(id, value) {
-		var element = document.getElementById(id);
-		if (element)
-			element.textContent = value || '--';
+	function renderEgress(data, wanIp) {
+		var root = document.getElementById('juliang-proxy-list');
+		if (!root)
+			return;
+		var primary = data.egress || {};
+		var items = Array.isArray(primary.items) && primary.items.length
+			? primary.items : [primary];
+		root.textContent = '';
+
+		items.slice(0, 4).forEach(function (item, index) {
+			var proxy = item.mode === 'proxy';
+			var row = document.createElement('div');
+			var label = document.createElement('span');
+			var ip = document.createElement('strong');
+			var location = document.createElement('small');
+			row.className = 'juliang-proxy-row';
+			if (index === 0) {
+				ip.id = 'juliang-proxy-ip';
+				location.id = 'juliang-proxy-location';
+			}
+			label.textContent = item.label || (index === 0 ? '当前代理 IP' : '代理出口');
+			ip.textContent = item.ip || (proxy ? '代理出口检测中' : wanIp) || '暂不可用';
+			location.textContent = [
+				item.country || (proxy ? '代理已启用' : '未知地区'),
+				item.mode ? String(item.mode).toUpperCase() : ''
+			].filter(Boolean).join(' · ');
+			row.appendChild(label);
+			row.appendChild(ip);
+			row.appendChild(location);
+			root.appendChild(row);
+		});
 	}
 
 	async function refresh() {
@@ -24,17 +51,20 @@
 			var data = await response.json();
 			if (!data.ok)
 				throw new Error(data.error || '状态读取失败');
-			var egress = data.egress || {};
-			var proxy = egress.mode === 'proxy';
-			setText('juliang-proxy-ip', egress.ip || (proxy ? '代理出口检测中' : data.wan?.ip) || '暂不可用');
-			var location = [egress.country || (proxy ? '代理已启用' : '未知地区')];
-			if (egress.mode)
-				location.push(String(egress.mode).toUpperCase());
-			setText('juliang-proxy-location', location.join(' · '));
+			renderEgress(data, data.wan?.ip);
 		}
 		catch (error) {
-			setText('juliang-proxy-ip', '暂不可用');
-			setText('juliang-proxy-location', '读取失败');
+			renderEgress({
+				egress: {
+					mode: 'direct',
+					items: [{
+						mode: 'direct',
+						label: '当前代理 IP',
+						ip: '暂不可用',
+						country: '读取失败'
+					}]
+				}
+			}, '');
 		}
 		finally {
 			busy = false;
