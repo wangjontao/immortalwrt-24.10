@@ -1,0 +1,17 @@
+#!/bin/sh /etc/rc.common
+
+START=95
+
+boot() {
+	local current
+	current="$(uci -q get luci.main.mediaurlbase)"
+
+	[ "$current" = "/luci-static/juliang" ] && return 0
+	[ -f "/www${current}/cascade.css" ] && return 0
+
+	uci -q set luci.themes.JuLiang='/luci-static/juliang'
+	uci -q set luci.main.mediaurlbase='/luci-static/juliang'
+	uci -q set luci.main.lang='zh_cn'
+	uci -q commit luci
+	rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+}

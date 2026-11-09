@@ -1,0 +1,396 @@
+# github.com/andybalholm/brotli v1.0.6
+## explicit; go 1.12
+github.com/andybalholm/brotli
+# github.com/awnumar/fastrand v0.0.0-20210315215012-30ee0990fa2d
+## explicit; go 1.12
+github.com/awnumar/fastrand
+# github.com/awnumar/memcall v0.0.0-20190816154910-db5ea08008a3
+## explicit; go 1.12
+github.com/awnumar/memcall
+# github.com/awnumar/memguard v0.19.1
+## explicit; go 1.12
+github.com/awnumar/memguard
+github.com/awnumar/memguard/core
+# github.com/daeuniverse/outbound v0.0.0-sticky-ip.0.20260911162531-896954f65c52 => github.com/olicesx/outbound v0.0.0-sticky-ip.0.20260918090140-cc86ced2e683
+## explicit; go 1.24
+github.com/daeuniverse/outbound/ciphers
+github.com/daeuniverse/outbound/common
+github.com/daeuniverse/outbound/common/bandwidth
+github.com/daeuniverse/outbound/common/errors
+github.com/daeuniverse/outbound/common/iout
+github.com/daeuniverse/outbound/common/url
+github.com/daeuniverse/outbound/dialer
+github.com/daeuniverse/outbound/dialer/http
+github.com/daeuniverse/outbound/dialer/hysteria2
+github.com/daeuniverse/outbound/dialer/shadowsocks
+github.com/daeuniverse/outbound/dialer/socks
+github.com/daeuniverse/outbound/dialer/stickyip
+github.com/daeuniverse/outbound/dialer/trojan
+github.com/daeuniverse/outbound/dialer/tuic
+github.com/daeuniverse/outbound/dialer/v2ray
+github.com/daeuniverse/outbound/netproxy
+github.com/daeuniverse/outbound/pkg/cert
+github.com/daeuniverse/outbound/pkg/coalesce
+github.com/daeuniverse/outbound/pkg/fastrand
+github.com/daeuniverse/outbound/pkg/gun_proto
+github.com/daeuniverse/outbound/pkg/logger
+github.com/daeuniverse/outbound/pool
+github.com/daeuniverse/outbound/pool/bytes
+github.com/daeuniverse/outbound/protocol
+github.com/daeuniverse/outbound/protocol/direct
+github.com/daeuniverse/outbound/protocol/http
+github.com/daeuniverse/outbound/protocol/hysteria2
+github.com/daeuniverse/outbound/protocol/hysteria2/client
+github.com/daeuniverse/outbound/protocol/hysteria2/errors
+github.com/daeuniverse/outbound/protocol/hysteria2/internal/frag
+github.com/daeuniverse/outbound/protocol/hysteria2/internal/pmtud
+github.com/daeuniverse/outbound/protocol/hysteria2/internal/protocol
+github.com/daeuniverse/outbound/protocol/hysteria2/internal/utils
+github.com/daeuniverse/outbound/protocol/hysteria2/obfs
+github.com/daeuniverse/outbound/protocol/hysteria2/udphop
+github.com/daeuniverse/outbound/protocol/infra/clientring
+github.com/daeuniverse/outbound/protocol/infra/socks
+github.com/daeuniverse/outbound/protocol/shadowsocks
+github.com/daeuniverse/outbound/protocol/socks5
+github.com/daeuniverse/outbound/protocol/trojanc
+github.com/daeuniverse/outbound/protocol/tuic
+github.com/daeuniverse/outbound/protocol/tuic/common
+github.com/daeuniverse/outbound/protocol/tuic/congestion
+github.com/daeuniverse/outbound/protocol/tuic/congestion/bbr
+github.com/daeuniverse/outbound/protocol/tuic/congestion/bbr3
+github.com/daeuniverse/outbound/protocol/tuic/congestion/brutal
+github.com/daeuniverse/outbound/protocol/tuic/congestion/common
+github.com/daeuniverse/outbound/protocol/vless
+github.com/daeuniverse/outbound/protocol/vless/vision
+github.com/daeuniverse/outbound/protocol/vmess
+github.com/daeuniverse/outbound/transport/grpc
+github.com/daeuniverse/outbound/transport/httpheader
+github.com/daeuniverse/outbound/transport/httpupgrade
+github.com/daeuniverse/outbound/transport/meek
+github.com/daeuniverse/outbound/transport/mux
+github.com/daeuniverse/outbound/transport/shadowtls
+github.com/daeuniverse/outbound/transport/simpleobfs
+github.com/daeuniverse/outbound/transport/tls
+github.com/daeuniverse/outbound/transport/ws
+# github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d
+## explicit
+github.com/dgryski/go-camellia
+# github.com/dgryski/go-idea v0.0.0-20170306091226-d2fb45a411fb
+## explicit
+github.com/dgryski/go-idea
+# github.com/dgryski/go-metro v0.0.0-20200812162917-85c65e2d0165
+## explicit
+github.com/dgryski/go-metro
+# github.com/dgryski/go-rc2 v0.0.0-20150621095337-8a9021637152
+## explicit
+github.com/dgryski/go-rc2
+# github.com/eknkc/basex v1.0.1
+## explicit
+github.com/eknkc/basex
+# github.com/go-task/slim-sprig/v3 v3.0.0
+## explicit; go 1.20
+github.com/go-task/slim-sprig/v3
+# github.com/golang/protobuf v1.5.3
+## explicit; go 1.9
+github.com/golang/protobuf/jsonpb
+github.com/golang/protobuf/proto
+github.com/golang/protobuf/ptypes
+github.com/golang/protobuf/ptypes/any
+github.com/golang/protobuf/ptypes/duration
+github.com/golang/protobuf/ptypes/timestamp
+# github.com/google/pprof v0.0.0-20250208200701-d0013a598941
+## explicit; go 1.22
+github.com/google/pprof/profile
+# github.com/google/uuid v1.3.0
+## explicit
+github.com/google/uuid
+# github.com/gorilla/websocket v1.5.0
+## explicit; go 1.12
+github.com/gorilla/websocket
+# github.com/json-iterator/go v1.1.12
+## explicit; go 1.12
+github.com/json-iterator/go
+# github.com/klauspost/compress v1.17.4
+## explicit; go 1.19
+github.com/klauspost/compress
+github.com/klauspost/compress/fse
+github.com/klauspost/compress/huff0
+github.com/klauspost/compress/internal/cpuinfo
+github.com/klauspost/compress/internal/snapref
+github.com/klauspost/compress/zstd
+github.com/klauspost/compress/zstd/internal/xxhash
+# github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+## explicit
+github.com/modern-go/concurrent
+# github.com/modern-go/reflect2 v1.0.2
+## explicit; go 1.12
+github.com/modern-go/reflect2
+# github.com/mzz2017/disk-bloom v1.0.1
+## explicit; go 1.16
+github.com/mzz2017/disk-bloom
+# github.com/olicesx/qpack v0.6.1-0.20260910092525-3d8903e3255f
+## explicit; go 1.24
+github.com/olicesx/qpack
+# github.com/olicesx/quic-go v0.0.0-20260910141758-62d80bbebb5b
+## explicit; go 1.24
+github.com/olicesx/quic-go
+github.com/olicesx/quic-go/congestion
+github.com/olicesx/quic-go/http3
+github.com/olicesx/quic-go/internal/ackhandler
+github.com/olicesx/quic-go/internal/congestion
+github.com/olicesx/quic-go/internal/flowcontrol
+github.com/olicesx/quic-go/internal/handshake
+github.com/olicesx/quic-go/internal/protocol
+github.com/olicesx/quic-go/internal/qerr
+github.com/olicesx/quic-go/internal/qtls
+github.com/olicesx/quic-go/internal/utils
+github.com/olicesx/quic-go/internal/utils/linkedlist
+github.com/olicesx/quic-go/internal/utils/ringbuffer
+github.com/olicesx/quic-go/internal/utils/tree
+github.com/olicesx/quic-go/internal/wire
+github.com/olicesx/quic-go/logging
+github.com/olicesx/quic-go/quicvarint
+# github.com/onsi/ginkgo/v2 v2.22.2
+## explicit; go 1.22.0
+github.com/onsi/ginkgo/v2/config
+github.com/onsi/ginkgo/v2/formatter
+github.com/onsi/ginkgo/v2/ginkgo
+github.com/onsi/ginkgo/v2/ginkgo/build
+github.com/onsi/ginkgo/v2/ginkgo/command
+github.com/onsi/ginkgo/v2/ginkgo/generators
+github.com/onsi/ginkgo/v2/ginkgo/internal
+github.com/onsi/ginkgo/v2/ginkgo/labels
+github.com/onsi/ginkgo/v2/ginkgo/outline
+github.com/onsi/ginkgo/v2/ginkgo/run
+github.com/onsi/ginkgo/v2/ginkgo/unfocus
+github.com/onsi/ginkgo/v2/ginkgo/watch
+github.com/onsi/ginkgo/v2/internal/interrupt_handler
+github.com/onsi/ginkgo/v2/internal/parallel_support
+github.com/onsi/ginkgo/v2/reporters
+github.com/onsi/ginkgo/v2/types
+# github.com/refraction-networking/utls v1.8.2
+## explicit; go 1.24
+github.com/refraction-networking/utls
+github.com/refraction-networking/utls/dicttls
+github.com/refraction-networking/utls/internal/boring
+github.com/refraction-networking/utls/internal/byteorder
+github.com/refraction-networking/utls/internal/fips140tls
+github.com/refraction-networking/utls/internal/helper
+github.com/refraction-networking/utls/internal/hkdf
+github.com/refraction-networking/utls/internal/hpke
+github.com/refraction-networking/utls/internal/quicvarint
+github.com/refraction-networking/utls/internal/quicvarint/protocol
+github.com/refraction-networking/utls/internal/tls12
+github.com/refraction-networking/utls/internal/tls13
+# github.com/sagernet/sing v0.6.0
+## explicit; go 1.20
+github.com/sagernet/sing/common
+github.com/sagernet/sing/common/atomic
+github.com/sagernet/sing/common/auth
+github.com/sagernet/sing/common/buf
+github.com/sagernet/sing/common/bufio
+github.com/sagernet/sing/common/debug
+github.com/sagernet/sing/common/exceptions
+github.com/sagernet/sing/common/format
+github.com/sagernet/sing/common/logger
+github.com/sagernet/sing/common/metadata
+github.com/sagernet/sing/common/network
+github.com/sagernet/sing/common/task
+github.com/sagernet/sing/common/x/constraints
+# github.com/sagernet/sing-shadowtls v0.2.0
+## explicit; go 1.20
+github.com/sagernet/sing-shadowtls
+github.com/sagernet/sing-shadowtls/internal/byteorder
+github.com/sagernet/sing-shadowtls/internal/hpke
+github.com/sagernet/sing-shadowtls/internal/mlkem768
+github.com/sagernet/sing-shadowtls/internal/tls
+# github.com/seiflotfy/cuckoofilter v0.0.0-20220411075957-e3b120b3f5fb
+## explicit; go 1.15
+github.com/seiflotfy/cuckoofilter
+# github.com/sirupsen/logrus v1.9.3
+## explicit; go 1.13
+github.com/sirupsen/logrus
+# gitlab.com/yawning/chacha20.git v0.0.0-20230427033715-7877545b1b37
+## explicit; go 1.12
+gitlab.com/yawning/chacha20.git
+gitlab.com/yawning/chacha20.git/internal/api
+gitlab.com/yawning/chacha20.git/internal/hardware
+gitlab.com/yawning/chacha20.git/internal/ref
+# go.uber.org/mock v0.5.0
+## explicit; go 1.22
+go.uber.org/mock/mockgen
+go.uber.org/mock/mockgen/model
+# golang.org/x/crypto v0.36.0
+## explicit; go 1.23.0
+golang.org/x/crypto/blake2b
+golang.org/x/crypto/blowfish
+golang.org/x/crypto/cast5
+golang.org/x/crypto/chacha20
+golang.org/x/crypto/chacha20poly1305
+golang.org/x/crypto/cryptobyte
+golang.org/x/crypto/cryptobyte/asn1
+golang.org/x/crypto/hkdf
+golang.org/x/crypto/internal/alias
+golang.org/x/crypto/internal/poly1305
+golang.org/x/crypto/nacl/secretbox
+golang.org/x/crypto/salsa20/salsa
+golang.org/x/crypto/sha3
+# golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3
+## explicit; go 1.22.0
+golang.org/x/exp/constraints
+golang.org/x/exp/rand
+golang.org/x/exp/slices
+# golang.org/x/mod v0.23.0
+## explicit; go 1.22.0
+golang.org/x/mod/internal/lazyregexp
+golang.org/x/mod/modfile
+golang.org/x/mod/module
+golang.org/x/mod/semver
+# golang.org/x/net v0.38.0
+## explicit; go 1.23.0
+golang.org/x/net/bpf
+golang.org/x/net/dns/dnsmessage
+golang.org/x/net/http/httpguts
+golang.org/x/net/http2
+golang.org/x/net/http2/hpack
+golang.org/x/net/idna
+golang.org/x/net/internal/httpcommon
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
+golang.org/x/net/internal/timeseries
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
+golang.org/x/net/trace
+# golang.org/x/sync v0.12.0
+## explicit; go 1.23.0
+golang.org/x/sync/errgroup
+golang.org/x/sync/semaphore
+# golang.org/x/sys v0.31.0
+## explicit; go 1.23.0
+golang.org/x/sys/cpu
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# golang.org/x/text v0.23.0
+## explicit; go 1.23.0
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+# golang.org/x/tools v0.29.0
+## explicit; go 1.22.0
+golang.org/x/tools/cover
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/ast/inspector
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/packages
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/imports
+golang.org/x/tools/internal/aliases
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/gcimporter
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/modindex
+golang.org/x/tools/internal/packagesinternal
+golang.org/x/tools/internal/pkgbits
+golang.org/x/tools/internal/stdlib
+golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/typesinternal
+golang.org/x/tools/internal/versions
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230807174057-1744710a1577
+## explicit; go 1.19
+google.golang.org/genproto/googleapis/rpc/status
+# google.golang.org/grpc v1.57.0
+## explicit; go 1.17
+google.golang.org/grpc
+google.golang.org/grpc/attributes
+google.golang.org/grpc/backoff
+google.golang.org/grpc/balancer
+google.golang.org/grpc/balancer/base
+google.golang.org/grpc/balancer/grpclb/state
+google.golang.org/grpc/balancer/roundrobin
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/channelz
+google.golang.org/grpc/codes
+google.golang.org/grpc/connectivity
+google.golang.org/grpc/credentials
+google.golang.org/grpc/credentials/insecure
+google.golang.org/grpc/encoding
+google.golang.org/grpc/encoding/proto
+google.golang.org/grpc/grpclog
+google.golang.org/grpc/internal
+google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancer/gracefulswitch
+google.golang.org/grpc/internal/balancerload
+google.golang.org/grpc/internal/binarylog
+google.golang.org/grpc/internal/buffer
+google.golang.org/grpc/internal/channelz
+google.golang.org/grpc/internal/credentials
+google.golang.org/grpc/internal/envconfig
+google.golang.org/grpc/internal/grpclog
+google.golang.org/grpc/internal/grpcrand
+google.golang.org/grpc/internal/grpcsync
+google.golang.org/grpc/internal/grpcutil
+google.golang.org/grpc/internal/metadata
+google.golang.org/grpc/internal/pretty
+google.golang.org/grpc/internal/resolver
+google.golang.org/grpc/internal/resolver/dns
+google.golang.org/grpc/internal/resolver/passthrough
+google.golang.org/grpc/internal/resolver/unix
+google.golang.org/grpc/internal/serviceconfig
+google.golang.org/grpc/internal/status
+google.golang.org/grpc/internal/syscall
+google.golang.org/grpc/internal/transport
+google.golang.org/grpc/internal/transport/networktype
+google.golang.org/grpc/keepalive
+google.golang.org/grpc/metadata
+google.golang.org/grpc/peer
+google.golang.org/grpc/resolver
+google.golang.org/grpc/serviceconfig
+google.golang.org/grpc/stats
+google.golang.org/grpc/status
+google.golang.org/grpc/tap
+# google.golang.org/protobuf v1.36.1
+## explicit; go 1.21
+google.golang.org/protobuf/encoding/protojson
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protowire
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/detrand
+google.golang.org/protobuf/internal/editiondefaults
+google.golang.org/protobuf/internal/editionssupport
+google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/json
+google.golang.org/protobuf/internal/encoding/messageset
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/internal/encoding/text
+google.golang.org/protobuf/internal/errors
+google.golang.org/protobuf/internal/filedesc
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/impl
+google.golang.org/protobuf/internal/order
+google.golang.org/protobuf/internal/pragma
+google.golang.org/protobuf/internal/protolazy
+google.golang.org/protobuf/internal/set
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/version
+google.golang.org/protobuf/proto
+google.golang.org/protobuf/reflect/protodesc
+google.golang.org/protobuf/reflect/protoreflect
+google.golang.org/protobuf/reflect/protoregistry
+google.golang.org/protobuf/runtime/protoiface
+google.golang.org/protobuf/runtime/protoimpl
+google.golang.org/protobuf/types/descriptorpb
+google.golang.org/protobuf/types/gofeaturespb
+google.golang.org/protobuf/types/known/anypb
+google.golang.org/protobuf/types/known/durationpb
+google.golang.org/protobuf/types/known/timestamppb
+# github.com/daeuniverse/outbound => github.com/olicesx/outbound v0.0.0-sticky-ip.0.20260918090140-cc86ced2e683

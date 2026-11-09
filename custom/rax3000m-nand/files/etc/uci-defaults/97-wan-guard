@@ -1,0 +1,40 @@
+#!/bin/sh
+# WAN resilience and IPv6 removal, applied once on first boot.
+#
+# No "set -e" here: a missing section must not abort the remaining steps.
+# IPv6 removal is also done for the live network by 99-zz-dulwifi.
+
+LOG='/etc/juliang-firstboot.log'
+log() { echo "[$(date +%H:%M:%S)] wan-guard: $*" >> "$LOG" 2>/dev/null; }
+u()   { uci "$@" >> "$LOG" 2>&1 || log "FAILED: uci $*"; }
+
+# Keep the lease on ifdown so the modem does not revoke it while we reconnect.
+if [ -n "$(uci -q get network.wan)" ]; then
+    u set network.wan.norelease='1'
+fi
+
+# No IPv6 on the WAN side at all.
+u -q delete network.wan6
+for zone in $(uci show firewall 2>/dev/null | sed -n "s/^firewall\.\(@zone\[[0-9]*\]\)\.name='wan'$/\1/p"); do
+    u -q del_list "firewall.${zone}.network=wan6"
+done
+
+# No IPv6 on the LAN side either.
+u -q delete network.lan.ip6assign
+u set network.lan.delegate='0'
+u set dhcp.lan.dhcpv6='disabled'
+u set dhcp.lan.ra='disabled'
+u set dhcp.lan.ndp='disabled'
+
+uci commit network >> "$LOG" 2>&1 || log "commit network failed"
+uci commit dhcp    >> "$LOG" 2>&1 || log "commit dhcp failed"
+uci commit firewall >> "$LOG" 2>&1 || log "commit firewall failed"
+
+# IPv6 is not used on this router; odhcpd only serves RA/DHCPv6.
+/etc/init.d/odhcpd disable 2>/dev/null || true
+/etc/init.d/odhcpd stop 2>/dev/null || true
+
+# Supervise the lease guard so an expired lease cannot leave the WAN addressless.
+/etc/init.d/wan-lease-guard enable 2>/dev/null || log "could not enable wan-lease-guard"
+
+exit 0

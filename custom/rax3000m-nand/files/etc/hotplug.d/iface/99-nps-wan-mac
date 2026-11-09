@@ -1,0 +1,5 @@
+#!/bin/sh
+[ "$INTERFACE" = 'wan' ] || exit 0
+case "$ACTION" in
+	ifup|ifupdate) /usr/libexec/nps-wan-mac >/dev/null 2>&1 & ;;
+esac

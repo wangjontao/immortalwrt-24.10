@@ -1,0 +1,81 @@
+#!/usr/bin/lua
+
+local fs = require "nixio.fs"
+local jsonc = require "luci.jsonc"
+
+local state_dir = "/etc/juliang-dashboard"
+local state_path = state_dir .. "/traffic.json"
+local temp_path = state_dir .. "/traffic.json.tmp"
+
+fs.mkdirr(state_dir)
+
+local function read_number(path)
+	local value = tonumber(fs.readfile(path) or "")
+	return value and value >= 0 and value or nil
+end
+
+local function read_wan_device()
+	local handle = io.popen("ubus call network.interface.wan status 2>/dev/null")
+	local raw = handle and handle:read("*a") or ""
+	if handle then
+		handle:close()
+	end
+	local wan = jsonc.parse(raw) or {}
+	local device = wan.l3_device or wan.device or ""
+	if device:match("^[%w_.%-]+$") then
+		return device
+	end
+	return "eth1"
+end
+
+local device = read_wan_device()
+local rx = read_number("/sys/class/net/" .. device .. "/statistics/rx_bytes")
+local tx = read_number("/sys/class/net/" .. device .. "/statistics/tx_bytes")
+if not rx or not tx then
+	os.exit(0)
+end
+
+local state = jsonc.parse(fs.readfile(state_path) or "") or {}
+local now = os.time()
+local day = os.date("%Y-%m-%d", now)
+local month = os.date("%Y-%m", now)
+local delta_rx = 0
+local delta_tx = 0
+
+if state.device == device then
+	local previous_rx = tonumber(state.last_rx)
+	local previous_tx = tonumber(state.last_tx)
+	if previous_rx and rx >= previous_rx then
+		delta_rx = rx - previous_rx
+	end
+	if previous_tx and tx >= previous_tx then
+		delta_tx = tx - previous_tx
+	end
+end
+
+if state.day ~= day then
+	state.day_rx = 0
+	state.day_tx = 0
+end
+if state.month ~= month then
+	state.month_rx = 0
+	state.month_tx = 0
+end
+
+state.device = device
+state.day = day
+state.month = month
+state.day_rx = (tonumber(state.day_rx) or 0) + delta_rx
+state.day_tx = (tonumber(state.day_tx) or 0) + delta_tx
+state.month_rx = (tonumber(state.month_rx) or 0) + delta_rx
+state.month_tx = (tonumber(state.month_tx) or 0) + delta_tx
+state.total_rx = (tonumber(state.total_rx) or 0) + delta_rx
+state.total_tx = (tonumber(state.total_tx) or 0) + delta_tx
+state.last_rx = rx
+state.last_tx = tx
+state.updated = now
+
+local serialized = jsonc.stringify(state)
+fs.writefile(temp_path, serialized)
+fs.chmod(temp_path, "600")
+fs.rename(temp_path, state_path)

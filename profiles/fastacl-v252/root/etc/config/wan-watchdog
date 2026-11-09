@@ -1,0 +1,7 @@
+config watchdog 'main'
+	option enabled '1'
+	option interval '10'
+	option renew_after '3'
+	option restart_after '9'
+	option renew_cooldown '60'
+	option restart_cooldown '300'

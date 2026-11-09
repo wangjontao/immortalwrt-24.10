@@ -1,0 +1,845 @@
+#!/bin/sh
+set -eu
+umask 077
+
+R=${FASTACL_RUNTIME_DIR:-/tmp/fastacl252}
+HEALTH_LOG=${FASTACL_HEALTH_LOG:-/root/fastacl252-health.log}
+LOCK="${R}-apply.lock"
+SOCKS_BACKLOG_LIMIT=${FASTACL_SOCKS_BACKLOG_LIMIT:-128}
+CORE_FD_LIMIT=${FASTACL_SINGBOX_FD_LIMIT:-}
+DNS_FD_LIMIT=${FASTACL_DNS_FD_LIMIT:-}
+RECOVERY_COOLDOWN=${FASTACL_RECOVERY_COOLDOWN:-120}
+TUN_TABLE=${FASTACL_TUN_TABLE:-2027}
+TUN_FWMARK=${FASTACL_TUN_FWMARK:-0x2027}
+TUN_LOCAL_RULE=${FASTACL_TUN_LOCAL_RULE:-27000}
+TUN_ROUTE_RULE=${FASTACL_TUN_ROUTE_RULE:-27100}
+SINGBOX_TPROXY_TABLE=${FASTACL_SINGBOX_TPROXY_TABLE:-2028}
+SINGBOX_TPROXY_FWMARK=${FASTACL_SINGBOX_TPROXY_FWMARK:-0x2028}
+SINGBOX_TPROXY_RULE=${FASTACL_SINGBOX_TPROXY_RULE:-27200}
+FD_HARD_LIMIT=
+FD_SOFT_LIMIT=
+CAPACITY_PROFILE=
+mkdir -p "$R"
+
+dataplane_now(){
+  local value
+  value=$(uci -q get fastacl252.main.dataplane 2>/dev/null || true)
+  case "$value" in tun) echo tun ;; *) echo singbox ;; esac
+}
+
+detect_capacity(){
+  local mem_kb cpus profile identity
+  mem_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
+  cpus=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 1)
+  identity=$(cat /tmp/sysinfo/model 2>/dev/null || true)
+  identity="$identity $(tr '\000' '\n' < /proc/device-tree/compatible 2>/dev/null || true)"
+  profile=${FASTACL_CAPACITY_PROFILE:-$(uci -q get fastacl252.main.capacity_profile 2>/dev/null || true)}
+  if [ "$profile" = auto ] || [ -z "$profile" ]; then
+    case "$identity" in
+      *"CLX S20L"*|*"CLX S20P"*|*"Xiaomi Redmi Router AX6000"*|*"JDCloud RE-CP-03"*|\
+      *clx,s20l*|*clx,s20p*|*redmi-router-ax6000*|*jdcloud,re-cp-03*)
+        profile=high
+        ;;
+      *)
+        if [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 1800000 ]; then
+          profile=high
+        elif [ "$cpus" -ge 4 ] && [ "$mem_kb" -ge 900000 ]; then
+          profile=quad
+        elif [ "$cpus" -ge 2 ] && [ "$mem_kb" -ge 900000 ]; then
+          profile=balanced
+        else
+          profile=compact
+        fi
+        ;;
+    esac
+  fi
+  case "$profile" in
+    extreme)
+      CONNECTION_LIMIT=65536; SESSION_CONNECTION_LIMIT=512
+      FD_HARD_LIMIT=524288; FD_SOFT_LIMIT=491520
+      [ -n "$CORE_FD_LIMIT" ] || CORE_FD_LIMIT=458752
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=458752
+      ;;
+    high)
+      CONNECTION_LIMIT=40960; SESSION_CONNECTION_LIMIT=128
+      FD_HARD_LIMIT=262144; FD_SOFT_LIMIT=245760
+      [ -n "$CORE_FD_LIMIT" ] || CORE_FD_LIMIT=229376
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=229376
+      ;;
+    quad)
+      CONNECTION_LIMIT=28672; SESSION_CONNECTION_LIMIT=112
+      FD_HARD_LIMIT=196608; FD_SOFT_LIMIT=180224
+      [ -n "$CORE_FD_LIMIT" ] || CORE_FD_LIMIT=172032
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=172032
+      ;;
+    balanced)
+      CONNECTION_LIMIT=16384; SESSION_CONNECTION_LIMIT=96
+      FD_HARD_LIMIT=131072; FD_SOFT_LIMIT=122880
+      [ -n "$CORE_FD_LIMIT" ] || CORE_FD_LIMIT=114688
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=114688
+      ;;
+    *)
+      profile=compact
+      CONNECTION_LIMIT=12288; SESSION_CONNECTION_LIMIT=64
+      FD_HARD_LIMIT=98304; FD_SOFT_LIMIT=90112
+      [ -n "$CORE_FD_LIMIT" ] || CORE_FD_LIMIT=86016
+      [ -n "$DNS_FD_LIMIT" ] || DNS_FD_LIMIT=86016
+      ;;
+  esac
+  CAPACITY_PROFILE=$profile
+}
+
+detect_capacity
+
+raise_nofile(){
+  case "$CAPACITY_PROFILE" in
+    extreme)
+      [ "$(cat /proc/sys/fs/file-max 2>/dev/null || echo 0)" -ge 600000 ] ||
+        sysctl -w fs.file-max=600000 >/dev/null 2>&1 || true
+      ;;
+    high)
+      [ "$(cat /proc/sys/fs/file-max 2>/dev/null || echo 0)" -ge 400000 ] ||
+        sysctl -w fs.file-max=400000 >/dev/null 2>&1 || true
+      ;;
+    quad)
+      [ "$(cat /proc/sys/fs/file-max 2>/dev/null || echo 0)" -ge 300000 ] ||
+        sysctl -w fs.file-max=300000 >/dev/null 2>&1 || true
+      ;;
+  esac
+  ulimit -Hn "$FD_HARD_LIMIT" 2>/dev/null || true
+  ulimit -Sn "$FD_SOFT_LIMIT" 2>/dev/null || true
+}
+
+pause_fast(){
+  sleep 0.1 2>/dev/null && return 0
+  command -v usleep >/dev/null 2>&1 && { usleep 100000; return 0; }
+  sleep 1
+}
+
+release_lock(){
+  [ -s "$LOCK/pid" ] || return 0
+  [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ] || return 0
+  rm -rf "$LOCK" 2>/dev/null || true
+}
+
+acquire_lock(){
+  local i=0 owner=''
+  while ! mkdir "$LOCK" 2>/dev/null; do
+    owner=$(cat "$LOCK/pid" 2>/dev/null || true)
+    case "$owner" in
+      ''|*[!0-9]*)
+        if [ $(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || date +%s) )) -gt 10 ]; then
+          rm -rf "$LOCK" 2>/dev/null || true
+          continue
+        fi;;
+      *)
+        if ! kill -0 "$owner" 2>/dev/null; then
+          rm -rf "$LOCK" 2>/dev/null || true
+          continue
+        fi;;
+    esac
+    i=$((i+1))
+    [ "$i" -lt 30 ] || { echo 'JuLiang OS apply busy' >&2; return 1; }
+    pause_fast
+  done
+  printf '%s\n' "$$" > "$LOCK/pid"
+  trap 'release_lock' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' HUP TERM
+}
+
+tun_alive(){
+  [ -s "$R/tun.pid" ] || return 1
+  local pid; pid=$(cat "$R/tun.pid" 2>/dev/null || true)
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq "$R/singbox.json"
+}
+
+singbox_alive(){
+  [ -s "$R/singbox.pid" ] || return 1
+  local pid; pid=$(cat "$R/singbox.pid" 2>/dev/null || true)
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq "$R/singbox.json"
+}
+
+dns_alive(){
+  [ -s "$R/dns.pid" ] || return 1
+  local pid; pid=$(cat "$R/dns.pid" 2>/dev/null || true)
+  case "$pid" in ''|*[!0-9]*) return 1;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fq 'fastacl252-dns'
+}
+
+listener(){
+  (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) | grep -q ":$1 "
+}
+
+listener_udp(){
+  (ss -lnu 2>/dev/null || netstat -lnu 2>/dev/null) | grep -q ":$1 "
+}
+
+socks_backlog(){
+  (ss -lnt 2>/dev/null || netstat -lnt 2>/dev/null) |
+    awk '$4 == "127.0.0.1:15443" { print $2; exit }'
+}
+
+socks_connections(){
+  netstat -ant 2>/dev/null |
+    awk '$4 == "127.0.0.1:15443" && $6 == "ESTABLISHED" { count++ } END { print count+0 }'
+}
+
+proxy_connection_counts(){
+  if [ -r /proc/net/nf_conntrack ]; then
+    awk '
+      /mark=(8231|8232|0x2027|0x2028)/ {
+        total++
+        if ($0 ~ / tcp 6 /) tcp++
+        else if ($0 ~ / udp 17 /) udp++
+      }
+      END { print total+0, tcp+0, udp+0 }
+    ' /proc/net/nf_conntrack 2>/dev/null
+  else
+    local count
+    count=$(socks_connections)
+    echo "${count:-0} 0 0"
+  fi
+}
+
+socks_ready(){
+  local backlog
+  backlog=$(socks_backlog)
+  [ -n "$backlog" ] && [ "$backlog" -le "$SOCKS_BACKLOG_LIMIT" ]
+}
+
+tun_ready(){
+  tun_interface_ready || return 1
+  tun_routes_ready
+}
+
+tun_interface_ready(){
+  tun_alive || return 1
+  local iface
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  ip link show "$iface" 2>/dev/null | grep -q 'state UP\|state UNKNOWN\|POINTOPOINT'
+}
+
+tun_routes_ready(){
+  ip -4 rule show 2>/dev/null | grep -q "^${TUN_LOCAL_RULE}:.*iif lo lookup main" &&
+    ip -4 rule show 2>/dev/null | grep -q "^${TUN_ROUTE_RULE}:.*fwmark ${TUN_FWMARK}.*lookup ${TUN_TABLE}" &&
+    ip -4 route show table "$TUN_TABLE" 2>/dev/null | grep -q '^default '
+}
+
+singbox_tproxy_routes_ready(){
+  ip -4 rule show 2>/dev/null | grep -q "^${SINGBOX_TPROXY_RULE}:.*fwmark ${SINGBOX_TPROXY_FWMARK}.*lookup ${SINGBOX_TPROXY_TABLE}" &&
+    ip -4 route show table "$SINGBOX_TPROXY_TABLE" 2>/dev/null | grep -Eq '^local (default|0\.0\.0\.0/0) '
+}
+
+singbox_tproxy_ready(){
+  singbox_alive || return 1
+  local port; port=$(uci -q get fastacl252.main.port 2>/dev/null || echo 12525)
+  listener "$port" && listener_udp "$port" && singbox_tproxy_routes_ready
+}
+
+core_alive(){
+  case "$(dataplane_now)" in tun) tun_alive ;; *) singbox_alive ;; esac
+}
+
+core_ready(){
+  case "$(dataplane_now)" in tun) tun_ready ;; *) singbox_tproxy_ready ;; esac
+}
+
+dns_guard_ready(){
+  nft list chain inet fastacl252 dns_redirect 2>/dev/null |
+    grep -Fq 'redirect to :12553' &&
+  nft list chain inet fastacl252 forward 2>/dev/null |
+    grep -Fq 'th dport 53 drop'
+}
+
+firewall_ready(){
+  nft list table inet fastacl252 >/dev/null 2>&1 || return 1
+  [ "$(dataplane_now)" != singbox ] ||
+    nft list table ip fastacl252_tproxy >/dev/null 2>&1
+}
+
+dnsmasq_ready(){ /etc/init.d/dnsmasq status >/dev/null 2>&1; }
+
+dns_ready(){ dns_alive && listener 12553 && socks_ready && dns_guard_ready; }
+
+pid_fd_count(){
+  [ -d "/proc/$1/fd" ] && ls "/proc/$1/fd" 2>/dev/null | wc -l
+}
+
+runtime_failure(){
+  local pid plane
+  plane=$(dataplane_now)
+  core_alive || { echo "$plane-process"; return; }
+  dns_alive || { echo dns-process; return; }
+  listener 12553 || { echo dns-listener; return; }
+  dns_guard_ready || { echo dns-guard; return; }
+  socks_ready || { echo "socks-backlog:$(socks_backlog)"; return; }
+  core_ready || { echo "$plane-ready"; return; }
+  firewall_ready || { echo nft-table; return; }
+  dnsmasq_ready || { echo dnsmasq; return; }
+
+  if [ "$plane" = singbox ]; then
+    pid=$(cat "$R/singbox.pid" 2>/dev/null || true)
+    [ "$(pid_fd_count "$pid")" -lt "$CORE_FD_LIMIT" ] ||
+      { echo "singbox-fd:$(pid_fd_count "$pid")"; return; }
+  else
+    pid=$(cat "$R/tun.pid" 2>/dev/null || true)
+    [ "$(pid_fd_count "$pid")" -lt "$CORE_FD_LIMIT" ] ||
+      { echo "tun-fd:$(pid_fd_count "$pid")"; return; }
+  fi
+  pid=$(cat "$R/dns.pid" 2>/dev/null || true)
+  [ "$(pid_fd_count "$pid")" -lt "$DNS_FD_LIMIT" ] ||
+    { echo "dns-fd:$(pid_fd_count "$pid")"; return; }
+}
+
+health_log(){
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$HEALTH_LOG"
+  if [ "$(wc -c < "$HEALTH_LOG")" -gt 65536 ]; then
+    tail -n 400 "$HEALTH_LOG" > "$HEALTH_LOG.next"
+    mv "$HEALTH_LOG.next" "$HEALTH_LOG"
+  fi
+}
+
+health_snapshot(){
+  local core_pid dns_pid core_fd dns_fd backlog connections stats plane
+  plane=$(dataplane_now)
+  if [ "$plane" = tun ]; then core_pid=$(cat "$R/tun.pid" 2>/dev/null || true)
+  else core_pid=$(cat "$R/singbox.pid" 2>/dev/null || true); fi
+  dns_pid=$(cat "$R/dns.pid" 2>/dev/null || true)
+  core_fd=$(pid_fd_count "$core_pid")
+  dns_fd=$(pid_fd_count "$dns_pid")
+  backlog=$(socks_backlog)
+  connections=$(socks_connections)
+  stats=$(fastacl252-dns -stats -config "$R/dns.json" 2>/dev/null | head -n 1 || true)
+  health_log "healthy=yes dataplane=$plane socks_backlog=${backlog:-none} socks_connections=${connections:-none} core_fd=${core_fd:-none} dns_fd=${dns_fd:-none} stats=${stats:-none}"
+}
+
+wait_dns(){
+  local i=0
+  while ! dns_ready; do
+    i=$((i+1)); [ "$i" -lt 30 ] || return 1
+    pause_fast
+  done
+}
+
+dns_stop(){
+  if dns_alive; then
+    kill "$(cat "$R/dns.pid")" 2>/dev/null || true
+    local i=0
+    while dns_alive; do
+      i=$((i+1)); [ "$i" -lt 20 ] || { kill -9 "$(cat "$R/dns.pid")" 2>/dev/null || true; break; }
+      pause_fast
+    done
+  fi
+  rm -f "$R/dns.pid"
+}
+
+tun_link_clear(){
+  local iface i=0
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  while ip link show "$iface" >/dev/null 2>&1; do
+    i=$((i+1))
+    if [ "$i" -ge 30 ]; then
+      ip link delete "$iface" 2>/dev/null || true
+      break
+    fi
+    pause_fast
+  done
+}
+
+tun_core_stop(){
+  local i=0 had_tun=0
+  if tun_alive; then
+    had_tun=1
+    kill "$(cat "$R/tun.pid")" 2>/dev/null || true
+    while tun_alive; do
+      i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$(cat "$R/tun.pid")" 2>/dev/null || true; break; }
+      pause_fast
+    done
+  fi
+  if [ "$had_tun" = 1 ] || [ "$(dataplane_now)" = tun ]; then
+    tun_link_clear
+  fi
+  rm -f "$R/tun.pid"
+}
+
+tun_stop(){
+  tun_core_stop
+  tun_routes_stop
+}
+
+singbox_tproxy_routes_stop(){
+  local i=0
+  while ip -4 rule del pref "$SINGBOX_TPROXY_RULE" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 16 ] || break
+  done
+  ip -4 route flush table "$SINGBOX_TPROXY_TABLE" 2>/dev/null || true
+}
+
+singbox_tproxy_routes_start(){
+  singbox_tproxy_routes_stop
+  sysctl -w net.ipv4.ip_nonlocal_bind=1 >/dev/null 2>&1 || true
+  ip -4 route replace local 0.0.0.0/0 dev lo table "$SINGBOX_TPROXY_TABLE"
+  ip -4 rule add pref "$SINGBOX_TPROXY_RULE" fwmark "$SINGBOX_TPROXY_FWMARK" lookup "$SINGBOX_TPROXY_TABLE"
+  singbox_tproxy_routes_ready
+}
+
+singbox_tproxy_stop(){
+  local i=0 pid=''
+  [ ! -s "$R/singbox.pid" ] || pid=$(cat "$R/singbox.pid" 2>/dev/null || true)
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
+    while kill -0 "$pid" 2>/dev/null; do
+      i=$((i+1)); [ "$i" -lt 25 ] || { kill -9 "$pid" 2>/dev/null || true; break; }
+      pause_fast
+    done
+  fi
+  rm -f "$R/singbox.pid"
+  singbox_tproxy_routes_stop
+}
+
+generate_guards(){
+  lua /usr/libexec/fastacl252-generate.lua nft guard
+  firewall_apply
+}
+
+generate_next(){
+  lua /usr/libexec/fastacl252-generate.lua nft
+}
+
+validate_next(){
+  fastacl252-dns -check -config "$R/dns.next.json" >"$R/dns-check.log" 2>&1 || { cat "$R/dns-check.log"; return 1; }
+  sing-box check -c "$R/singbox.next.json" >"$R/check.log" 2>&1 || { cat "$R/check.log"; return 1; }
+}
+
+firewall_apply(){
+  if ! cmp -s "$R/nft.next.rules" "$R/nft.loaded.rules" || ! firewall_ready; then
+    {
+      nft list table inet fastacl252 >/dev/null 2>&1 && echo 'delete table inet fastacl252' || true
+      nft list table ip fastacl252_tproxy >/dev/null 2>&1 && echo 'delete table ip fastacl252_tproxy' || true
+      cat "$R/nft.next.rules"
+    } > "$R/nft.apply"
+    nft -c -f "$R/nft.apply"
+    nft -f "$R/nft.apply"
+    cp "$R/nft.next.rules" "$R/nft.loaded.rules"
+  fi
+}
+
+ensure_dnsmasq(){
+  dnsmasq_ready && return 0
+  (
+    /etc/init.d/dnsmasq start >"$R/dnsmasq-start.log" 2>&1 </dev/null &
+  ) || true
+  local i=0
+  while [ "$i" -lt 10 ]; do
+    sleep 1
+    dnsmasq_ready && return 0
+    i=$((i+1))
+  done
+  cat "$R/dnsmasq-start.log" 2>/dev/null || true
+  return 1
+}
+
+start_dns_next(){
+  cp "$R/dns.next.json" "$R/dns.json"
+  fastacl252-dns -config "$R/dns.json" >"$R/dns.log" 2>&1 &
+  echo $! > "$R/dns.pid"
+  wait_dns || { cat "$R/dns.log" 2>/dev/null || true; return 1; }
+}
+
+start_singbox_tproxy_next(){
+  command -v sing-box >/dev/null 2>&1 || { echo '[JuLiang OS] sing-box is not installed' >&2; return 1; }
+  singbox_tproxy_routes_start || { echo '[JuLiang OS] failed to install TPROXY routes' >&2; return 1; }
+  cp "$R/singbox.next.json" "$R/singbox.json"
+  /sbin/start-stop-daemon -S -b -m -p "$R/singbox.pid" -x /usr/bin/sing-box -- \
+    run -c "$R/singbox.json" >"$R/singbox-tproxy.log" 2>&1 || {
+    cat "$R/singbox-tproxy.log" 2>/dev/null || true
+    singbox_tproxy_stop
+    return 1
+  }
+  local i=0
+  while ! singbox_tproxy_ready; do
+    i=$((i+1))
+    if [ "$i" -ge 80 ]; then
+      cat "$R/singbox-tproxy.log" 2>/dev/null || true
+      singbox_tproxy_stop
+      return 1
+    fi
+    pause_fast
+  done
+}
+
+wait_tun(){
+  local i=0
+  while ! tun_interface_ready; do
+    i=$((i+1)); [ "$i" -lt 60 ] || return 1
+    pause_fast
+  done
+}
+
+tun_routes_stop(){
+  local i=0
+  while ip -4 rule del pref "$TUN_LOCAL_RULE" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 16 ] || break
+  done
+  i=0
+  while ip -4 rule del pref "$TUN_ROUTE_RULE" 2>/dev/null; do
+    i=$((i+1)); [ "$i" -lt 16 ] || break
+  done
+  ip -4 route flush table "$TUN_TABLE" 2>/dev/null || true
+}
+
+tun_routes_clone_connected(){
+  local route
+  ip -4 route show table main scope link 2>/dev/null |
+    while IFS= read -r route; do
+      [ -n "$route" ] || continue
+      ip -4 route replace table "$TUN_TABLE" $route
+    done
+}
+
+tun_routes_prepare(){
+  tun_routes_stop
+  # Seed the policy table with connected routes before sing-box starts.
+  tun_routes_clone_connected
+  ip -4 rule add pref "$TUN_LOCAL_RULE" iif lo lookup main
+  ip -4 rule add pref "$TUN_ROUTE_RULE" fwmark "$TUN_FWMARK" lookup "$TUN_TABLE"
+}
+
+tun_routes_activate(){
+  local iface
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  # The process has now created its real /30 connected route in the main table.
+  tun_routes_clone_connected
+  ip -4 route replace table "$TUN_TABLE" default dev "$iface"
+  tun_routes_ready
+}
+
+tun_routes_start(){
+  tun_routes_prepare
+  tun_routes_activate
+}
+
+tun_firewall_ensure(){
+  local iface network zone current section id desired has_proxy=0 changed=0
+  local setting key value source destination
+  iface=$(uci -q get fastacl252.main.tun_interface 2>/dev/null || echo fastacl-tun0)
+  network=$(uci -q get fastacl252.main.network 2>/dev/null || echo lan)
+
+  current=$(uci -q get firewall.fastacl_tun 2>/dev/null || true)
+  if [ "$current" != zone ]; then
+    uci set firewall.fastacl_tun=zone
+    changed=1
+  fi
+  for setting in \
+    "name=fastacl_tun" \
+    "input=REJECT" \
+    "output=ACCEPT" \
+    "forward=REJECT" \
+    "masq=0" \
+    "mtu_fix=0"; do
+    key=${setting%%=*}
+    value=${setting#*=}
+    current=$(uci -q get "firewall.fastacl_tun.$key" 2>/dev/null || true)
+    if [ "$current" != "$value" ]; then
+      uci set "firewall.fastacl_tun.$key=$value"
+      changed=1
+    fi
+  done
+  current=$(uci -q get firewall.fastacl_tun.device 2>/dev/null || true)
+  if [ "$current" != "$iface" ]; then
+    uci -q delete firewall.fastacl_tun.device 2>/dev/null || true
+    uci add_list firewall.fastacl_tun.device="$iface"
+    changed=1
+  fi
+
+  # A TUN interface may belong to only one fw4 zone.
+  zone=''
+  for section in $(uci -q show firewall 2>/dev/null |
+      awk -F= '$2 == "zone" { split($1, p, "."); print p[2] }'); do
+    [ "$section" != fastacl_tun ] || continue
+    current=$(uci -q get "firewall.$section.device" 2>/dev/null || true)
+    case " $current " in
+      *" $iface "*)
+        uci del_list "firewall.$section.device=$iface"
+        changed=1
+        ;;
+    esac
+    if [ "$(uci -q get "firewall.$section.name" 2>/dev/null || true)" = "$network" ]; then
+      zone=$section
+    fi
+  done
+  [ -n "$zone" ] || { echo '[JuLiang OS] LAN firewall zone not found' >&2; return 1; }
+
+  desired=''
+  for id in $(uci -q show fastacl252 2>/dev/null |
+      awk -F= '$2 == "device" { split($1, p, "."); print p[2] }'); do
+    if [ "$(uci -q get "fastacl252.$id.mode" 2>/dev/null || true)" = proxy ]; then
+      has_proxy=1
+      break
+    fi
+  done
+  if [ "$has_proxy" = 1 ]; then
+    desired="$desired fastacl_tun_fwd_${network} fastacl_tun_ret_${network}"
+  fi
+  for id in $(uci -q show fastacl252 2>/dev/null |
+      awk -F= '$2 == "wifi" { split($1, p, "."); print p[2] }'); do
+    if [ "$(uci -q get "fastacl252.$id.mode" 2>/dev/null || true)" = proxy ]; then
+      desired="$desired fastacl_tun_fwd_${id} fastacl_tun_ret_${id}"
+    fi
+  done
+
+  for section in $(uci -q show firewall 2>/dev/null |
+      awk -F= '$2 == "forwarding" { split($1, p, "."); print p[2] }'); do
+    case "$section" in fastacl_tun_*) ;; *) continue;; esac
+    case " $desired " in
+      *" $section "*) ;;
+      *)
+        uci -q delete "firewall.$section"
+        changed=1
+        ;;
+    esac
+  done
+
+  for section in $desired; do
+    current=$(uci -q get "firewall.$section" 2>/dev/null || true)
+    if [ "$current" != forwarding ]; then
+      uci set "firewall.$section=forwarding"
+      changed=1
+    fi
+    case "$section" in
+      fastacl_tun_fwd_*)
+        id=${section#fastacl_tun_fwd_}
+        source=$id
+        destination=fastacl_tun
+        ;;
+      *)
+        id=${section#fastacl_tun_ret_}
+        source=fastacl_tun
+        destination=$id
+        ;;
+    esac
+    current=$(uci -q get "firewall.$section.src" 2>/dev/null || true)
+    if [ "$current" != "$source" ]; then
+      uci set "firewall.$section.src=$source"
+      changed=1
+    fi
+    current=$(uci -q get "firewall.$section.dest" 2>/dev/null || true)
+    if [ "$current" != "$destination" ]; then
+      uci set "firewall.$section.dest=$destination"
+      changed=1
+    fi
+  done
+
+  if [ "$changed" = 1 ]; then
+    uci commit firewall
+    /etc/init.d/firewall reload >"$R/firewall-reload.log" 2>&1 ||
+      { cat "$R/firewall-reload.log" 2>/dev/null || true; return 1; }
+  fi
+}
+
+start_tun_core(){
+  cp "$R/singbox.next.json" "$R/singbox.json"
+  /sbin/start-stop-daemon -S -b -m -p "$R/tun.pid" -x /usr/bin/sing-box -- \
+    run -c "$R/singbox.json" >"$R/singbox.log" 2>&1 || {
+    cat "$R/singbox.log" 2>/dev/null || true
+    return 1
+  }
+  wait_tun || { cat "$R/singbox.log" 2>/dev/null || true; return 1; }
+}
+
+start_tun_next(){
+  command -v sing-box >/dev/null 2>&1 || { echo '[JuLiang OS] sing-box is not installed' >&2; return 1; }
+  tun_routes_prepare
+  start_tun_core
+  # Keep policy rules and LAN routes present, but delay the default TUN route
+  # until network-manager startup has settled.
+  sleep 4
+  tun_routes_activate || {
+    echo '[JuLiang OS] failed to install isolated TUN routes' >&2
+    tun_stop
+    return 1
+  }
+}
+
+reload_dns_next(){
+  if dns_ready && cmp -s "$R/dns.next.json" "$R/dns.json"; then return 0; fi
+  if ! dns_ready; then
+    dns_stop
+    start_dns_next
+    return $?
+  fi
+  cp "$R/dns.json" "$R/dns.prev.json"
+  cp "$R/dns.next.json" "$R/dns.json.pending"
+  mv "$R/dns.json.pending" "$R/dns.json"
+  if fastacl252-dns -reload -config "$R/dns.json" >"$R/dns-reload.log" 2>&1; then return 0; fi
+  echo '[JuLiang OS] DNS reload rejected; keeping the running policy and listener' >&2
+  cat "$R/dns-reload.log" >&2
+  cp "$R/dns.prev.json" "$R/dns.json.pending"
+  mv "$R/dns.json.pending" "$R/dns.json"
+  return 1
+}
+
+reload_tun_next(){
+  if tun_ready && cmp -s "$R/singbox.next.json" "$R/singbox.json"; then return 0; fi
+  tun_stop
+  start_tun_next
+}
+
+reload_singbox_tproxy_next(){
+  if singbox_tproxy_ready && cmp -s "$R/singbox.next.json" "$R/singbox.json"; then return 0; fi
+  singbox_tproxy_stop
+  start_singbox_tproxy_next
+}
+
+schedule_timezone_sync(){
+  [ "$(uci -q get fastacl252.main.auto_timezone 2>/dev/null || echo 1)" = 1 ] || return 0
+  [ -x /usr/libexec/fastacl252-timezone-sync ] || return 0
+  /usr/libexec/fastacl252-timezone-sync >"$R/timezone-sync.log" 2>&1 &
+}
+
+hot_apply(){
+  raise_nofile
+  acquire_lock
+  generate_guards
+  generate_next
+  validate_next
+  if [ "$(dataplane_now)" = tun ]; then tun_firewall_ensure; fi
+  firewall_apply
+  if [ -x /usr/libexec/fastacl252-wifi-fw4.lua ]; then
+    lua /usr/libexec/fastacl252-wifi-fw4.lua >"$R/wifi-fw4.log" 2>&1 ||
+      { cat "$R/wifi-fw4.log" 2>/dev/null || true; return 1; }
+  fi
+  ensure_dnsmasq || return 1
+  reload_dns_next
+  case "$(dataplane_now)" in
+    tun)
+      singbox_tproxy_stop
+      reload_tun_next
+      ;;
+    singbox)
+      tun_stop
+      reload_singbox_tproxy_next
+      ;;
+  esac
+  echo 'hot' > "$R/last-request-mode"
+  schedule_timezone_sync
+}
+
+cold_apply(){
+  raise_nofile
+  acquire_lock
+  # Install fail-close guards even if a saved proxy configuration is invalid.
+  generate_guards
+  generate_next
+  validate_next
+  if [ "$(dataplane_now)" = tun ]; then tun_firewall_ensure; fi
+  firewall_apply
+  if [ -x /usr/libexec/fastacl252-wifi-fw4.lua ]; then
+    lua /usr/libexec/fastacl252-wifi-fw4.lua >"$R/wifi-fw4.log" 2>&1 ||
+      { cat "$R/wifi-fw4.log" 2>/dev/null || true; return 1; }
+  fi
+  ensure_dnsmasq || return 1
+  tun_stop
+  singbox_tproxy_stop
+  dns_stop
+  start_dns_next
+  case "$(dataplane_now)" in
+    singbox) start_singbox_tproxy_next ;;
+    tun) start_tun_next ;;
+  esac
+  echo 'cold' > "$R/last-request-mode"
+  echo 'app-restart' > "$R/last-apply-mode"
+  schedule_timezone_sync
+}
+
+ensure_runtime(){
+  if core_ready && dns_ready && firewall_ready; then return 0; fi
+  echo '[JuLiang OS] runtime unhealthy; recovering only failed components' >&2
+  hot_apply
+}
+
+status(){
+  local engine=stopped fw=false mode=none request=none plane connections=0 tcp_connections=0 udp_connections=0 counts
+  plane=$(dataplane_now)
+  core_alive && engine=running
+  [ "$engine" != running ] || dns_ready || engine=broken
+  [ "$engine" != running ] || core_ready || engine=broken
+  firewall_ready && fw=true
+  [ ! -s "$R/last-apply-mode" ] || mode=$(cat "$R/last-apply-mode")
+  [ ! -s "$R/last-request-mode" ] || request=$(cat "$R/last-request-mode")
+  counts=$(proxy_connection_counts)
+  set -- $counts
+  connections=${1:-0}; tcp_connections=${2:-0}; udp_connections=${3:-0}
+  printf '{"engine":"%s","firewall":%s,"backend":"nft","dataplane":"%s","switch":"%s","request":"%s","capacity_profile":"%s","connections":%s,"tcp_connections":%s,"udp_connections":%s,"connection_limit":%s,"session_connection_limit":%s}\n' "$engine" "$fw" "$plane" "$mode" "$request" "$CAPACITY_PROFILE" "$connections" "$tcp_connections" "$udp_connections" "$CONNECTION_LIMIT" "$SESSION_CONNECTION_LIMIT"
+}
+
+case "${1:-status}" in
+  apply|hot-apply) hot_apply;;
+  cold-apply) cold_apply;;
+  ensure) ensure_runtime;;
+  status) status;;
+  health)
+    reason=$(runtime_failure 2>/dev/null || true)
+    if [ -n "$reason" ]; then
+      echo "unhealthy: $reason"
+    else
+      health_snapshot
+      echo healthy
+    fi;;
+  stop)
+    dns_stop
+    tun_stop
+    singbox_tproxy_stop
+    echo 'Core stopped; protection rules retained';;
+  guard)
+    raise_nofile
+    failures=0
+    last_snapshot=0
+    while [ "$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 0)" = 1 ]; do
+      reason=$(runtime_failure 2>/dev/null || true)
+      if [ -n "$reason" ]; then
+        failures=$((failures+1))
+        health_log "failure=$reason consecutive=$failures"
+        if [ "$failures" -ge 2 ]; then
+          now=$(date +%s)
+          last=$(cat "$R/health.last-recovery" 2>/dev/null || echo 0)
+          if [ $((now-last)) -ge "$RECOVERY_COOLDOWN" ]; then
+            health_log "recovering runtime after $failures failures"
+            echo "$now" > "$R/health.last-recovery"
+            /usr/bin/fastacl252 hot-apply >"$R/health.recovery.log" 2>&1 || true
+            failures=0
+            pause_fast
+            sleep 10
+          fi
+        fi
+      else
+        [ "$failures" -eq 0 ] || health_log "runtime recovered"
+        failures=0
+        now=$(date +%s)
+        if [ $((now-last_snapshot)) -ge 300 ]; then
+          health_snapshot
+          last_snapshot=$now
+        fi
+      fi
+      if [ ! -d /tmp/fastacl252-subscribe.lock ]; then
+        lua /usr/libexec/fastacl252-subscribe.lua due >"$R/subscribe.log" 2>&1 &
+      fi
+      sleep 10
+    done;;
+  cleanup)
+    dns_stop
+    tun_stop
+    singbox_tproxy_stop
+    nft delete table inet fastacl252 2>/dev/null || true
+    nft delete table ip fastacl252_tproxy 2>/dev/null || true
+    rm -f "$R/nft.loaded.rules";;
+  *)
+    echo 'Usage: fastacl252 hot-apply|cold-apply|ensure|status|health|stop|guard|cleanup' >&2
+    exit 2;;
+esac

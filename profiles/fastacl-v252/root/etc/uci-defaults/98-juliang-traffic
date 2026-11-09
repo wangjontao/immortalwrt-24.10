@@ -1,0 +1,8 @@
+#!/bin/sh
+
+chmod 755 /etc/init.d/juliang-traffic /usr/libexec/juliang-traffic-setup \
+	/etc/hotplug.d/iface/99-juliang-traffic
+/etc/init.d/juliang-traffic enable
+/etc/init.d/juliang-traffic restart >/dev/null 2>&1 || true
+
+exit 0

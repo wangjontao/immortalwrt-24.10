@@ -1,0 +1,86 @@
+{#
+ JuLiang OS secure login template
+-#}
+
+{% include('header', { blank_page: true }) %}
+
+<main class="juliang-login-page">
+	<div class="juliang-login-stage">
+		<header class="juliang-login-heading">
+			<span class="juliang-login-heading-copy">
+				<h1 id="juliang-login-title">炬量网络控制台</h1>
+			</span>
+		</header>
+
+		<section class="juliang-login-panel" aria-label="登录">
+			<div class="juliang-login-panel-status">
+				<span><i></i>安全接入</span>
+			</div>
+
+			{% if (fuser): %}
+			<div class="juliang-login-error">无效的用户名或密码</div>
+			{% endif %}
+
+			<form method="post" id="juliang-login-form">
+			<div class="juliang-input-wrap">
+				<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+				<input name="luci_username" id="luci_username" type="text" autocomplete="username" value="" placeholder="账号" aria-label="账号">
+			</div>
+
+			<div class="juliang-input-wrap">
+				<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+				<input name="luci_password" id="luci_password" type="password" autocomplete="current-password" placeholder="密码" aria-label="密码">
+				<button class="juliang-reveal" id="juliang-reveal" type="button" aria-label="显示密码" aria-pressed="false">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+				</button>
+			</div>
+
+			<button class="juliang-login-button" type="submit">
+				<span>登录</span>
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 7l5 5-5 5"/></svg>
+			</button>
+			</form>
+
+			<footer class="juliang-login-foot">
+				<span><i></i>系统在线</span>
+				<span>JULIANG / 0285</span>
+			</footer>
+		</section>
+	</div>
+</main>
+
+<script>
+	(function () {
+		'use strict';
+		var username = document.getElementById('luci_username');
+		var password = document.getElementById('luci_password');
+		var reveal = document.getElementById('juliang-reveal');
+		reveal.addEventListener('click', function () {
+			var showing = password.type === 'text';
+			password.type = showing ? 'password' : 'text';
+			reveal.classList.toggle('is-visible', !showing);
+			reveal.setAttribute('aria-pressed', showing ? 'false' : 'true');
+			reveal.setAttribute('aria-label', showing ? '显示密码' : '隐藏密码');
+			password.focus();
+		});
+		username.focus();
+	})();
+
+	(function () {
+		'use strict';
+		function clearPreauthRpcNotice() {
+			document.querySelectorAll('.alert-message, .alert').forEach(function (notice) {
+				if (notice.textContent.indexOf('No related RPC reply') !== -1) {
+					notice.remove();
+				}
+			});
+		}
+		var observer = new MutationObserver(clearPreauthRpcNotice);
+		observer.observe(document.documentElement, { childList: true, subtree: true });
+		document.addEventListener('DOMContentLoaded', clearPreauthRpcNotice);
+		window.setTimeout(clearPreauthRpcNotice, 500);
+		window.setTimeout(clearPreauthRpcNotice, 2000);
+	})();
+</script>
+
+{% include('footer', { blank_page: true }) %}

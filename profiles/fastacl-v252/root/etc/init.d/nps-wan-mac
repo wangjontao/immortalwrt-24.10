@@ -1,0 +1,9 @@
+#!/bin/sh /etc/rc.common
+START=98
+STOP=10
+start(){
+  (
+    sleep 40
+    [ -e /tmp/nps-wan-mac.ready ] || /usr/libexec/nps-wan-mac
+  ) >/dev/null 2>&1 &
+}

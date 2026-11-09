@@ -1,0 +1,4 @@
+#!/bin/sh
+# Enable the JuLiang dashboard traffic sampler on first boot.
+/etc/init.d/juliang-dashboard enable
+exit 0

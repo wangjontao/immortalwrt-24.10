@@ -1,0 +1,33 @@
+#!/bin/sh
+# WAN DHCP lease guard.
+#
+# Background: with some fibre modems the DHCP lease silently expires and the
+# client never gets a new address, so the WAN stays up with no IPv4 address and
+# the router looks "connected" while every client has no internet.
+#
+# This loop checks once a minute and re-runs ifup wan after three consecutive
+# misses. network.wan.norelease=1 also stops OpenWrt from sending DHCPRELEASE on
+# ifdown, so the modem keeps leasing the same address.
+
+MISSES=0
+LIMIT=3
+
+wan_has_address() {
+    addr="$(ifstatus wan 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)"
+    [ -n "$addr" ]
+}
+
+while true; do
+    if wan_has_address; then
+        MISSES=0
+    else
+        MISSES=$((MISSES + 1))
+        logger -t wan-lease-guard "wan has no IPv4 address (miss ${MISSES}/${LIMIT})"
+        if [ "$MISSES" -ge "$LIMIT" ]; then
+            logger -t wan-lease-guard "restarting wan to force a fresh lease"
+            ifup wan
+            MISSES=0
+        fi
+    fi
+    sleep 60
+done

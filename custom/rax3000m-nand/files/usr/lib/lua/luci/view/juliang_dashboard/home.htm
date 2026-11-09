@@ -1,0 +1,1959 @@
+<%+header%>
+<%
+	local status_url = luci.dispatcher.build_url("admin", "home", "status")
+	local network_url = luci.dispatcher.build_url("admin", "network")
+%>
+<style>
+.jd-page {
+	--jd-ink: #294866;
+	--jd-muted: #718399;
+	--jd-line: #dbe4ee;
+	--jd-blue: #5a81ba;
+	--jd-teal: #579f9f;
+	--jd-violet: #8b79bd;
+	--jd-warm: #d08c58;
+	width: 100%;
+	max-width: none;
+	margin: 0;
+	padding: 0 0 24px;
+	box-sizing: border-box;
+}
+
+.jd-page * {
+	box-sizing: border-box;
+}
+
+.jd-hero {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 22px;
+	padding: 24px 26px;
+	margin-bottom: 18px;
+	overflow: hidden;
+	border: 1px solid #c7d5e5;
+	border-radius: 14px;
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 38%),
+		linear-gradient(115deg, #c5d9ed 0%, #d3e2ef 48%, #ddd8ef 100%);
+	box-shadow:
+		0 14px 32px rgba(42, 72, 103, 0.13),
+		inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.jd-hero:after {
+	content: "";
+	position: absolute;
+	left: 24px;
+	right: 24px;
+	bottom: 0;
+	height: 2px;
+	background: linear-gradient(90deg, #5a81ba, #579f9f 55%, #8b79bd);
+	opacity: 0.72;
+}
+
+.jd-eyebrow {
+	margin-bottom: 5px;
+	color: #526f8f;
+	font-size: 11px;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.jd-hero h1 {
+	margin: 0;
+	color: #304f70;
+	font-size: 27px;
+	font-weight: 850;
+	line-height: 1.2;
+}
+
+.jd-hero p {
+	margin: 7px 0 0;
+	color: #627a91;
+	font-size: 13px;
+}
+
+.jd-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 9px;
+}
+
+.jd-live {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 7px 10px;
+	border: 1px solid rgba(69, 130, 113, 0.28);
+	border-radius: 999px;
+	background: rgba(247, 255, 251, 0.74);
+	color: #3e7767;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.jd-live i {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #45a57f;
+	box-shadow: 0 0 0 4px rgba(69, 165, 127, 0.13);
+}
+
+.jd-updated {
+	color: #60778e;
+	font-size: 11px;
+}
+
+.jd-refresh {
+	appearance: none;
+	min-height: 34px;
+	padding: 6px 14px;
+	border: 1px solid #8ca9c6;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.76);
+	color: #365f85;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.jd-refresh:hover {
+	background: #fff;
+	border-color: #6e91b4;
+}
+
+.jd-alert {
+	display: none;
+	margin: 0 0 14px;
+	padding: 10px 13px;
+	border: 1px solid #efd4c2;
+	border-radius: 8px;
+	background: #fff7f0;
+	color: #a45d2f;
+	font-size: 12px;
+}
+
+.jd-alert.is-visible {
+	display: block;
+}
+
+.jd-metrics {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+	margin-bottom: 14px;
+}
+
+.jd-metric,
+.jd-panel {
+	--card-a: #ffffff;
+	--card-b: #f0f6fc;
+	--accent: #6f92bd;
+	position: relative;
+	min-width: 0;
+	overflow: hidden;
+	border: 1px solid #d2deea;
+	border-radius: 12px;
+	background: linear-gradient(150deg, var(--card-a), var(--card-b));
+	box-shadow:
+		0 9px 24px rgba(41, 72, 102, 0.1),
+		inset 0 1px 0 #fff;
+}
+
+.jd-metric:before,
+.jd-panel:before {
+	content: "";
+	position: absolute;
+	z-index: 2;
+	top: 0;
+	left: 14px;
+	right: 14px;
+	height: 3px;
+	border-radius: 0 0 3px 3px;
+	background: linear-gradient(90deg, transparent, var(--accent) 15%, var(--accent) 85%, transparent);
+	opacity: 0.8;
+	pointer-events: none;
+}
+
+.jd-metric.cpu-metric {
+	--card-a: #f9fcff;
+	--card-b: #e6f0fb;
+	--accent: #5a81ba;
+}
+
+.jd-metric.memory-metric {
+	--card-a: #fbfffe;
+	--card-b: #e8f6f3;
+	--accent: #579f9f;
+}
+
+.jd-metric.temperature-metric {
+	--card-a: #fffdfb;
+	--card-b: #f8eee5;
+	--accent: #d08c58;
+}
+
+.jd-metric.system-metric {
+	--card-a: #fdfcff;
+	--card-b: #eeeaf8;
+	--accent: #8b79bd;
+}
+
+.jd-panel.wan-panel {
+	--card-a: #f9fdff;
+	--card-b: #e7f2fb;
+	--accent: #4f86ba;
+}
+
+.jd-panel.jd-egress {
+	--card-a: #fdfcff;
+	--card-b: #efeaf8;
+	--accent: #8b79bd;
+}
+
+.jd-panel.jd-traffic {
+	--card-a: #fbfeff;
+	--card-b: #eaf5fa;
+	--accent: #5f9ba5;
+}
+
+.jd-metric {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+	min-height: 132px;
+	padding: 18px;
+}
+
+.jd-gauge {
+	--value: 0;
+	--gauge-color: var(--jd-blue);
+	position: relative;
+	flex: 0 0 78px;
+	width: 78px;
+	height: 78px;
+	padding: 7px;
+	border-radius: 50%;
+	background: conic-gradient(var(--gauge-color) calc(var(--value) * 1%), #e3eaf1 0);
+	box-shadow: 0 6px 16px rgba(43, 70, 97, 0.12);
+}
+
+.jd-gauge:after {
+	content: "";
+	position: absolute;
+	inset: 7px;
+	border: 1px solid #e4ebf3;
+	border-radius: 50%;
+	background: #fff;
+}
+
+.jd-gauge span {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding-top: 21px;
+	color: #2c4e70;
+}
+
+.jd-gauge b {
+	font-size: 21px;
+	font-weight: 850;
+	font-variant-numeric: tabular-nums;
+}
+
+.jd-gauge small {
+	margin-left: 1px;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.jd-gauge.memory {
+	--gauge-color: var(--jd-teal);
+}
+
+.jd-gauge.temperature {
+	--gauge-color: var(--jd-warm);
+}
+
+.jd-metric-copy {
+	min-width: 0;
+}
+
+.jd-metric-copy h2,
+.jd-panel h2 {
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+	margin: 0;
+	padding: 6px 10px;
+	border: 1px solid rgba(151, 174, 197, 0.42);
+	border-left: 3px solid var(--accent);
+	border-radius: 6px;
+	background: linear-gradient(110deg, rgba(225, 238, 249, 0.88), rgba(235, 230, 248, 0.82));
+	color: #354f69;
+	font-size: 14px;
+	font-weight: 800;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.jd-metric-copy strong {
+	display: block;
+	margin: 8px 0 4px;
+	color: #315d89;
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.jd-metric.memory-metric .jd-metric-copy strong {
+	color: #28766f;
+}
+
+.jd-metric.temperature-metric .jd-metric-copy strong {
+	color: #9f6138;
+}
+
+.jd-metric.system-metric .jd-metric-copy strong {
+	color: #655398;
+}
+
+.jd-metric-copy p {
+	margin: 0;
+	color: var(--jd-muted);
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+.jd-metric.system-metric {
+	display: block;
+	padding: 20px;
+}
+
+.jd-system-line {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: 15px;
+	padding-top: 12px;
+	border-top: 1px solid #e4ebf3;
+	color: #6e8094;
+	font-size: 11px;
+}
+
+.jd-system-line b {
+	color: #3f6585;
+	font-size: 12px;
+}
+
+.jd-network {
+	display: grid;
+	grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+	gap: 14px;
+	margin-bottom: 14px;
+}
+
+.jd-panel {
+	padding: 18px 20px;
+}
+
+.jd-panel-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 15px;
+}
+
+.jd-panel-note {
+	color: #7a8b9e;
+	font-size: 11px;
+}
+
+.jd-wan-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.jd-detail {
+	min-width: 0;
+}
+
+.jd-detail span {
+	display: block;
+	margin-bottom: 5px;
+	color: #7b8c9e;
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.jd-detail strong {
+	display: block;
+	color: #345675;
+	font-size: 13px;
+	font-weight: 750;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+.jd-state {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: #47876e !important;
+}
+
+.jd-state:before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.jd-state.down {
+	color: #bb5d58 !important;
+}
+
+.jd-egress {
+	position: relative;
+	display: grid;
+	grid-template-columns: 58px minmax(0, 1fr);
+	align-items: center;
+	gap: 15px;
+	overflow: hidden;
+}
+
+.jd-egress:after {
+	content: "";
+	position: absolute;
+	right: -42px;
+	bottom: -64px;
+	width: 150px;
+	height: 150px;
+	border-radius: 50%;
+	background: rgba(139, 121, 189, 0.08);
+	pointer-events: none;
+}
+
+.jd-flag {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 54px;
+	height: 42px;
+	overflow: hidden;
+	border: 1px solid #d4dde7;
+	border-radius: 7px;
+	background: #fff;
+	box-shadow: 0 5px 14px rgba(37, 68, 98, 0.12);
+}
+
+.jd-flag img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.jd-flag-fallback {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #edf3f9;
+	color: #516b85;
+	font-size: 13px;
+	font-weight: 850;
+}
+
+.jd-flag img.is-ready + .jd-flag-fallback {
+	display: none;
+}
+
+.jd-egress-copy {
+	position: relative;
+	z-index: 1;
+	min-width: 0;
+}
+
+.jd-egress-copy h2 {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.jd-mode {
+	padding: 3px 7px;
+	border: 1px solid #d3dde8;
+	border-radius: 999px;
+	background: #f7fafc;
+	color: #6b7e92;
+	font-size: 9px;
+	font-weight: 850;
+}
+
+.jd-mode.proxy {
+	border-color: #badacd;
+	background: #f1faf6;
+	color: #3f806a;
+}
+
+.jd-ip {
+	display: block;
+	margin-top: 7px;
+	color: #2c4f70;
+	font-size: 20px;
+	font-weight: 850;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+.jd-country {
+	display: block;
+	margin-top: 5px;
+	color: #74869a;
+	font-size: 11px;
+}
+
+.jd-ports-section {
+	margin-bottom: 14px;
+}
+
+.jd-ports-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 5px 2px 10px;
+}
+
+.jd-ports-head h2 {
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+	margin: 0;
+	padding: 6px 10px;
+	border: 1px solid rgba(151, 174, 197, 0.42);
+	border-left: 3px solid #4f9b9e;
+	border-radius: 6px;
+	background: linear-gradient(110deg, rgba(221, 241, 244, 0.9), rgba(232, 234, 249, 0.84));
+	color: #345f72;
+	font-size: 14px;
+	font-weight: 800;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.jd-ports-head span {
+	color: #75889c;
+	font-size: 11px;
+}
+
+.jd-ports-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.jd-port {
+	--port-accent: #9aabbc;
+	min-width: 0;
+	padding: 14px;
+	border: 1px solid #d5e0e9;
+	border-radius: 10px;
+	background: linear-gradient(150deg, #fff, #f2f6fa);
+	box-shadow:
+		0 6px 16px rgba(42, 70, 96, 0.07),
+		inset 0 1px 0 #fff;
+}
+
+.jd-port.connected {
+	--port-accent: #55a07f;
+	border-color: #c7dfd6;
+	background: linear-gradient(150deg, #fbfffd, #eaf6f1);
+}
+
+.jd-port.connected.high-speed {
+	--port-accent: #4d8eb9;
+	border-color: #c8dce9;
+	background: linear-gradient(150deg, #fbfeff, #e8f3fb);
+}
+
+.jd-port.disconnected {
+	background: linear-gradient(150deg, #fbfcfd, #eef2f5);
+}
+
+.jd-port-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid rgba(136, 157, 178, 0.2);
+}
+
+.jd-port-role {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+	color: #385873;
+	font-size: 12px;
+	font-weight: 850;
+}
+
+.jd-port-role:before {
+	content: "";
+	flex: 0 0 7px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--port-accent);
+	box-shadow: 0 0 0 4px rgba(85, 160, 127, 0.13);
+	box-shadow: 0 0 0 4px color-mix(in srgb, var(--port-accent) 14%, transparent);
+}
+
+.jd-port-device {
+	color: #8191a3;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.jd-port-speed {
+	display: block;
+	margin-top: 11px;
+	color: #315b7b;
+	font-size: 19px;
+	font-weight: 850;
+	line-height: 1.15;
+}
+
+.jd-port.connected.high-speed .jd-port-speed {
+	color: #2f6d99;
+}
+
+.jd-port-state {
+	display: block;
+	margin-top: 4px;
+	color: #73879a;
+	font-size: 10px;
+}
+
+.jd-port-rates {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 11px;
+	color: #738699;
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+}
+
+.jd-port-rates b {
+	display: block;
+	margin-top: 2px;
+	color: #436681;
+	font-size: 11px;
+	font-weight: 750;
+}
+
+.jd-ports-empty {
+	grid-column: 1 / -1;
+	padding: 18px;
+	border: 1px dashed #cfdae4;
+	border-radius: 9px;
+	color: #7a8b9c;
+	font-size: 12px;
+	text-align: center;
+}
+
+.jd-traffic {
+	overflow: hidden;
+}
+
+.jd-traffic-top {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 18px;
+	margin-bottom: 10px;
+}
+
+.jd-rate-pair {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 8px 18px;
+}
+
+.jd-rate-pair span {
+	color: #71849a;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.jd-rate-pair b {
+	margin-left: 4px;
+	color: #345a7e;
+	font-size: 17px;
+	font-weight: 850;
+	font-variant-numeric: tabular-nums;
+}
+
+.jd-rate-pair .download b {
+	color: #438a86;
+}
+
+.jd-chart-wrap {
+	position: relative;
+	height: 240px;
+	margin-top: 4px;
+	border: 1px solid #e0e8f0;
+	border-radius: 9px;
+	background: linear-gradient(180deg, #fbfdff, #f4f8fc);
+	overflow: hidden;
+}
+
+.jd-chart {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.jd-legend {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin: 9px 2px 0;
+	color: #77899d;
+	font-size: 10px;
+}
+
+.jd-legend i {
+	display: inline-block;
+	width: 16px;
+	height: 2px;
+	margin-right: 5px;
+	vertical-align: middle;
+	background: #718dc2;
+}
+
+.jd-legend .download i {
+	background: #5e9e9b;
+}
+
+.jd-legend .range {
+	margin-left: auto;
+}
+
+.jd-totals {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin-top: 15px;
+	border-top: 1px solid #e2e9f1;
+}
+
+.jd-total {
+	min-width: 0;
+	padding: 15px 16px 0;
+	border-right: 1px solid #e5ebf2;
+}
+
+.jd-total:first-child {
+	padding-left: 2px;
+}
+
+.jd-total:last-child {
+	border-right: 0;
+}
+
+.jd-total h3 {
+	margin: 0 0 9px;
+	color: #6e8196;
+	font-size: 11px;
+	font-weight: 800;
+}
+
+.jd-total-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 0;
+	color: #7b8c9e;
+	font-size: 10px;
+}
+
+.jd-total-row b {
+	color: #3b5f80;
+	font-size: 12px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: dark) {
+	.jd-page {
+		--jd-ink: #dbe7f2;
+		--jd-muted: #9badc0;
+		--jd-line: #33475b;
+	}
+
+	.jd-hero {
+		border-color: #334b63;
+		background:
+			linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 38%),
+			linear-gradient(115deg, #263e55, #2a4559 48%, #3c3b54);
+	}
+
+	.jd-eyebrow,
+	.jd-hero p,
+	.jd-updated {
+		color: #a9bacb;
+	}
+
+	.jd-hero h1,
+	.jd-metric-copy strong,
+	.jd-panel h2,
+	.jd-detail strong,
+	.jd-ip,
+	.jd-rate-pair b,
+	.jd-total-row b {
+		color: #e1ebf5;
+	}
+
+	.jd-page .jd-metric,
+	.jd-page .jd-panel {
+		--card-a: #273746;
+		--card-b: #22313f;
+		border-color: #34495c;
+		background: linear-gradient(150deg, #273746, #22313f);
+		box-shadow: none;
+	}
+
+	.jd-gauge:after {
+		border-color: #3b4f63;
+		background: #253645;
+	}
+
+	.jd-gauge span {
+		color: #e0eaf3;
+	}
+
+	.jd-egress {
+		background: linear-gradient(150deg, var(--card-a), var(--card-b));
+	}
+
+	.jd-ports-head h2 {
+		border-color: #395367;
+		background: linear-gradient(110deg, #2a4654, #33344c);
+		color: #dce9f3;
+		box-shadow: none;
+	}
+
+	.jd-ports-head span,
+	.jd-port-device,
+	.jd-port-state,
+	.jd-port-rates {
+		color: #9aafc2;
+	}
+
+	.jd-port {
+		border-color: #35495c;
+		background: linear-gradient(150deg, #283847, #22313f);
+		box-shadow: none;
+	}
+
+	.jd-port.connected {
+		border-color: #385c52;
+		background: linear-gradient(150deg, #263d39, #22332f);
+	}
+
+	.jd-port.connected.high-speed {
+		border-color: #345870;
+		background: linear-gradient(150deg, #263a4a, #22313f);
+	}
+
+	.jd-port-role,
+	.jd-port-speed,
+	.jd-port-rates b {
+		color: #e0ebf4;
+	}
+
+	.jd-chart-wrap {
+		border-color: #34495d;
+		background: linear-gradient(180deg, #263746, #22313f);
+	}
+
+	.jd-total,
+	.jd-system-line {
+		border-color: #34495d;
+	}
+}
+
+@media (max-width: 1100px) {
+	.jd-metrics {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.jd-network {
+		grid-template-columns: 1fr;
+	}
+
+	.jd-ports-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 700px) {
+	.jd-page {
+		padding-bottom: 16px;
+	}
+
+	.jd-hero {
+		align-items: flex-start;
+		flex-direction: column;
+		padding: 20px;
+	}
+
+	.jd-toolbar {
+		justify-content: flex-start;
+	}
+
+	.jd-metrics {
+		gap: 10px;
+	}
+
+	.jd-metric {
+		min-height: 118px;
+		padding: 14px;
+	}
+
+	.jd-gauge {
+		flex-basis: 66px;
+		width: 66px;
+		height: 66px;
+	}
+
+	.jd-gauge span {
+		padding-top: 16px;
+	}
+
+	.jd-gauge b {
+		font-size: 18px;
+	}
+
+	.jd-metric-copy strong {
+		font-size: 15px;
+	}
+
+	.jd-wan-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.jd-ports-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.jd-totals {
+		grid-template-columns: 1fr;
+	}
+
+	.jd-total,
+	.jd-total:first-child {
+		padding: 12px 0;
+		border-right: 0;
+		border-bottom: 1px solid #e5ebf2;
+	}
+
+	.jd-total:last-child {
+		border-bottom: 0;
+	}
+
+	.jd-chart-wrap {
+		height: 190px;
+	}
+}
+
+@media (max-width: 480px) {
+	.jd-metrics {
+		grid-template-columns: 1fr;
+	}
+
+	.jd-metric {
+		min-height: 0;
+	}
+
+	.jd-wan-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.jd-traffic-top {
+		flex-direction: column;
+	}
+}
+
+@media (max-width: 420px) {
+	.jd-ports-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.jd-refresh {
+		transition: none;
+	}
+}
+
+/* Unified network-operations visual theme. */
+.jd-page {
+	--jd-ink: #e2f0fa;
+	--jd-muted: #89a4ba;
+	--jd-line: #294257;
+	padding: 18px;
+	border: 1px solid #274357;
+	border-radius: 16px;
+	background:
+		linear-gradient(rgba(93, 151, 187, 0.045) 1px, transparent 1px) 0 0 / 42px 42px,
+		linear-gradient(90deg, rgba(93, 151, 187, 0.045) 1px, transparent 1px) 0 0 / 42px 42px,
+		radial-gradient(ellipse at 82% 0%, rgba(63, 175, 193, 0.14), transparent 38%),
+		linear-gradient(135deg, #0d1b29 0%, #0a1521 56%, #101c2b 100%);
+	box-shadow:
+		0 20px 46px rgba(8, 24, 37, 0.24),
+		inset 0 1px 0 rgba(145, 206, 227, 0.1);
+	color: var(--jd-ink);
+}
+
+.jd-hero {
+	border-color: #2b4a61;
+	background:
+		linear-gradient(135deg, rgba(111, 205, 221, 0.08), transparent 38%),
+		linear-gradient(110deg, #122a3f 0%, #153449 52%, #211f39 100%);
+	box-shadow:
+		0 16px 36px rgba(2, 12, 22, 0.28),
+		inset 0 1px 0 rgba(175, 226, 241, 0.12);
+}
+
+.jd-hero:after {
+	background: linear-gradient(90deg, #45cfdc, #55d6a5 54%, #a88af3);
+	box-shadow: 0 0 12px rgba(77, 211, 218, 0.35);
+	opacity: 0.9;
+}
+
+.jd-eyebrow {
+	color: #63d8c5;
+}
+
+.jd-hero h1 {
+	color: #edf8ff;
+	text-shadow: 0 4px 18px rgba(67, 198, 219, 0.18);
+}
+
+.jd-hero p,
+.jd-updated {
+	color: #94aec2;
+}
+
+.jd-live {
+	border-color: rgba(91, 218, 172, 0.34);
+	background: rgba(20, 57, 50, 0.78);
+	color: #7ce4b9;
+}
+
+.jd-live i {
+	background: #5ee3ad;
+	box-shadow: 0 0 0 4px rgba(94, 227, 173, 0.12), 0 0 12px rgba(94, 227, 173, 0.5);
+}
+
+.jd-refresh {
+	border-color: #3d6782;
+	background: rgba(13, 34, 50, 0.8);
+	color: #bce6f4;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.jd-refresh:hover {
+	border-color: #55bdd2;
+	background: #15374b;
+}
+
+.jd-alert {
+	border-color: #754936;
+	background: #2a1d19;
+	color: #ffc49e;
+}
+
+.jd-page .jd-metric,
+.jd-page .jd-panel {
+	--card-a: #122638;
+	--card-b: #0e1d2b;
+	border-color: var(--jd-line);
+	background: linear-gradient(150deg, var(--card-a), var(--card-b));
+	box-shadow:
+		0 10px 26px rgba(1, 10, 18, 0.24),
+		inset 0 1px 0 rgba(208, 239, 250, 0.07);
+}
+
+.jd-page .jd-metric.cpu-metric {
+	--card-a: #10283a;
+	--card-b: #0d1d2d;
+	--accent: #48cfdf;
+}
+
+.jd-page .jd-metric.memory-metric {
+	--card-a: #0f2a2b;
+	--card-b: #0c1e23;
+	--accent: #50d5a0;
+}
+
+.jd-page .jd-metric.temperature-metric {
+	--card-a: #2b241c;
+	--card-b: #201a17;
+	--accent: #f0ad61;
+}
+
+.jd-page .jd-metric.system-metric {
+	--card-a: #262337;
+	--card-b: #171c2b;
+	--accent: #a98cf2;
+}
+
+.jd-page .jd-panel.wan-panel {
+	--card-a: #10283a;
+	--card-b: #0c1d2b;
+	--accent: #54b9e9;
+}
+
+.jd-page .jd-panel.jd-egress {
+	--card-a: #272137;
+	--card-b: #141d2b;
+	--accent: #b08cf0;
+}
+
+.jd-page .jd-panel.jd-traffic {
+	--card-a: #0f2631;
+	--card-b: #0b1a26;
+	--accent: #4fd2c1;
+}
+
+.jd-metric:before,
+.jd-panel:before {
+	background: linear-gradient(90deg, transparent, var(--accent) 13%, var(--accent) 87%, transparent);
+	box-shadow: 0 0 9px var(--accent);
+	opacity: 0.9;
+}
+
+.jd-metric-copy h2,
+.jd-panel h2 {
+	border-color: #36536a;
+	border-left-color: var(--accent);
+	background: linear-gradient(110deg, #183247, #24233b);
+	color: #e2f0fa;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.jd-gauge {
+	background: conic-gradient(var(--gauge-color) calc(var(--value) * 1%), #293d4e 0);
+	box-shadow:
+		0 8px 18px rgba(0, 0, 0, 0.3),
+		0 0 16px rgba(74, 203, 220, 0.08);
+}
+
+.jd-gauge:after {
+	border-color: #2e485d;
+	background: #0e1c29;
+}
+
+.jd-gauge span {
+	color: #edf8ff;
+}
+
+.jd-metric-copy strong {
+	color: #63d5e2;
+	text-shadow: 0 0 16px rgba(72, 207, 223, 0.14);
+}
+
+.jd-page .jd-metric.memory-metric .jd-metric-copy strong {
+	color: #67dda9;
+}
+
+.jd-page .jd-metric.temperature-metric .jd-metric-copy strong {
+	color: #f3b770;
+}
+
+.jd-page .jd-metric.system-metric .jd-metric-copy strong {
+	color: #bca5f5;
+}
+
+.jd-metric-copy p,
+.jd-panel-note,
+.jd-system-line,
+.jd-detail span,
+.jd-country,
+.jd-total h3,
+.jd-total-row,
+.jd-legend {
+	color: #8fa8bc;
+}
+
+.jd-system-line,
+.jd-totals {
+	border-color: #263f52;
+}
+
+.jd-system-line b,
+.jd-detail strong,
+.jd-ip,
+.jd-rate-pair b,
+.jd-total-row b {
+	color: #dceaf4;
+}
+
+.jd-state {
+	color: #62d9a5 !important;
+}
+
+.jd-state.down {
+	color: #ee8c7d !important;
+}
+
+.jd-panel.jd-egress:after {
+	display: none;
+}
+
+.jd-flag {
+	border-color: #3a566a;
+	background: #132535;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.jd-mode {
+	border-color: #3c586d;
+	background: #142738;
+	color: #9db5c6;
+}
+
+.jd-mode.proxy {
+	border-color: #39735f;
+	background: #12352d;
+	color: #6de0ae;
+}
+
+.jd-ports-head h2 {
+	border-color: #36536a;
+	border-left-color: #4fd2c1;
+	background: linear-gradient(110deg, #173348, #24243b);
+	color: #e2f0fa;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.jd-ports-head span {
+	color: #89a4b8;
+}
+
+.jd-port {
+	border-color: #294256;
+	background: linear-gradient(150deg, #122638, #0d1c29);
+	box-shadow:
+		0 8px 18px rgba(1, 10, 18, 0.23),
+		inset 0 1px 0 rgba(210, 240, 250, 0.05);
+}
+
+.jd-port.connected {
+	border-color: #2e5a4c;
+	background: linear-gradient(150deg, #102d2a, #0c1f24);
+}
+
+.jd-port.connected.high-speed {
+	border-color: #315b76;
+	background: linear-gradient(150deg, #112a3d, #0d1e2c);
+}
+
+.jd-port.disconnected {
+	background: linear-gradient(150deg, #15222f, #101a24);
+}
+
+.jd-port-top {
+	border-color: rgba(141, 177, 199, 0.18);
+}
+
+.jd-port-role,
+.jd-port-speed,
+.jd-port-rates b {
+	color: #dcebf4;
+}
+
+.jd-page .jd-port.connected.high-speed .jd-port-speed {
+	color: #79dff4;
+	text-shadow: 0 0 14px rgba(88, 203, 224, 0.16);
+}
+
+.jd-port-device,
+.jd-port-state,
+.jd-port-rates {
+	color: #88a0b4;
+}
+
+.jd-chart-wrap {
+	border-color: #294458;
+	background:
+		linear-gradient(rgba(108, 158, 184, 0.045) 1px, transparent 1px) 0 0 / 100% 44px,
+		linear-gradient(180deg, #0c1b27, #0a1621);
+	box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.14);
+}
+
+.jd-legend i {
+	background: #58c9df;
+}
+
+.jd-legend .download i {
+	background: #60d6ab;
+}
+
+.jd-total {
+	border-color: #263f52;
+}
+
+.jd-total h3 {
+	display: inline-flex;
+	align-items: center;
+	margin: 0 0 9px;
+	padding: 6px 10px;
+	border: 1px solid #345167;
+	border-left: 3px solid #54cfe0;
+	border-radius: 6px;
+	background: linear-gradient(110deg, #173347, #23233a);
+	color: #dcebf4;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.jd-total:nth-child(2) h3 {
+	border-left-color: #a88cf3;
+}
+
+.jd-total:nth-child(3) h3 {
+	border-left-color: #61d5a8;
+}
+
+.jd-flag-fallback {
+	background: #172b3b;
+	color: #bfd4e3;
+}
+</style>
+
+<div class="jd-page">
+	<header class="jd-hero">
+		<div>
+			<div class="jd-eyebrow">JULIANG OS · LIVE NETWORK</div>
+			<h1>网络运行中心</h1>
+			<p>海外直播线路、系统负载与 WAN 流量总览</p>
+		</div>
+		<div class="jd-toolbar">
+			<span class="jd-live"><i></i>系统在线</span>
+			<span class="jd-updated" id="jd-updated">等待数据</span>
+			<button class="jd-refresh" id="jd-refresh" type="button">刷新</button>
+		</div>
+	</header>
+
+	<div class="jd-alert" id="jd-alert" role="status"></div>
+
+	<section class="jd-metrics" aria-label="系统运行指标">
+		<article class="jd-metric cpu-metric">
+			<div class="jd-gauge" id="jd-cpu-gauge">
+				<span><b id="jd-cpu">--</b><small>%</small></span>
+			</div>
+			<div class="jd-metric-copy">
+				<h2>CPU 使用率</h2>
+				<strong id="jd-cpu-detail">等待采样</strong>
+				<p id="jd-load">平均负载 --</p>
+			</div>
+		</article>
+
+		<article class="jd-metric memory-metric">
+			<div class="jd-gauge memory" id="jd-memory-gauge">
+				<span><b id="jd-memory">--</b><small>%</small></span>
+			</div>
+			<div class="jd-metric-copy">
+				<h2>内存使用率</h2>
+				<strong id="jd-memory-used">等待采样</strong>
+				<p id="jd-memory-total">总计 --</p>
+			</div>
+		</article>
+
+		<article class="jd-metric temperature-metric">
+			<div class="jd-gauge temperature" id="jd-temp-gauge">
+				<span><b id="jd-temp">--</b><small>°C</small></span>
+			</div>
+			<div class="jd-metric-copy">
+				<h2>CPU 温度</h2>
+				<strong id="jd-temp-state">等待采样</strong>
+				<p>来自 cpu-thermal</p>
+			</div>
+		</article>
+
+		<article class="jd-metric system-metric">
+			<div class="jd-metric-copy">
+				<h2>系统运行</h2>
+				<strong id="jd-uptime">--</strong>
+				<p id="jd-model">JuLiang OS</p>
+			</div>
+			<div class="jd-system-line">
+				<span>固件</span>
+				<b>JuLiang OS</b>
+			</div>
+		</article>
+	</section>
+
+	<section class="jd-network" aria-label="网络和出口状态">
+		<article class="jd-panel wan-panel">
+			<div class="jd-panel-head">
+				<h2>WAN 状态</h2>
+				<span class="jd-panel-note" id="jd-wan-label">读取中</span>
+			</div>
+			<div class="jd-wan-grid">
+				<div class="jd-detail">
+					<span>连接状态</span>
+					<strong class="jd-state" id="jd-wan-state">检测中</strong>
+				</div>
+				<div class="jd-detail">
+					<span>WAN IP</span>
+					<strong id="jd-wan-ip">--</strong>
+				</div>
+				<div class="jd-detail">
+					<span>网关</span>
+					<strong id="jd-wan-gateway">--</strong>
+				</div>
+				<div class="jd-detail">
+					<span>接口</span>
+					<strong id="jd-wan-device">--</strong>
+				</div>
+				<div class="jd-detail">
+					<span>协议 / 速率</span>
+					<strong id="jd-wan-proto">--</strong>
+				</div>
+				<div class="jd-detail">
+					<span>WAN 在线时长</span>
+					<strong id="jd-wan-uptime">--</strong>
+				</div>
+			</div>
+		</article>
+
+		<article class="jd-panel jd-egress">
+			<div class="jd-flag">
+				<img id="jd-country-flag" alt="国家或地区旗帜" referrerpolicy="no-referrer">
+				<span class="jd-flag-fallback" id="jd-country-code">--</span>
+			</div>
+			<div class="jd-egress-copy">
+				<h2>代理 / 出口 IP <span class="jd-mode" id="jd-egress-mode">检测中</span></h2>
+				<strong class="jd-ip" id="jd-egress-ip">--</strong>
+				<span class="jd-country" id="jd-country-name">正在识别出口国家</span>
+			</div>
+		</article>
+	</section>
+
+	<section class="jd-ports-section" aria-label="有线网口监控">
+		<div class="jd-ports-head">
+			<h2>有线网口</h2>
+			<span>物理链路 · 每 3 秒刷新</span>
+		</div>
+		<div class="jd-ports-grid" id="jd-ports">
+			<div class="jd-ports-empty">正在读取网口状态</div>
+		</div>
+	</section>
+
+	<section class="jd-panel jd-traffic" aria-label="WAN 流量统计">
+		<div class="jd-traffic-top">
+			<div>
+				<div class="jd-panel-head">
+					<h2>WAN 流量监控</h2>
+					<span class="jd-panel-note">每 3 秒采样</span>
+				</div>
+				<div class="jd-rate-pair">
+					<span>当前上传 <b id="jd-rate-up">--</b></span>
+					<span class="download">当前下载 <b id="jd-rate-down">--</b></span>
+				</div>
+			</div>
+			<span class="jd-panel-note" id="jd-chart-scale">近 2 分钟</span>
+		</div>
+
+		<div class="jd-chart-wrap">
+			<svg class="jd-chart" id="jd-chart" viewBox="0 0 960 240" preserveAspectRatio="none" role="img" aria-label="最近两分钟 WAN 上传下载实时曲线">
+				<defs>
+					<linearGradient id="jd-up-fill" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="0%" stop-color="#58cbe0" stop-opacity="0.3"></stop>
+						<stop offset="100%" stop-color="#58cbe0" stop-opacity="0"></stop>
+					</linearGradient>
+					<linearGradient id="jd-down-fill" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="0%" stop-color="#61d2aa" stop-opacity="0.27"></stop>
+						<stop offset="100%" stop-color="#61d2aa" stop-opacity="0"></stop>
+					</linearGradient>
+				</defs>
+				<g id="jd-chart-grid"></g>
+				<path id="jd-up-area" fill="url(#jd-up-fill)"></path>
+				<path id="jd-down-area" fill="url(#jd-down-fill)"></path>
+				<path id="jd-up-line" fill="none" stroke="#58cbe0" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+				<path id="jd-down-line" fill="none" stroke="#61d2aa" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+			</svg>
+		</div>
+		<div class="jd-legend">
+			<span><i></i>上传</span>
+			<span class="download"><i></i>下载</span>
+			<span class="range" id="jd-sample-state">等待第二次采样</span>
+		</div>
+
+		<div class="jd-totals">
+			<div class="jd-total">
+				<h3>今日流量</h3>
+				<div class="jd-total-row"><span>上传</span><b id="jd-day-up">--</b></div>
+				<div class="jd-total-row"><span>下载</span><b id="jd-day-down">--</b></div>
+			</div>
+			<div class="jd-total">
+				<h3>本月流量</h3>
+				<div class="jd-total-row"><span>上传</span><b id="jd-month-up">--</b></div>
+				<div class="jd-total-row"><span>下载</span><b id="jd-month-down">--</b></div>
+			</div>
+			<div class="jd-total">
+				<h3>累计流量</h3>
+				<div class="jd-total-row"><span>上传</span><b id="jd-total-up">--</b></div>
+				<div class="jd-total-row"><span>下载</span><b id="jd-total-down">--</b></div>
+			</div>
+		</div>
+	</section>
+</div>
+
+<script>
+(function() {
+	"use strict";
+
+	var statusUrl = "<%=status_url%>";
+	var refreshButton = document.getElementById("jd-refresh");
+	var alertBox = document.getElementById("jd-alert");
+	var previous = null;
+	var previousPorts = {};
+	var history = [];
+	var requestBusy = false;
+	var failures = 0;
+
+	var countryNames = {
+		CN: "中国",
+		HK: "中国香港",
+		TW: "中国台湾",
+		US: "美国",
+		GB: "英国",
+		JP: "日本",
+		KR: "韩国",
+		SG: "新加坡",
+		MY: "马来西亚",
+		TH: "泰国",
+		VN: "越南",
+		ID: "印度尼西亚",
+		PH: "菲律宾",
+		AU: "澳大利亚",
+		CA: "加拿大",
+		DE: "德国",
+		FR: "法国",
+		NL: "荷兰",
+		AE: "阿联酋",
+		IN: "印度",
+		BR: "巴西"
+	};
+
+	function byId(id) {
+		return document.getElementById(id);
+	}
+
+	function clamp(value, min, max) {
+		return Math.max(min, Math.min(max, Number(value) || 0));
+	}
+
+	function formatBytes(value) {
+		var number = Number(value);
+		if (!Number.isFinite(number) || number < 0)
+			return "--";
+		var units = ["B", "KB", "MB", "GB", "TB"];
+		var index = 0;
+		while (number >= 1024 && index < units.length - 1) {
+			number /= 1024;
+			index++;
+		}
+		return number.toFixed(index > 1 ? 2 : 0) + " " + units[index];
+	}
+
+	function formatRate(value) {
+		var number = Number(value);
+		if (!Number.isFinite(number) || number < 0)
+			return "--";
+		if (number >= 1048576)
+			return (number / 1048576).toFixed(2) + " MB/s";
+		if (number >= 1024)
+			return (number / 1024).toFixed(1) + " KB/s";
+		return number.toFixed(0) + " B/s";
+	}
+
+	function formatDuration(seconds) {
+		var value = Math.max(0, Number(seconds) || 0);
+		var days = Math.floor(value / 86400);
+		var hours = Math.floor(value % 86400 / 3600);
+		var minutes = Math.floor(value % 3600 / 60);
+		if (days > 0)
+			return days + " 天 " + hours + " 小时";
+		if (hours > 0)
+			return hours + " 小时 " + minutes + " 分钟";
+		return minutes + " 分钟";
+	}
+
+	function setGauge(id, value) {
+		byId(id).style.setProperty("--value", clamp(value, 0, 100).toFixed(1));
+	}
+
+	function setCountry(code) {
+		var normalized = (code || "").toUpperCase();
+		var flag = byId("jd-country-flag");
+		var fallback = byId("jd-country-code");
+		fallback.textContent = normalized || "--";
+		flag.classList.remove("is-ready");
+
+		if (/^[A-Z]{2}$/.test(normalized)) {
+			flag.onload = function() {
+				flag.classList.add("is-ready");
+			};
+			flag.onerror = function() {
+				flag.removeAttribute("src");
+				flag.classList.remove("is-ready");
+			};
+			flag.src = "https://flagcdn.com/w80/" + normalized.toLowerCase() + ".png";
+			flag.alt = (countryNames[normalized] || normalized) + "旗帜";
+		}
+		else {
+			flag.removeAttribute("src");
+		}
+
+		byId("jd-country-name").textContent = normalized
+			? (countryNames[normalized] || normalized) + " · " + normalized
+			: "国家识别暂不可用";
+	}
+
+	function renderWan(wan) {
+		var up = wan && wan.up === true;
+		var state = byId("jd-wan-state");
+		state.textContent = up ? "在线" : "离线";
+		state.classList.toggle("down", !up);
+		byId("jd-wan-label").textContent = up ? "链路正常" : "链路不可用";
+		byId("jd-wan-ip").textContent = wan && wan.ip ? wan.ip : "--";
+		byId("jd-wan-gateway").textContent = wan && wan.gateway ? wan.gateway : "--";
+		byId("jd-wan-device").textContent = wan && wan.device ? wan.device : "--";
+		byId("jd-wan-proto").textContent = wan
+			? ((wan.proto || "--").toUpperCase() + (wan.speed ? " · " + wan.speed + " Mbps" : ""))
+			: "--";
+		byId("jd-wan-uptime").textContent = up ? formatDuration(wan.uptime) : "--";
+	}
+
+	function renderEgress(egress) {
+		var data = egress || {};
+		var mode = byId("jd-egress-mode");
+		var isProxy = data.mode === "proxy";
+		mode.textContent = isProxy ? "PROXY" : "DIRECT";
+		mode.classList.toggle("proxy", isProxy);
+		byId("jd-egress-ip").textContent = data.ip || "获取失败";
+		setCountry(data.country || "");
+		if (data.node)
+			byId("jd-country-name").title = "当前节点：" + data.node;
+	}
+
+	function createElement(tag, className, text) {
+		var element = document.createElement(tag);
+		if (className)
+			element.className = className;
+		if (text != null)
+			element.textContent = text;
+		return element;
+	}
+
+	function renderPorts(ports) {
+		var root = byId("jd-ports");
+		var now = performance.now() / 1000;
+		root.textContent = "";
+
+		if (!Array.isArray(ports) || !ports.length) {
+			root.appendChild(createElement("div", "jd-ports-empty", "当前设备没有可用的物理网口信息"));
+			return;
+		}
+
+		ports.forEach(function(port) {
+			var previousPort = previousPorts[port.device];
+			var rxBytes = Number(port.rx_bytes) || 0;
+			var txBytes = Number(port.tx_bytes) || 0;
+			var upRate = null;
+			var downRate = null;
+
+			if (previousPort) {
+				var seconds = now - previousPort.time;
+				if (seconds > 0) {
+					upRate = Math.max(0, txBytes - previousPort.tx) / seconds;
+					downRate = Math.max(0, rxBytes - previousPort.rx) / seconds;
+				}
+			}
+			previousPorts[port.device] = {time: now, rx: rxBytes, tx: txBytes};
+
+			var tile = createElement("article", "jd-port " + (port.connected ? "connected" : "disconnected"));
+			if (port.connected && Number(port.speed) >= 2500)
+				tile.classList.add("high-speed");
+			tile.setAttribute("aria-label", (port.role || port.device) + (port.connected ? " 已连接" : " 未连接"));
+
+			var top = createElement("div", "jd-port-top");
+			top.appendChild(createElement("strong", "jd-port-role", port.role || port.device));
+			top.appendChild(createElement("span", "jd-port-device", port.device || ""));
+			tile.appendChild(top);
+
+			var speedValue = port.connected
+				? (port.speed ? Number(port.speed) + " Mbps" : "速率未知")
+				: "未连接";
+			tile.appendChild(createElement("strong", "jd-port-speed", speedValue));
+
+			var stateValue = port.connected
+				? ((port.duplex === "full" ? "全双工" : (port.duplex === "half" ? "半双工" : "链路正常")))
+				: "未检测到网线";
+			tile.appendChild(createElement("span", "jd-port-state", stateValue));
+
+			var rates = createElement("div", "jd-port-rates");
+			var upload = createElement("span", null, "↑ 发送");
+			upload.appendChild(createElement("b", null, upRate != null ? formatRate(upRate) : "--"));
+			var download = createElement("span", null, "↓ 接收");
+			download.appendChild(createElement("b", null, downRate != null ? formatRate(downRate) : "--"));
+			rates.appendChild(upload);
+			rates.appendChild(download);
+			tile.appendChild(rates);
+
+			root.appendChild(tile);
+		});
+	}
+
+	function renderMetrics(data) {
+		var cpu = clamp(data.cpu, 0, 100);
+		setGauge("jd-cpu-gauge", cpu);
+		byId("jd-cpu").textContent = cpu.toFixed(0);
+		byId("jd-cpu-detail").textContent = cpu < 45 ? "运行平稳" : (cpu < 75 ? "负载适中" : "负载较高");
+		var load = Array.isArray(data.load) ? data.load : [0, 0, 0];
+		byId("jd-load").textContent = "平均负载 " + load.map(function(value) {
+			return (Number(value) / 65535).toFixed(2);
+		}).join(" / ");
+
+		var memory = data.memory || {};
+		var memoryPercent = clamp(memory.percent, 0, 100);
+		setGauge("jd-memory-gauge", memoryPercent);
+		byId("jd-memory").textContent = memoryPercent.toFixed(0);
+		byId("jd-memory-used").textContent = formatBytes(memory.used) + " 已用";
+		byId("jd-memory-total").textContent = "总计 " + formatBytes(memory.total);
+
+		var temperature = Number(data.temperature);
+		if (Number.isFinite(temperature)) {
+			setGauge("jd-temp-gauge", temperature / 85 * 100);
+			byId("jd-temp").textContent = temperature.toFixed(1);
+			byId("jd-temp-state").textContent = temperature < 65
+				? "温度正常"
+				: (temperature < 78 ? "温度偏高" : "温度过高");
+		}
+		else {
+			byId("jd-temp").textContent = "--";
+			byId("jd-temp-state").textContent = "未检测到传感器";
+			setGauge("jd-temp-gauge", 0);
+		}
+
+		byId("jd-uptime").textContent = formatDuration(data.uptime);
+		byId("jd-model").textContent = data.model || "JuLiang OS";
+	}
+
+	function renderTotals(stats) {
+		var values = stats || {};
+		byId("jd-day-up").textContent = formatBytes(values.day_tx);
+		byId("jd-day-down").textContent = formatBytes(values.day_rx);
+		byId("jd-month-up").textContent = formatBytes(values.month_tx);
+		byId("jd-month-down").textContent = formatBytes(values.month_rx);
+		byId("jd-total-up").textContent = formatBytes(values.total_tx);
+		byId("jd-total-down").textContent = formatBytes(values.total_rx);
+	}
+
+	function pathFromPoints(points) {
+		if (!points.length)
+			return "";
+		return points.map(function(point, index) {
+			return (index === 0 ? "M" : "L") + point.x.toFixed(1) + "," + point.y.toFixed(1);
+		}).join(" ");
+	}
+
+	function renderChart() {
+		var width = 960;
+		var top = 16;
+		var bottom = 224;
+		var left = 0;
+		var right = 960;
+		var max = 1024;
+
+		history.forEach(function(sample) {
+			if (sample.up != null)
+				max = Math.max(max, sample.up);
+			if (sample.down != null)
+				max = Math.max(max, sample.down);
+		});
+		max *= 1.2;
+
+		var grid = byId("jd-chart-grid");
+		grid.textContent = "";
+		[16, 68, 120, 172, 224].forEach(function(y) {
+			var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+			line.setAttribute("x1", left);
+			line.setAttribute("x2", right);
+			line.setAttribute("y1", y);
+			line.setAttribute("y2", y);
+			line.setAttribute("stroke", "#294356");
+			line.setAttribute("stroke-width", "1");
+			grid.appendChild(line);
+		});
+
+		if (history.length < 2) {
+			byId("jd-up-line").setAttribute("d", "");
+			byId("jd-down-line").setAttribute("d", "");
+			byId("jd-up-area").setAttribute("d", "");
+			byId("jd-down-area").setAttribute("d", "");
+			byId("jd-chart-scale").textContent = "近 2 分钟 · 等待采样";
+			return;
+		}
+
+		var newest = history[history.length - 1].time;
+		var oldest = newest - 120;
+		function pointsFor(key) {
+			return history.filter(function(sample) {
+				return sample[key] != null;
+			}).map(function(sample) {
+				var x = (sample.time - oldest) / 120 * width;
+				var y = bottom - clamp(sample[key] / max, 0, 1) * (bottom - top);
+				return {x: clamp(x, 0, width), y: y};
+			});
+		}
+
+		var upPoints = pointsFor("up");
+		var downPoints = pointsFor("down");
+		var upPath = pathFromPoints(upPoints);
+		var downPath = pathFromPoints(downPoints);
+		byId("jd-up-line").setAttribute("d", upPath);
+		byId("jd-down-line").setAttribute("d", downPath);
+
+		function areaPath(points) {
+			if (!points.length)
+				return "";
+			return pathFromPoints(points) + " L" + points[points.length - 1].x.toFixed(1) + "," + bottom +
+				" L" + points[0].x.toFixed(1) + "," + bottom + " Z";
+		}
+
+		byId("jd-up-area").setAttribute("d", areaPath(upPoints));
+		byId("jd-down-area").setAttribute("d", areaPath(downPoints));
+		byId("jd-chart-scale").textContent = "近 2 分钟 · 峰值 " + formatRate(max / 1.2);
+	}
+
+	function renderTraffic(traffic, wanReady) {
+		var now = performance.now() / 1000;
+		var current = {
+			time: now,
+			device: traffic.device || "",
+			rx: Number(traffic.rx_bytes) || 0,
+			tx: Number(traffic.tx_bytes) || 0,
+			up: null,
+			down: null
+		};
+
+		if (previous && traffic.device === previous.device) {
+			var delta = now - previous.time;
+			if (delta > 0) {
+				current.up = Math.max(0, current.tx - previous.tx) / delta;
+				current.down = Math.max(0, current.rx - previous.rx) / delta;
+			}
+		}
+
+		byId("jd-rate-up").textContent = wanReady && current.up != null ? formatRate(current.up) : "--";
+		byId("jd-rate-down").textContent = wanReady && current.down != null ? formatRate(current.down) : "--";
+		byId("jd-sample-state").textContent = current.up != null
+			? "已更新 " + new Date().toLocaleTimeString()
+			: "等待第二次采样";
+
+		history.push(current);
+		history = history.filter(function(sample) {
+			return now - sample.time <= 120;
+		});
+		previous = current;
+		renderChart();
+	}
+
+	function showError(message) {
+		alertBox.textContent = message;
+		alertBox.classList.add("is-visible");
+	}
+
+	function clearError() {
+		alertBox.classList.remove("is-visible");
+		alertBox.textContent = "";
+	}
+
+	async function update() {
+		if (requestBusy || document.hidden)
+			return;
+		requestBusy = true;
+		refreshButton.disabled = true;
+
+		try {
+			var response = await fetch(statusUrl, {cache: "no-store", credentials: "same-origin"});
+			if (!response.ok)
+				throw new Error("HTTP " + response.status);
+			var data = await response.json();
+			if (!data.ok)
+				throw new Error(data.error || "状态读取失败");
+
+			failures = 0;
+			clearError();
+			renderMetrics(data);
+			renderWan(data.wan || {});
+			renderEgress(data.egress || {});
+			renderPorts(data.ports || []);
+			renderTotals(data.stats || {});
+			renderTraffic(data.traffic || {}, data.wan && data.wan.up === true);
+			byId("jd-updated").textContent = "更新于 " + new Date().toLocaleTimeString();
+		}
+		catch (error) {
+			failures++;
+			if (failures >= 2)
+				showError("监控数据读取失败，正在自动重试。");
+		}
+		finally {
+			requestBusy = false;
+			refreshButton.disabled = false;
+		}
+	}
+
+	refreshButton.addEventListener("click", update);
+	document.addEventListener("visibilitychange", function() {
+		if (!document.hidden)
+			update();
+	});
+
+	renderChart();
+	update();
+	setInterval(update, 3000);
+})();
+</script>
+<%+footer%>

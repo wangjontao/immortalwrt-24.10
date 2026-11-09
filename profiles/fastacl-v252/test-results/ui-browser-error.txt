@@ -1,0 +1,38 @@
+stage: fixed workspace navigation
+
+Traceback (most recent call last):
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\work\juliang-os-v285-lede\profiles\fastacl-v252\tests\test_browser.py", line 43, in <module>
+    expect(sticky).to_have_css("position", "relative")
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\.testdeps22\playwright\sync_api\_generated.py", line 15254, in to_have_css
+    self._sync(
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\.testdeps22\playwright\_impl\_sync_base.py", line 111, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\.testdeps22\playwright\_impl\_assertions.py", line 490, in to_have_css
+    await self._expect_impl(
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\.testdeps22\playwright\_impl\_assertions.py", line 128, in _expect_impl
+    _record_soft_or_raise(
+  File "C:\Users\jontao\Documents\Codex\2026-10-27\new-chat\.testdeps22\playwright\_impl\_assertions.py", line 60, in _record_soft_or_raise
+    raise error
+AssertionError: Locator expected to have CSS 'relative'
+Actual value: sticky 
+Call log:
+  - Expect "to_have_css" locator(".f25-sticky") with timeout 5000ms
+  - waiting for locator(".f25-sticky")
+    14 × locator resolved to <div class="f25-sticky" aria-label="JuLiang OS 状态与操作提示">…</div>
+       - unexpected value "sticky"
+
+Aria snapshot:
+- heading "JuLiang OS" [level=2]
+- text: JuLiang OS · V2.8.6 运行中 · singbox · 核心 running · 防火墙 正常 · hot
+- button "刷新"
+- textbox "搜索设备":
+  - /placeholder: 搜索设备 / MAC / IP
+- tablist "JuLiang OS 功能菜单":
+  - tab "概览" [selected]
+  - tab "节点与订阅 3"
+  - tab "单 WiFi 多设备分配模式 3"
+  - tab "多 WiFi 分配模式 0"
+  - tab "全局设置"
+
+page errors:

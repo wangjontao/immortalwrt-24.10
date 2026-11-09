@@ -1,0 +1,53 @@
+#!/usr/bin/lua
+local fs=require 'nixio.fs'
+local sys=require 'luci.sys'
+local json=require 'luci.jsonc'
+local lock='/tmp/fastacl252-timezone-sync.lock'
+local status_file='/tmp/fastacl252/timezone.json'
+local function save_status(value)
+ fs.mkdir('/tmp/fastacl252')
+ value.time=os.time()
+ fs.writefile(status_file,json.stringify(value))
+ fs.chmod(status_file,'644')
+end
+if not fs.mkdir(lock) then os.exit(0) end
+local ok,result=pcall(function()
+ local u=require('uci').cursor()
+ local c=require('fastacl252_env').read(u,true)
+ local lan=c.lan_default or {}
+ local country,location,node_name,detected_timezone='','','',''
+ if lan.mode=='proxy' and lan.node and lan.node~='' then
+  local node=assert(c.nodes[lan.node],'主出口节点不存在')
+  node_name=node.name or lan.node
+  local relay=require 'fastacl252_relay'
+  local link=relay.link(node)
+  if lan.preproxy and lan.preproxy~='' then link=link..' -> '..relay.link(assert(c.nodes[lan.preproxy],'主出口前置节点不存在')) end
+  local spec='/tmp/fastacl252-timezone-spec.json'
+  assert(fs.writefile(spec,json.stringify({link=link})),'无法写入时区检测配置')
+  fs.chmod(spec,'600')
+  local output=sys.exec('/usr/libexec/fastacl252-exit-probe -probe-file '..spec..' 2>/dev/null')
+  fs.remove(spec)
+  local probe=json.parse(output)
+  assert(type(probe)=='table' and probe.ok==true,'出口国家检测失败')
+  country=probe.country or ''
+  location=probe.location or ''
+  detected_timezone=probe.timezone or ''
+ end
+ local text=node_name..' '..location
+ local timezone=require('fastacl252_timezone')
+ local name,zone=timezone.get(detected_timezone)
+ if not name then name,zone=timezone.resolve(country,text,lan.mode=='proxy' and nil or 'Asia/Shanghai') end
+ assert(name and zone,'无法识别出口时区')
+ local current=u:get('system','@system[0]','timezone') or ''
+ local current_name=u:get('system','@system[0]','zonename') or ''
+ if current~=zone.posix or current_name~=name then
+  assert(u:set('system','@system[0]','timezone',zone.posix),'保存系统时区失败')
+  assert(u:set('system','@system[0]','zonename',name),'保存时区名称失败')
+  assert(u:commit('system'),'提交系统时区失败')
+  sys.call('/etc/init.d/system reload >/dev/null 2>&1')
+ end
+ return {ok=true,country=country,location=location,node=node_name,timezone=name,posix=zone.posix,label=zone.label}
+end)
+if ok then save_status(result) else save_status({ok=false,error=tostring(result)}) end
+fs.rmdir(lock)
+if not ok then os.exit(1) end

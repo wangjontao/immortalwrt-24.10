@@ -1,0 +1,14 @@
+{
+	"admin/system/wan-watchdog": {
+		"title": "WAN Watchdog",
+		"order": 89,
+		"action": {
+			"type": "view",
+			"path": "wan-watchdog"
+		},
+		"depends": {
+			"acl": [ "luci-app-wan-watchdog" ],
+			"uci": { "wan-watchdog": true }
+		}
+	}
+}

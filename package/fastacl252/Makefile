@@ -1,0 +1,38 @@
+include $(TOPDIR)/rules.mk
+PKG_NAME:=fastacl252
+PKG_VERSION:=1.5
+PKG_RELEASE:=5
+PKG_LICENSE:=AGPL-3.0-only
+include $(INCLUDE_DIR)/package.mk
+define Package/fastacl252
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=JuLiang OS v1.5 sing-box control center
+  CONFLICTS:=fastacl25 fastacl251
+  DEPENDS:=+kmod-tcp-bbr +kmod-sched +kmod-tun +sing-box +libuci-lua +luci-compat +luci-lib-nixio +luci-lib-jsonc +lyaml +curl +ca-bundle +usign +jsonfilter +ip-full +iw +iwinfo +ip-bridge +firewall4 +nftables-json +sqm-scripts +kmod-sched-cake +kmod-ifb +vnstat2
+endef
+define Build/Compile
+endef
+define Package/fastacl252/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+/etc/init.d/fastacl252 enable >/dev/null 2>&1 || true
+if [ "$$(uci -q get fastacl252.main.enabled 2>/dev/null || echo 1)" = 1 ]; then
+	lua /usr/libexec/fastacl252-wifi-fw4.lua >/tmp/fastacl252-postinst-fw4.log 2>&1 || true
+	/usr/bin/fastacl252 cold-apply >/tmp/fastacl252-postinst.log 2>&1 || true
+	/etc/init.d/fastacl252 start >/dev/null 2>&1 || true
+fi
+exit 0
+endef
+define Package/fastacl252/install
+	$(CP) ./files/* $(1)/
+	test -s $(1)/usr/share/fastacl252/cn-ipv4.txt
+	test -s $(1)/usr/share/fastacl252/cn-domains.txt
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(LN) ../bin/fastacl252-dns $(1)/usr/libexec/fastacl252-exit-probe
+	chmod 755 $(1)/usr/bin/fastacl252-dns $(1)/usr/bin/fastacl252 $(1)/usr/bin/wan-watchdog $(1)/usr/libexec/fastacl252-enable.sh $(1)/usr/libexec/juliang-reboot.sh $(1)/usr/libexec/juliang-traffic-setup $(1)/usr/libexec/nps-wan-mac $(1)/etc/init.d/fastacl252 $(1)/etc/init.d/wan-watchdog $(1)/etc/init.d/nps-wan-mac $(1)/etc/init.d/juliang-traffic $(1)/etc/hotplug.d/iface/99-nps-wan-mac $(1)/etc/hotplug.d/iface/99-juliang-traffic
+	if [ -d $(1)/etc/uci-defaults ]; then chmod 755 $(1)/etc/uci-defaults/*; fi
+	chmod 755 $(1)/usr/libexec/juliang-bbr $(1)/etc/init.d/juliang-bbr $(1)/usr/libexec/fastacl252-timezone-sync
+	chmod 600 $(1)/etc/config/fastacl252 $(1)/etc/config/wan-watchdog
+endef
+$(eval $(call BuildPackage,fastacl252))

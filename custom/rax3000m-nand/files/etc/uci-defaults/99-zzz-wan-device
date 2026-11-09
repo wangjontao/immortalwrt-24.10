@@ -1,0 +1,42 @@
+#!/bin/sh
+# Align the captured Live overlay with the current board's generated WAN port.
+# The shared overlay historically inherited eth1 from RAX3000M, which leaves
+# DSA-based MT7981 devices such as JCG Q30 Pro with no working WAN interface.
+
+LOG='/etc/juliang-firstboot.log'
+log() {
+	echo "[$(date +%H:%M:%S)] wan-device: $*" >> "$LOG" 2>/dev/null || true
+}
+
+[ -s /etc/board.json ] || exit 0
+
+wan_dev="$(jsonfilter -i /etc/board.json -e '@.network.wan.device' 2>/dev/null || true)"
+if [ -z "$wan_dev" ]; then
+	wan_ports="$(jsonfilter -i /etc/board.json -e '@.network.wan.ports[*]' 2>/dev/null || true)"
+	set -- $wan_ports
+	wan_dev="${1:-}"
+fi
+
+case "$wan_dev" in
+	''|*[!A-Za-z0-9_.:@-]*)
+		log "board WAN device is missing or invalid: $wan_dev"
+		exit 0
+		;;
+esac
+
+current="$(uci -q get network.wan.device 2>/dev/null || true)"
+if [ "$current" = "$wan_dev" ]; then
+	log "board WAN device already correct: $wan_dev"
+	exit 0
+fi
+
+uci -q set network.wan='interface' || exit 0
+uci -q set network.wan.device="$wan_dev" || exit 0
+uci -q delete network.wan.ifname
+uci -q commit network || {
+	log "failed to commit network WAN device $wan_dev"
+	exit 0
+}
+
+log "corrected WAN device: ${current:-unset} -> $wan_dev"
+exit 0

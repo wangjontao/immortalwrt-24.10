@@ -1,0 +1,193 @@
+#!/bin/sh
+set -u
+
+LOG=${WAN_WATCHDOG_LOG:-/root/wan-watchdog.log}
+STATUS=${WAN_WATCHDOG_STATUS:-/tmp/wan-watchdog.status}
+ACTION_LOG=${WAN_WATCHDOG_ACTION_LOG:-/tmp/wan-watchdog-action.log}
+CHECK_INTERVAL=${WAN_WATCHDOG_INTERVAL:-10}
+RENEW_AFTER=${WAN_WATCHDOG_RENEW_AFTER:-3}
+RESTART_AFTER=${WAN_WATCHDOG_RESTART_AFTER:-9}
+RENEW_COOLDOWN=${WAN_WATCHDOG_RENEW_COOLDOWN:-60}
+RESTART_COOLDOWN=${WAN_WATCHDOG_RESTART_COOLDOWN:-300}
+
+CHECK_INTERVAL=$(uci -q get wan-watchdog.main.interval 2>/dev/null || echo "$CHECK_INTERVAL")
+RENEW_AFTER=$(uci -q get wan-watchdog.main.renew_after 2>/dev/null || echo "$RENEW_AFTER")
+RESTART_AFTER=$(uci -q get wan-watchdog.main.restart_after 2>/dev/null || echo "$RESTART_AFTER")
+RENEW_COOLDOWN=$(uci -q get wan-watchdog.main.renew_cooldown 2>/dev/null || echo "$RENEW_COOLDOWN")
+RESTART_COOLDOWN=$(uci -q get wan-watchdog.main.restart_cooldown 2>/dev/null || echo "$RESTART_COOLDOWN")
+
+watcher_enabled(){
+  [ "$(uci -q get wan-watchdog.main.enabled 2>/dev/null || echo 1)" != 0 ]
+}
+
+log_event(){
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG"
+  if [ "$(wc -c < "$LOG" 2>/dev/null || echo 0)" -gt 65536 ]; then
+    tail -n 400 "$LOG" > "$LOG.next"
+    mv "$LOG.next" "$LOG"
+  fi
+}
+
+wan_device(){
+  local device
+  device=$(uci -q get network.wan.device 2>/dev/null || true)
+  printf '%s\n' "${device:-eth1}"
+}
+
+probe_json(){
+  local value
+  value=$(printf '%s' "$1" | jsonfilter -e "$2" 2>/dev/null || true)
+  printf '%s\n' "$value"
+}
+
+ping_ok(){
+  ping -c 1 -W 2 "$1" >/dev/null 2>&1
+}
+
+write_status(){
+  local state="$1" carrier="$2" up="$3" address="$4" gateway="$5"
+  local gateway_ok="$6" internet_ok="$7" failures="$8" enabled
+  enabled=$(uci -q get wan-watchdog.main.enabled 2>/dev/null || echo 1)
+  printf '{"enabled":"%s","state":"%s","carrier":%s,"up":"%s","address":"%s","gateway":"%s","gateway_ok":%s,"internet_ok":%s,"failures":%s}\n' \
+    "$enabled" \
+    "$state" "${carrier:-0}" "$up" "$address" "$gateway" "$gateway_ok" \
+    "$internet_ok" "$failures" > "$STATUS.next"
+  mv "$STATUS.next" "$STATUS"
+}
+
+renew_wan(){
+  log_event "action=renew reason=WAN unavailable"
+  ubus call network.interface.wan renew >"$ACTION_LOG" 2>&1 || \
+    log_event "action=renew result=failed"
+}
+
+restart_wan(){
+  log_event "action=restart reason=WAN remained unavailable"
+  ubus call network.interface.wan down >"$ACTION_LOG" 2>&1 || true
+  sleep 2
+  ubus call network.interface.wan up >>"$ACTION_LOG" 2>&1 || \
+    log_event "action=restart result=failed"
+}
+
+inspect_wan(){
+  local device carrier wan_json up address gateway gateway_ok=false
+  local internet_ok=false
+
+  device=$(wan_device)
+  carrier=$(cat "/sys/class/net/$device/carrier" 2>/dev/null || echo 0)
+  wan_json=$(ubus call network.interface.wan status 2>/dev/null || true)
+  up=$(probe_json "$wan_json" '@.up')
+  address=$(probe_json "$wan_json" '@["ipv4-address"][0].address')
+  gateway=$(probe_json "$wan_json" '@.route[0].nexthop')
+
+  if [ "$carrier" = 1 ] && [ "$up" = true ] && [ -n "$address" ] && [ -n "$gateway" ]; then
+    if ping_ok "$gateway"; then
+      gateway_ok=true
+      if ping_ok 223.5.5.5 || ping_ok 1.1.1.1; then
+        internet_ok=true
+      fi
+    fi
+  fi
+
+  printf '%s %s %s %s %s %s\n' \
+    "$carrier" "$up" "$address" "$gateway" "$gateway_ok" "$internet_ok"
+}
+
+run_watchdog(){
+  local failures=0 last_renew=0 last_restart=0 last_carrier_log=0
+  local now carrier up address gateway gateway_ok internet_ok state
+
+  while [ "$(uci -q get network.wan 2>/dev/null | wc -c)" -gt 0 ] && watcher_enabled; do
+    now=$(date +%s)
+    read -r carrier up address gateway gateway_ok internet_ok <<EOF
+$(inspect_wan)
+EOF
+
+    if [ "$carrier" = 1 ] && [ "$up" = true ] && \
+       [ "$gateway_ok" = true ] && [ "$internet_ok" = true ]; then
+      if [ "$failures" -gt 0 ]; then
+        log_event "recovered after failures=$failures address=$address gateway=$gateway"
+      fi
+      failures=0
+      state=healthy
+    else
+      failures=$((failures+1))
+      if [ "$carrier" != 1 ]; then
+        state=carrier-down
+        if [ $((now-last_carrier_log)) -ge 300 ]; then
+          log_event "failure=carrier-down device=$(wan_device)"
+          last_carrier_log=$now
+        fi
+      elif [ "$up" != true ] || [ -z "$address" ] || [ -z "$gateway" ]; then
+        state=no-lease
+      elif [ "$gateway_ok" != true ]; then
+        state=gateway-unreachable
+      else
+        state=internet-unreachable
+      fi
+
+      if [ "$failures" -eq "$RENEW_AFTER" ]; then
+        log_event "failure=$state address=${address:-none} gateway=${gateway:-none} failures=$failures"
+      fi
+
+      if [ "$carrier" = 1 ] && [ "$failures" -ge "$RENEW_AFTER" ] && \
+         [ $((now-last_renew)) -ge "$RENEW_COOLDOWN" ]; then
+        renew_wan
+        last_renew=$now
+      fi
+
+      if [ "$carrier" = 1 ] && [ "$failures" -ge "$RESTART_AFTER" ] && \
+         [ $((now-last_restart)) -ge "$RESTART_COOLDOWN" ]; then
+        restart_wan
+        last_restart=$now
+        sleep 15
+      fi
+    fi
+
+    write_status "$state" "$carrier" "$up" "$address" "$gateway" \
+      "$gateway_ok" "$internet_ok" "$failures"
+    sleep "$CHECK_INTERVAL"
+  done
+}
+
+show_status(){
+  if ! watcher_enabled; then
+    echo '{"enabled":"0","state":"disabled"}'
+    return
+  fi
+  if [ -s "$STATUS" ]; then
+    cat "$STATUS"
+  else
+    echo '{"enabled":"1","state":"starting"}'
+  fi
+}
+
+set_enabled(){
+  local value="$1"
+  uci set "wan-watchdog.main.enabled=$value"
+  uci commit wan-watchdog
+  if [ "$value" = 1 ]; then
+    /etc/init.d/wan-watchdog start >/dev/null 2>&1 || true
+  else
+    /etc/init.d/wan-watchdog stop >/dev/null 2>&1 || true
+  fi
+}
+
+case "${1:-status}" in
+  run) run_watchdog;;
+  check)
+    read -r carrier up address gateway gateway_ok internet_ok <<EOF
+$(inspect_wan)
+EOF
+    write_status observed "$carrier" "$up" "$address" "$gateway" \
+      "$gateway_ok" "$internet_ok" 0
+    show_status
+    [ "$carrier" = 1 ] && [ "$gateway_ok" = true ] && [ "$internet_ok" = true ];;
+  status) show_status;;
+  enable) set_enabled 1; show_status;;
+  disable) set_enabled 0; show_status;;
+  toggle)
+    if watcher_enabled; then set_enabled 0; else set_enabled 1; fi
+    show_status;;
+  *) echo "Usage: wan-watchdog run|check|status|enable|disable|toggle" >&2; exit 2;;
+esac

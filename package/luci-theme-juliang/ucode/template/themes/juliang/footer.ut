@@ -1,0 +1,11 @@
+		{% if (!blank_page): %}
+			</main>
+			<footer class="juliang-footer">
+				<span>JuLiang OS v1.3</span>
+				<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+			</footer>
+		</div>
+		<script>L.require('menu-juliang')</script>
+		{% endif %}
+	</body>
+</html>

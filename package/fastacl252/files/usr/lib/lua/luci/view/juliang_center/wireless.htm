@@ -1,0 +1,282 @@
+<%+header%>
+<style>
+.wmon{--panel:#0b1d2b;--panel-2:#102738;--line:#203c4f;--text:#edf7fa;--soft:#a9c0cc;--muted:#708b9c;--cyan:#67dce7;--cyan-2:#a7f7ff;--green:#67e9ac;--orange:#f1a75f;--red:#ff777f;min-width:0;color:var(--soft);container-type:inline-size}
+.wmon *{box-sizing:border-box}
+.wmon button,.wmon input{font-family:inherit}
+.wmon .hero{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:12px;padding:18px 20px;border:1px solid var(--line);border-radius:7px;background:linear-gradient(90deg,rgba(34,100,119,.28),var(--panel));box-shadow:inset 3px 0 0 var(--cyan)}
+.wmon .kicker{display:block;margin-bottom:5px;color:var(--cyan);font-family:"Bahnschrift","Consolas",monospace;font-size:9px;font-weight:700}
+.wmon h2{margin:0;padding:0!important;border:0!important;background:none!important;color:var(--cyan-2)!important;font-family:"Bahnschrift","Microsoft YaHei UI",sans-serif;font-size:25px!important;font-weight:800!important;line-height:1.2}
+.wmon .subtitle{margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+.wmon .live{display:inline-flex;flex:0 0 auto;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(103,233,172,.24);border-radius:4px;background:rgba(27,75,61,.28);color:var(--green);font-family:"Bahnschrift","Consolas",monospace;font-size:10px;white-space:nowrap}
+.wmon .live:before{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 9px rgba(103,233,172,.55);content:""}
+.wmon .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.wmon .stat{min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.wmon .stat small{display:block;color:var(--muted);font-size:10px}
+.wmon .stat strong{display:block;margin-top:3px;color:var(--cyan-2);font-family:"Bahnschrift","Consolas",monospace;font-size:23px;font-weight:700}
+.wmon .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:15px 0 10px}
+.wmon .toolbar-copy{display:flex;align-items:baseline;gap:10px;min-width:0}
+.wmon .toolbar b{color:var(--text);font-size:14px}
+.wmon .meta{color:var(--muted);font-size:10px;overflow-wrap:anywhere}
+.wmon .refresh{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 10px;border:1px solid #31566b!important;border-radius:5px!important;background:#0d2333!important;color:#c2d8e2!important;font-size:11px!important;cursor:pointer}
+.wmon .refresh svg,.wmon .icon{width:15px;height:15px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}
+.wmon .wifi-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:8px}
+.wmon .wifi-card{position:relative;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:7px;background:var(--panel)}
+.wmon .wifi-card:after{position:absolute;top:0;left:0;width:3px;height:42px;background:var(--cyan);content:"";box-shadow:0 0 12px rgba(103,220,231,.26)}
+.wmon .wifi-card.is-hidden:after{background:var(--orange);box-shadow:0 0 12px rgba(241,167,95,.28)}
+.wmon .wifi-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;flex-wrap:wrap;padding:12px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.wmon .wifi-title{display:flex;align-items:center;gap:11px;min-width:0}
+.wmon .wifi-glyph{display:grid;flex:0 0 36px;width:36px;height:36px;place-items:center;border:1px solid #315267;border-radius:5px;background:#0a1e2c;color:var(--cyan)}
+.wmon .wifi-glyph svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.7}
+.wmon .wifi-copy{min-width:0}
+.wmon .wifi-copy h3{margin:0;color:var(--text);font-size:16px;font-weight:750;line-height:1.25;overflow-wrap:anywhere}
+.wmon .wifi-copy p{margin:4px 0 0;color:var(--muted);font-family:"Bahnschrift","Consolas",monospace;font-size:9px;overflow-wrap:anywhere}
+.wmon .wifi-head-actions{display:flex;flex:1 1 100%;align-items:center;justify-content:flex-start;gap:5px;flex-wrap:wrap}
+.wmon .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid rgba(103,233,172,.22);border-radius:3px;background:rgba(27,75,61,.26);color:var(--green);font-size:9px;font-weight:700;white-space:nowrap}
+.wmon .badge.hidden{border-color:rgba(241,167,95,.24);background:rgba(91,61,29,.25);color:var(--orange)}
+.wmon .badge.count{border-color:rgba(103,220,231,.2);background:rgba(33,89,105,.2);color:var(--cyan-2)}
+.wmon .edit-toggle{display:inline-flex;flex:0 0 auto;align-items:center;gap:6px;min-height:28px;margin-left:auto;padding:4px 8px;border:1px solid #315267;border-radius:4px;background:#0b2231;color:#b9d0db;font-size:10px;white-space:nowrap;cursor:pointer}
+.wmon .edit-toggle:hover{border-color:rgba(103,220,231,.56);color:var(--cyan-2)}
+.wmon .edit-panel{padding:12px;border-bottom:1px solid var(--line);background:#081925}
+.wmon .edit-panel[hidden]{display:none}
+.wmon .edit-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;align-items:end}
+.wmon .edit-field{display:grid;min-width:0;gap:6px}
+.wmon .edit-field>span{color:var(--muted);font-size:10px;font-weight:650}
+.wmon .edit-field input[type=text],.wmon .edit-field input[type=password]{width:100%;height:38px;padding:7px 10px;border:1px solid #315267;border-radius:4px;outline:0;background:#071521;color:var(--text);font-size:12px;box-shadow:none}
+.wmon .edit-field input:focus{border-color:rgba(103,220,231,.7);box-shadow:0 0 0 2px rgba(103,220,231,.06)}
+.wmon .edit-field input::placeholder{color:#587585}
+.wmon .edit-field small{color:#617e8e;font-size:9px}
+.wmon .switch{display:flex;min-height:38px;align-items:center;gap:9px;padding:6px 10px;border:1px solid #315267;border-radius:4px;background:#071521;color:#a9c0cc;font-size:11px;cursor:pointer}
+.wmon .switch input{width:14px;height:14px;margin:0;accent-color:var(--cyan)}
+.wmon .edit-actions{display:flex;align-items:center;gap:8px;margin-top:11px}
+.wmon .edit-actions button{min-height:33px;padding:6px 13px;border-radius:4px;font-size:11px;cursor:pointer}
+.wmon .save-wifi{border:1px solid rgba(103,220,231,.64)!important;background:#176f82!important;color:#f4feff!important;font-weight:700!important}
+.wmon .cancel-edit{border:1px solid #315267!important;background:#0d2333!important;color:#a9c0cc!important}
+.wmon .edit-actions button:disabled{opacity:.5;cursor:default}
+.wmon .edit-message{min-height:16px;margin-top:7px;color:var(--muted);font-size:10px;line-height:1.5}
+.wmon .edit-message.error{color:#ffb0b5}.wmon .edit-message.success{color:var(--green)}
+.wmon .clients{padding:11px 12px 13px}
+.wmon .clients-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;color:var(--text);font-size:11px;font-weight:750}
+.wmon .clients-head span:last-child{color:var(--muted);font-family:"Bahnschrift","Consolas",monospace;font-size:9px;font-weight:500}
+.wmon .client-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+.wmon .client-card{min-width:0;padding:11px;border:1px solid rgba(75,126,148,.34);border-radius:6px;background:#0c2030}
+.wmon .client-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.wmon .client-identity{min-width:0}
+.wmon .client-name{color:var(--text);font-size:12px;font-weight:750;overflow-wrap:anywhere}
+.wmon .client-mac{margin-top:3px;color:var(--muted);font-family:"Bahnschrift","Consolas",monospace;font-size:8px}
+.wmon .signal{flex:0 0 auto;padding:3px 6px;border:1px solid rgba(103,233,172,.2);border-radius:3px;color:var(--green);font-family:"Bahnschrift","Consolas",monospace;font-size:9px}
+.wmon .signal.medium{border-color:rgba(241,167,95,.22);color:var(--orange)}
+.wmon .signal.weak{border-color:rgba(255,119,127,.22);color:var(--red)}
+.wmon .client-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.wmon .metric{padding:7px 8px;border:1px solid rgba(75,126,148,.23);border-radius:4px;background:#091b28}
+.wmon .metric small{display:block;color:var(--muted);font-size:8px}
+.wmon .metric strong{display:block;margin-top:3px;color:var(--cyan-2);font-family:"Bahnschrift","Consolas",monospace;font-size:11px;font-weight:650;overflow-wrap:anywhere}
+.wmon .metric strong.up{color:var(--green)}
+.wmon .client-foot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(75,126,148,.2);color:var(--muted);font-size:8px}
+.wmon .client-foot span{overflow-wrap:anywhere}
+.wmon .empty-clients{padding:16px 10px;border:1px dashed rgba(75,126,148,.35);border-radius:5px;color:var(--muted);font-size:10px;text-align:center}
+.wmon .empty-state{padding:26px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--muted);text-align:center}
+.wmon .footnote{margin-top:12px;color:var(--muted);font-size:9px;line-height:1.7}
+@container(max-width:980px){.wmon .wifi-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(max-width:720px){.wmon .wifi-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(max-width:520px){.wmon .wifi-list{grid-template-columns:minmax(0,1fr)}.wmon .hero{align-items:flex-start;flex-direction:column;padding:15px}.wmon .live{white-space:normal}.wmon .stats{gap:6px}.wmon .stat{padding:9px}.wmon .stat strong{font-size:19px}.wmon .toolbar{align-items:flex-start;flex-direction:column}.wmon .edit-panel,.wmon .clients{padding:12px}}
+</style>
+
+<div class="wmon" id="f25-wireless-section">
+	<section class="hero">
+		<div>
+			<span class="kicker">WIRELESS CONTROL</span>
+			<h2>无线设备管理</h2>
+			<p class="subtitle">修改 WiFi 名称、密码和广播状态，并查看每台终端的实时速率与本次连接流量。</p>
+		</div>
+		<span class="live">实时监测 · 3 秒刷新</span>
+	</section>
+
+	<section class="stats">
+		<div class="stat"><small>在线终端</small><strong id="f25-total">—</strong></div>
+		<div class="stat"><small>WiFi 信号</small><strong id="f25-interfaces">—</strong></div>
+		<div class="stat"><small>隐藏名称</small><strong id="f25-hidden">—</strong></div>
+	</section>
+
+	<div class="toolbar">
+		<div class="toolbar-copy"><b>WiFi 配置与连接终端</b><span class="meta" id="f25-count">读取中</span></div>
+		<button type="button" class="refresh" id="f25-refresh"><span id="f25-refresh-icon"></span>刷新</button>
+	</div>
+
+	<div class="wifi-list" id="f25-list"></div>
+	<div class="footnote"><span id="f25-status">等待采样</span> · 速率与流量均为终端和路由器之间的双向数据；流量统计从本次 WiFi 连接开始计算。修改名称或密码会重新加载无线配置，已连接终端可能需要重新连接。</div>
+</div>
+
+<script>(function(){'use strict';
+var readUrl='<%=luci.dispatcher.build_url("admin","services","fastacl252_wireless")%>';
+var saveUrl='<%=luci.dispatcher.build_url("admin","services","fastacl252_wifi")%>';
+var token='<%=token%>';
+var latestData=null,previous=new Map(),busy=false,editingSection='',savingSection='';
+function byId(id){return document.getElementById('f25-'+id)}
+function el(tag,name,text){var node=document.createElement(tag);if(name)node.className=name;if(text!=null)node.textContent=text;return node}
+function svgIcon(kind){
+	var paths={
+		wifi:'<path d="M3 8.8a14 14 0 0 1 18 0M6.2 12.3a9 9 0 0 1 11.6 0M9.4 15.8a4 4 0 0 1 5.2 0"/><circle cx="12" cy="19" r="1"/>',
+		edit:'<path d="m4 20 4.2-1 10.3-10.3a2 2 0 0 0-2.8-2.8L5.4 16.2 4 20Z"/><path d="m13.8 7.8 2.8 2.8"/>',
+		refresh:'<path d="M20 6v5h-5"/><path d="M19 11a7.5 7.5 0 1 0 .2 4.6"/>'
+	};
+	var node=document.createElementNS('http://www.w3.org/2000/svg','svg');
+	node.setAttribute('viewBox','0 0 24 24');
+	node.innerHTML=paths[kind]||'';
+	return node;
+}
+function bytes(value){
+	var number=Number(value);if(!Number.isFinite(number)||number<0)return '—';
+	var units=['B','KB','MB','GB','TB'],index=0;
+	while(number>=1024&&index<units.length-1){number/=1024;index++}
+	return number.toFixed(index?2:0)+' '+units[index];
+}
+function speed(byteCount,seconds){
+	var number=Number(byteCount),duration=Number(seconds);
+	if(!(duration>0)||!Number.isFinite(number)||number<0)return '—';
+	var rate=number*8/duration;
+	if(rate>=1000000)return(rate/1000000).toFixed(2)+' Mbps';
+	if(rate>=1000)return(rate/1000).toFixed(1)+' Kbps';
+	return rate.toFixed(0)+' bps';
+}
+function uptime(seconds){
+	var number=Math.max(0,Number(seconds)||0),hours=Math.floor(number/3600),minutes=Math.floor(number%3600/60);
+	return hours>0?hours+' 小时 '+minutes+' 分钟':minutes+' 分钟';
+}
+function bandLabel(band){return band==='5g'?'5 GHz':band==='2g'?'2.4 GHz':(band||'无线')}
+function signalClass(value){var signal=Number(value);return !Number.isFinite(signal)?'':signal>=-55?'':signal>=-67?' medium':' weak'}
+function field(label,type,value,placeholder,maxLength){
+	var wrap=el('label','edit-field'),caption=el('span','',label),input=el('input');
+	input.type=type;input.value=value||'';if(placeholder)input.placeholder=placeholder;if(maxLength)input.maxLength=maxLength;
+	input.autocomplete=type==='password'?'new-password':'off';
+	wrap.append(caption,input);
+	return {wrap:wrap,input:input};
+}
+function metric(label,value,up){
+	var box=el('div','metric');box.append(el('small','',label),el('strong',up?'up':'',value));return box;
+}
+
+function renderClient(ap,station,data,next){
+	var key=ap.section+'/'+station.mac,old=previous.get(key),seconds=old?data.timestamp-old.time:0;
+	var upload=old?speed(Math.max(0,Number(station.rx_bytes)-old.rx),seconds):'—';
+	var download=old?speed(Math.max(0,Number(station.tx_bytes)-old.tx),seconds):'—';
+	next.set(key,{time:data.timestamp,rx:Number(station.rx_bytes)||0,tx:Number(station.tx_bytes)||0});
+	var card=el('div','client-card'),head=el('div','client-head'),identity=el('div','client-identity');
+	identity.append(el('div','client-name',station.name||'未命名终端'),el('div','client-mac',station.mac));
+	var signal=el('span','signal'+signalClass(station.signal),station.signal!=null?station.signal+' dBm':'—');
+	head.append(identity,signal);
+	var metrics=el('div','client-metrics');
+	metrics.append(metric('实时上传',upload,true),metric('实时下载',download),metric('本次上传',bytes(station.rx_bytes),true),metric('本次下载',bytes(station.tx_bytes)));
+	var foot=el('div','client-foot');
+	foot.append(el('span','',station.ip||'IP 暂未发现'),el('span','','链路 '+(station.tx_link_mbps||'—')+' / '+(station.rx_link_mbps||'—')+' Mbps · '+uptime(station.connected_seconds)));
+	card.append(head,metrics,foot);
+	return card;
+}
+
+function createWifiCard(ap,data,next){
+	var card=el('article','wifi-card'+(ap.hidden?' is-hidden':''));
+	var header=el('header','wifi-head'),title=el('div','wifi-title'),glyph=el('span','wifi-glyph');
+	glyph.appendChild(svgIcon('wifi'));
+	var copy=el('div','wifi-copy');
+	copy.append(el('h3','',ap.ssid),el('p','',bandLabel(ap.band)+' · '+(ap.network||'未绑定网络')+' · '+(ap.device||ap.radio||'无线接口')));
+	title.append(glyph,copy);
+	var actions=el('div','wifi-head-actions');
+	actions.append(el('span','badge'+(ap.hidden?' hidden':''),ap.hidden?'隐藏名称':'广播中'));
+	actions.append(el('span','badge count',(ap.stations||[]).length+' 台在线'));
+	var edit=el('button','edit-toggle');edit.type='button';edit.appendChild(svgIcon('edit'));edit.append(document.createTextNode(' 编辑'));
+	actions.append(edit);
+	header.append(title,actions);
+	card.append(header);
+
+	var panel=el('div','edit-panel');panel.hidden=true;
+	var form=el('form','wifi-edit-form'),grid=el('div','edit-grid');
+	var ssidField=field('无线名称','text',ap.ssid,'输入 1-32 字节',32);
+	var keyField=field('无线密码','password','','留空则不修改',63);
+	keyField.wrap.appendChild(el('small','','新密码需 8-63 个 ASCII 字符'));
+	var toggle=el('label','switch'),hiddenInput=el('input');hiddenInput.type='checkbox';hiddenInput.checked=ap.hidden===true;
+	toggle.append(hiddenInput,el('span','',ap.hidden?'显示此 WiFi':'隐藏此 WiFi'));
+	grid.append(ssidField.wrap,keyField.wrap,toggle);
+	var controls=el('div','edit-actions'),save=el('button','save-wifi','应用设置'),cancel=el('button','cancel-edit','取消');save.type='submit';cancel.type='button';
+	controls.append(save,cancel);
+	var message=el('div','edit-message');
+	form.append(grid,controls,message);panel.append(form);card.append(panel);
+
+	edit.addEventListener('click',function(){
+		editingSection=ap.section;panel.hidden=false;edit.disabled=true;
+		ssidField.input.focus();ssidField.input.select();
+	});
+	cancel.addEventListener('click',function(){
+		if(savingSection)return;
+		editingSection='';panel.hidden=true;edit.disabled=false;
+		if(latestData)renderWireless(latestData);
+	});
+	hiddenInput.addEventListener('change',function(){toggle.lastElementChild.textContent=hiddenInput.checked?'显示此 WiFi':'隐藏此 WiFi'});
+	form.addEventListener('submit',async function(event){
+		event.preventDefault();
+		if(savingSection)return;
+		var ssid=ssidField.input.value;
+		if(!ssid||ssid.length>32){message.className='edit-message error';message.textContent='无线名称需要 1-32 字节';return}
+		if(keyField.input.value&&(keyField.input.value.length<8||keyField.input.value.length>63)){message.className='edit-message error';message.textContent='无线密码需要 8-63 个 ASCII 字符';return}
+		savingSection=ap.section;save.disabled=true;cancel.disabled=true;message.className='edit-message';message.textContent='正在保存并重新加载无线配置…';
+		try{
+			var body=new URLSearchParams();body.set('token',token);body.set('data',JSON.stringify({action:'profile_update',id:ap.section,ssid:ssid,key:keyField.input.value,hidden:hiddenInput.checked}));
+			var response=await fetch(saveUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});
+			var result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'保存失败');
+			message.className='edit-message success';message.textContent=result.message||'无线设置已应用';
+			editingSection='';savingSection='';await new Promise(function(resolve){setTimeout(resolve,2200)});
+			await refreshWireless(true);
+		}catch(error){
+			message.className='edit-message error';message.textContent=error.name==='AbortError'?'请求已取消':error.message;save.disabled=false;cancel.disabled=false;savingSection='';
+		}
+	});
+
+	var clients=el('section','clients'),clientsHead=el('div','clients-head');
+	clientsHead.append(el('span','','连接设备'),el('span','',(ap.stations||[]).length+' 台'));
+	clients.append(clientsHead);
+	if(ap.stations&&ap.stations.length){
+		var gridClients=el('div','client-grid');
+		ap.stations.forEach(function(station){gridClients.appendChild(renderClient(ap,station,data,next))});
+		clients.append(gridClients);
+	}else{
+		clients.append(el('div','empty-clients',ap.up?'当前没有终端连接':'此 WiFi 当前未运行'));
+	}
+	card.append(clients);
+	return card;
+}
+
+function renderWireless(data){
+	latestData=data;
+	if(editingSection||savingSection)return;
+	var list=byId('list'),next=new Map(),interfaces=(data.interfaces||[]).slice().sort(function(a,b){
+		return String(a.ssid||'').localeCompare(String(b.ssid||''),undefined,{numeric:true});
+	});
+	list.replaceChildren();
+	var total=0,hidden=0;
+	interfaces.forEach(function(ap){total+=(ap.stations||[]).length;if(ap.hidden)hidden++;list.appendChild(createWifiCard(ap,data,next))});
+	if(!interfaces.length)list.append(el('div','empty-state','当前没有可管理的 WiFi'));
+	previous=next;
+	byId('total').textContent=total;
+	byId('interfaces').textContent=interfaces.length;
+	byId('hidden').textContent=hidden;
+	byId('count').textContent=interfaces.length+' 个信号 · '+total+' 台终端';
+	byId('status').textContent='每 3 秒采样 · '+new Date().toLocaleTimeString()+' 已更新';
+}
+
+async function refreshWireless(force){
+	if(busy||document.hidden)return;
+	busy=true;
+	try{
+		var response=await fetch(readUrl,{cache:'no-store'}),data=await response.json();
+		if(!response.ok||!data.ok)throw Error(data.error||'读取无线信息失败');
+		if(force||!editingSection)renderWireless(data);else latestData=data;
+	}catch(error){
+		if(error.name!=='AbortError')byId('status').textContent=(error.message||'读取失败')+'；保留上次数据';
+	}finally{busy=false}
+}
+
+byId('refresh-icon').appendChild(svgIcon('refresh'));
+byId('refresh').addEventListener('click',function(){refreshWireless(true)});
+refreshWireless(true);
+setInterval(refreshWireless,3000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshWireless()});
+})();</script>
+<%+footer%>

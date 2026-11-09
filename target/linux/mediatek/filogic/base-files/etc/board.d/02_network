@@ -53,6 +53,7 @@ mediatek_setup_interfaces()
 	livinet,zr-3020|\
 	livinet,zr-3020-ubootmod|\
 	qihoo,360t7|\
+	ruijie,sr503|\
 	routerich,ax3000|\
 	sl,3000|\
 	sl,3000-emmc|\

@@ -1,0 +1,90 @@
+#!/bin/sh
+set -eu
+
+live_net='jfa25w1'
+live_dev='live_dev'
+live_bridge='br-live'
+live_ip='172.16.1.1'
+owner='fastacl252-dev2'
+
+uci set "network.$live_dev=device"
+uci set "network.$live_dev.name=$live_bridge"
+uci set "network.$live_dev.type=bridge"
+uci set "network.$live_dev.bridge_empty=1"
+
+uci set "network.$live_net=interface"
+uci set "network.$live_net.device=$live_bridge"
+uci set "network.$live_net.proto=static"
+uci set "network.$live_net.ipaddr=$live_ip"
+uci set "network.$live_net.netmask=255.255.255.0"
+uci set "network.$live_net.delegate=0"
+
+uci set "dhcp.$live_net=dhcp"
+uci set "dhcp.$live_net.interface=$live_net"
+uci set "dhcp.$live_net.start=100"
+uci set "dhcp.$live_net.limit=150"
+uci set "dhcp.$live_net.leasetime=12h"
+uci set "dhcp.$live_net.ra=disabled"
+uci set "dhcp.$live_net.dhcpv6=disabled"
+uci set "dhcp.$live_net.ndp=disabled"
+uci -q delete "dhcp.$live_net.dhcp_option"
+uci add_list "dhcp.$live_net.dhcp_option=3,$live_ip"
+uci add_list "dhcp.$live_net.dhcp_option=6,$live_ip"
+
+uci set "firewall.$live_net=zone"
+uci set "firewall.$live_net.name=$live_net"
+uci set "firewall.$live_net.input=REJECT"
+uci set "firewall.$live_net.output=ACCEPT"
+uci set "firewall.$live_net.forward=REJECT"
+uci set "firewall.$live_net.masq=1"
+uci set "firewall.$live_net.device=$live_bridge"
+uci -q delete "firewall.$live_net.network"
+uci add_list "firewall.$live_net.network=$live_net"
+
+uci set "firewall.${live_net}_dhcp=rule"
+uci set "firewall.${live_net}_dhcp.name=Live WiFi DHCP"
+uci set "firewall.${live_net}_dhcp.src=$live_net"
+uci set "firewall.${live_net}_dhcp.proto=udp"
+uci set "firewall.${live_net}_dhcp.dest_port=67"
+uci set "firewall.${live_net}_dhcp.family=ipv4"
+uci set "firewall.${live_net}_dhcp.target=ACCEPT"
+
+uci set "firewall.${live_net}_dns=rule"
+uci set "firewall.${live_net}_dns.name=Live WiFi DNS"
+uci set "firewall.${live_net}_dns.src=$live_net"
+uci set "firewall.${live_net}_dns.proto=tcp udp"
+uci set "firewall.${live_net}_dns.dest_port=53 12553"
+uci set "firewall.${live_net}_dns.family=ipv4"
+uci set "firewall.${live_net}_dns.target=ACCEPT"
+
+uci set "firewall.${live_net}_tproxy=rule"
+uci set "firewall.${live_net}_tproxy.name=Live WiFi TPROXY"
+uci set "firewall.${live_net}_tproxy.src=$live_net"
+uci set "firewall.${live_net}_tproxy.proto=tcp udp"
+uci set "firewall.${live_net}_tproxy.mark=0x2028"
+uci set "firewall.${live_net}_tproxy.family=ipv4"
+uci set "firewall.${live_net}_tproxy.target=ACCEPT"
+uci set "firewall.${live_net}_tproxy.jfa25_owner=$owner"
+uci set "firewall.${live_net}_tproxy.jfa25_network=$live_net"
+
+uci set "firewall.${live_net}_wan=forwarding"
+uci set "firewall.${live_net}_wan.src=$live_net"
+uci set "firewall.${live_net}_wan.dest=wan"
+
+uci set "fastacl252.$live_net=wifi"
+uci set "fastacl252.$live_net.network=$live_net"
+uci set "fastacl252.$live_net.ssid=Live WiFi"
+uci set "fastacl252.$live_net.band=Live-5G / Live-2.4G"
+uci set "fastacl252.$live_net.subnet=172.16.1.0/24"
+uci set "fastacl252.$live_net.mode=direct"
+uci set "fastacl252.$live_net.dns_split=1"
+uci set "fastacl252.$live_net.split_mode=smart"
+uci set "fastacl252.$live_net.dns=inherit"
+uci set "fastacl252.$live_net.jfa25_owner=$owner"
+uci set "fastacl252.$live_net.jfa25_network=$live_net"
+
+uci commit network
+uci commit dhcp
+uci commit firewall
+uci commit fastacl252
+exit 0

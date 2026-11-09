@@ -1,0 +1,420 @@
+{#
+ JuLiang OS secure login template for the Argon shell.
+-#}
+
+{% include("themes/" + theme + "/out_header_login") %}
+
+<style>
+	html,
+	body {
+		min-width: 320px;
+		min-height: 100%;
+		margin: 0;
+		background: #04111b !important;
+		color: #edf7fa;
+		color-scheme: dark;
+	}
+
+	body {
+		overflow-x: hidden;
+		overflow-y: auto;
+		font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+	}
+
+	.jl-login-shell {
+		position: relative;
+		display: grid;
+		min-height: 100vh;
+		padding: 38px 16px;
+		overflow: hidden;
+		place-items: center;
+		background:
+			linear-gradient(rgba(103, 220, 231, 0.035) 1px, transparent 1px) 0 0 / 64px 64px,
+			linear-gradient(90deg, rgba(103, 220, 231, 0.035) 1px, transparent 1px) 0 0 / 64px 64px,
+			radial-gradient(circle at 50% 34%, rgba(32, 116, 139, 0.15), transparent 34%),
+			#04111b;
+	}
+
+	.jl-login-shell::before {
+		position: absolute;
+		inset: 7% 6%;
+		pointer-events: none;
+		border: 1px solid rgba(92, 151, 178, 0.15);
+		clip-path: polygon(0 0, 82% 0, 100% 12%, 100% 100%, 0 100%);
+		content: "";
+	}
+
+	.jl-login-shell::after {
+		position: absolute;
+		right: 0;
+		width: 2px;
+		height: 100%;
+		pointer-events: none;
+		background: linear-gradient(180deg, transparent, #67dce7 48%, transparent);
+		content: "";
+		box-shadow: 0 0 20px rgba(103, 220, 231, 0.52);
+	}
+
+	.jl-login-stage {
+		position: relative;
+		z-index: 1;
+		width: min(510px, calc(100vw - 32px));
+	}
+
+	.jl-login-heading {
+		position: relative;
+		display: grid;
+		justify-items: center;
+		margin-bottom: 20px;
+		padding: 0 0 20px;
+		text-align: center;
+	}
+
+	.jl-login-heading::after {
+		position: absolute;
+		right: 8%;
+		bottom: 0;
+		left: 8%;
+		height: 1px;
+		background: linear-gradient(90deg, transparent, rgba(103, 220, 231, 0.48) 24%, #a7f7ff 50%, rgba(103, 220, 231, 0.48) 76%, transparent);
+		content: "";
+		box-shadow: 0 0 16px rgba(103, 220, 231, 0.2);
+	}
+
+	.jl-login-heading h1 {
+		margin: 0;
+		background: linear-gradient(96deg, #62d8eb 0%, #b9faff 37%, #79aef6 72%, #5ed8e5 100%);
+		background-clip: text;
+		color: #8debf4;
+		font-family: "Bahnschrift", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+		font-size: 50px;
+		font-weight: 700;
+		line-height: 1.16;
+		letter-spacing: 0;
+		white-space: nowrap;
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		filter: drop-shadow(0 0 15px rgba(81, 213, 231, 0.2));
+	}
+
+	.jl-login-panel {
+		position: relative;
+		width: 100%;
+		padding: 25px 34px 23px;
+		overflow: hidden;
+		background:
+			linear-gradient(rgba(111, 169, 194, 0.027) 1px, transparent 1px) 0 0 / 28px 28px,
+			linear-gradient(90deg, rgba(111, 169, 194, 0.027) 1px, transparent 1px) 0 0 / 28px 28px,
+			linear-gradient(145deg, rgba(10, 30, 45, 0.98), rgba(4, 18, 29, 0.99));
+		clip-path: polygon(17px 0, calc(100% - 17px) 0, 100% 17px, 100% calc(100% - 17px), calc(100% - 17px) 100%, 17px 100%, 0 calc(100% - 17px), 0 17px);
+		box-shadow:
+			0 34px 90px rgba(0, 4, 8, 0.58),
+			inset 0 0 0 1px rgba(67, 112, 133, 0.5),
+			inset 0 1px 0 rgba(201, 245, 250, 0.05);
+	}
+
+	.jl-login-panel::before {
+		position: absolute;
+		top: 0;
+		left: 34px;
+		width: 120px;
+		height: 1px;
+		background: linear-gradient(90deg, #a7f7ff, transparent);
+		content: "";
+		box-shadow: 0 0 18px rgba(103, 220, 231, 0.5);
+	}
+
+	.jl-login-panel::after {
+		position: absolute;
+		top: -44%;
+		left: -24%;
+		width: 16%;
+		height: 188%;
+		pointer-events: none;
+		background: linear-gradient(90deg, transparent, rgba(103, 220, 231, 0.07), transparent);
+		content: "";
+		transform: rotate(16deg);
+		animation: jl-login-scan 8s linear infinite;
+	}
+
+	.jl-login-status {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 1px;
+		padding-bottom: 13px;
+		border-bottom: 1px solid rgba(95, 144, 165, 0.16);
+		color: #688697;
+		font-family: "Bahnschrift", "Consolas", monospace;
+		font-size: 9px;
+		font-weight: 700;
+	}
+
+	.jl-login-status span {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+	}
+
+	.jl-login-status i {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #67e9ac;
+		box-shadow: 0 0 0 3px rgba(103, 233, 172, 0.1), 0 0 8px rgba(103, 233, 172, 0.32);
+	}
+
+	.jl-login-error {
+		margin: 12px 0 0;
+		padding: 8px 10px;
+		border: 1px solid rgba(255, 119, 127, 0.36);
+		border-radius: 5px;
+		background: rgba(88, 30, 41, 0.32);
+		color: #ffb0b5;
+		font-size: 11px;
+		line-height: 1.5;
+	}
+
+	.jl-login-input {
+		display: flex;
+		align-items: center;
+		height: 52px;
+		margin-top: 13px;
+		border: 1px solid rgba(75, 125, 148, 0.58);
+		background:
+			linear-gradient(90deg, rgba(103, 220, 231, 0.045), transparent 30%),
+			rgba(3, 15, 25, 0.82);
+		box-shadow: inset 3px 0 0 rgba(103, 220, 231, 0.08);
+		transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+	}
+
+	.jl-login-input:focus-within {
+		border-color: rgba(103, 220, 231, 0.76);
+		background:
+			linear-gradient(90deg, rgba(103, 220, 231, 0.085), transparent 34%),
+			rgba(3, 17, 28, 0.96);
+		box-shadow: inset 3px 0 0 #67dce7, 0 0 0 1px rgba(103, 220, 231, 0.05), 0 0 22px rgba(103, 220, 231, 0.06);
+	}
+
+	.jl-login-input > svg {
+		flex: 0 0 19px;
+		width: 19px;
+		height: 19px;
+		margin-left: 16px;
+		fill: none;
+		stroke: #6e9eb1;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.65;
+		transition: stroke 160ms ease;
+	}
+
+	.jl-login-input:focus-within > svg {
+		stroke: #67dce7;
+	}
+
+	.jl-login-input input {
+		min-width: 0;
+		width: 100%;
+		height: 100%;
+		padding: 0 14px;
+		border: 0;
+		outline: 0;
+		background: transparent !important;
+		color: #edf7fa !important;
+		font-size: 14px;
+		box-shadow: none !important;
+	}
+
+	.jl-login-input input::placeholder {
+		color: #637f90;
+	}
+
+	.jl-login-reveal {
+		display: grid;
+		flex: 0 0 42px;
+		width: 42px;
+		height: 42px;
+		margin-right: 5px;
+		padding: 0;
+		place-items: center;
+		border: 0;
+		background: transparent;
+		color: #6f95a7;
+		cursor: pointer;
+	}
+
+	.jl-login-reveal svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.7;
+	}
+
+	.jl-login-reveal.is-visible {
+		color: #67dce7;
+	}
+
+	.jl-login-button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		width: 100%;
+		height: 51px;
+		margin-top: 18px;
+		border: 1px solid rgba(167, 247, 255, 0.68);
+		background: linear-gradient(100deg, #17677b, #315b98 62%, #604a92);
+		color: #f5feff;
+		font-size: 14px;
+		font-weight: 750;
+		cursor: pointer;
+		box-shadow: 0 12px 28px rgba(20, 106, 130, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+	}
+
+	.jl-login-button:hover {
+		filter: brightness(1.08);
+	}
+
+	.jl-login-button svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.8;
+	}
+
+	.jl-login-foot {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-top: 20px;
+		padding-top: 14px;
+		border-top: 1px solid rgba(111, 159, 180, 0.16);
+		color: #5f7d8e;
+		font-family: "Bahnschrift", "Consolas", monospace;
+		font-size: 8px;
+		font-weight: 650;
+	}
+
+	.jl-login-foot span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.jl-login-foot i {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #67e9ac;
+		box-shadow: 0 0 0 3px rgba(103, 233, 172, 0.1), 0 0 8px rgba(103, 233, 172, 0.32);
+	}
+
+	@keyframes jl-login-scan {
+		from { left: -20%; }
+		to { left: 110%; }
+	}
+
+	@media (max-width: 620px) {
+		.jl-login-shell {
+			padding: 24px 15px;
+		}
+
+		.jl-login-shell::before {
+			inset: 4% 4%;
+		}
+
+		.jl-login-heading h1 {
+			font-size: 34px;
+		}
+
+		.jl-login-panel {
+			padding: 20px 20px 19px;
+		}
+
+		.jl-login-panel::before {
+			left: 20px;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.jl-login-panel::after {
+			animation: none;
+		}
+	}
+</style>
+
+<main class="jl-login-shell">
+	<div class="jl-login-stage">
+		<header class="jl-login-heading">
+			<h1>炬量网络控制台</h1>
+		</header>
+
+		<section class="jl-login-panel" aria-label="登录">
+			<div class="jl-login-status">
+				<span><i></i>安全接入</span>
+				<span>JULIANG / LIVE 1.5</span>
+			</div>
+
+			{% if (fuser): %}
+			<div class="jl-login-error">无效的用户名或密码</div>
+			{% endif %}
+
+			<form method="post" id="jl-login-form" action="{{ http.getenv("REQUEST_URI") }}">
+				<div class="jl-login-input">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+					<input name="luci_username" id="luci_username" type="text" autocomplete="username" value="" placeholder="账号" aria-label="账号">
+				</div>
+
+				<div class="jl-login-input">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+					<input name="luci_password" id="luci_password" type="password" autocomplete="current-password" placeholder="登录密码" aria-label="密码">
+					<button class="jl-login-reveal" id="jl-login-reveal" type="button" aria-label="显示密码" aria-pressed="false">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+					</button>
+				</div>
+
+				<button class="jl-login-button" type="submit">
+					<span>登录</span>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 7l5 5-5 5"/></svg>
+				</button>
+			</form>
+
+			<footer class="jl-login-foot">
+				<span><i></i>系统在线</span>
+				<span>JULIANG / LIVE 1.5</span>
+			</footer>
+		</section>
+	</div>
+</main>
+
+<script>
+	document.title = '炬量网络控制台 - JuLiang OS';
+	(function () {
+		'use strict';
+		var username = document.getElementById('luci_username');
+		var password = document.getElementById('luci_password');
+		var reveal = document.getElementById('jl-login-reveal');
+
+		reveal.addEventListener('click', function () {
+			var showing = password.type === 'text';
+			password.type = showing ? 'password' : 'text';
+			reveal.classList.toggle('is-visible', !showing);
+			reveal.setAttribute('aria-pressed', showing ? 'false' : 'true');
+			reveal.setAttribute('aria-label', showing ? '显示密码' : '隐藏密码');
+			password.focus();
+		});
+
+		username.focus();
+	})();
+</script>
+
+{% include("themes/" + theme + "/footer_login") %}

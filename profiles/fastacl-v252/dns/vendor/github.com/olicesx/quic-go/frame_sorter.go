@@ -1,0 +1,242 @@
+package quic
+
+import (
+	"errors"
+
+	"github.com/olicesx/quic-go/internal/protocol"
+	"github.com/olicesx/quic-go/internal/utils"
+	"github.com/olicesx/quic-go/internal/utils/tree"
+)
+
+// byteInterval is an interval from one ByteCount to the other
+type byteInterval struct {
+	Start protocol.ByteCount
+	End   protocol.ByteCount
+}
+
+// frameReleaser returns a pooled frame to its pool. Implemented by
+// *wire.StreamFrame. Passing the frame itself (instead of a closure over it)
+// avoids a heap-allocated done callback per received frame.
+type frameReleaser interface {
+	PutBack()
+}
+
+type frameSorterEntry struct {
+	Data     []byte
+	Releaser frameReleaser
+}
+
+type frameSorter struct {
+	queue   map[protocol.ByteCount]frameSorterEntry
+	readPos protocol.ByteCount
+	gapTree *tree.Btree[utils.ByteInterval]
+}
+
+var errDuplicateStreamData = errors.New("duplicate stream data")
+
+func newFrameSorter() *frameSorter {
+	s := frameSorter{
+		gapTree: tree.New[utils.ByteInterval](),
+		queue:   make(map[protocol.ByteCount]frameSorterEntry, 64),
+	}
+	s.gapTree.Insert(utils.ByteInterval{Start: 0, End: protocol.MaxByteCount})
+	return &s
+}
+
+func (s *frameSorter) Push(data []byte, offset protocol.ByteCount, releaser frameReleaser) error {
+	err := s.push(data, offset, releaser)
+	if err == errDuplicateStreamData {
+		if releaser != nil {
+			releaser.PutBack()
+		}
+		return nil
+	}
+	return err
+}
+
+func (s *frameSorter) push(data []byte, offset protocol.ByteCount, releaser frameReleaser) error {
+	if len(data) == 0 {
+		return errDuplicateStreamData
+	}
+
+	start := offset
+	end := offset + protocol.ByteCount(len(data))
+	covInterval := utils.ByteInterval{Start: start, End: end}
+
+	gaps := s.gapTree.Match(covInterval)
+
+	if len(gaps) == 0 {
+		// No overlap with any existing gap
+		return errDuplicateStreamData
+	}
+
+	startGap := gaps[0]
+	endGap := gaps[len(gaps)-1]
+	startGapEqualsEndGap := len(gaps) == 1
+
+	if startGapEqualsEndGap && end <= startGap.Start {
+		return errDuplicateStreamData
+	}
+
+	startsInGap := covInterval.Start >= startGap.Start && covInterval.Start <= startGap.End
+	endsInGap := covInterval.End >= endGap.Start && covInterval.End < endGap.End
+
+	startGapEnd := startGap.End // save it, in case startGap is modified
+	endGapStart := endGap.Start // save it, in case endGap is modified
+	endGapEnd := endGap.End     // save it, in case endGap is modified
+
+	var adjustedStartGapEnd bool
+	var wasCut bool
+
+	pos := start
+	var hasReplacedAtLeastOne bool
+	for {
+		oldEntry, ok := s.queue[pos]
+		if !ok {
+			break
+		}
+		oldEntryLen := protocol.ByteCount(len(oldEntry.Data))
+		if end-pos > oldEntryLen || (hasReplacedAtLeastOne && end-pos == oldEntryLen) {
+			// The existing frame is shorter than the new frame. Replace it.
+			delete(s.queue, pos)
+			pos += oldEntryLen
+			hasReplacedAtLeastOne = true
+			if oldEntry.Releaser != nil {
+				oldEntry.Releaser.PutBack()
+			}
+		} else {
+			if !hasReplacedAtLeastOne {
+				return errDuplicateStreamData
+			}
+			// The existing frame is longer than the new frame.
+			// Cut the new frame such that the end aligns with the start of the existing frame.
+			data = data[:pos-start]
+			end = pos
+			wasCut = true
+			break
+		}
+	}
+
+	if !startsInGap && !hasReplacedAtLeastOne {
+		// cut the frame, such that it starts at the start of the gap
+		data = data[startGap.Start-start:]
+		start = startGap.Start
+		wasCut = true
+	}
+	if start <= startGap.Start {
+		if end >= startGap.End {
+			// The frame covers the whole startGap. Delete the gap.
+			s.gapTree.Delete(startGap)
+		} else {
+			s.gapTree.Delete(startGap)
+			startGap.Start = end
+			// Re-insert the gap, but with the new start.
+			s.gapTree.Insert(startGap)
+		}
+	} else if !hasReplacedAtLeastOne {
+		s.gapTree.Delete(startGap)
+		startGap.End = start
+		// Re-insert the gap, but with the new end.
+		s.gapTree.Insert(startGap)
+		adjustedStartGapEnd = true
+	}
+
+	if !startGapEqualsEndGap {
+		s.deleteConsecutive(startGapEnd)
+		for _, g := range gaps[1:] {
+			if g.End >= endGapStart {
+				break
+			}
+			s.deleteConsecutive(g.End)
+			s.gapTree.Delete(g)
+		}
+	}
+
+	if !endsInGap && start != endGapEnd && end > endGapEnd {
+		// cut the frame, such that it ends at the end of the gap
+		data = data[:endGapEnd-start]
+		end = endGapEnd
+		wasCut = true
+	}
+	if end == endGapEnd {
+		if !startGapEqualsEndGap {
+			// The frame covers the whole endGap. Delete the gap.
+			s.gapTree.Delete(endGap)
+		}
+	} else {
+		if startGapEqualsEndGap && adjustedStartGapEnd {
+			// The frame split the existing gap into two.
+			s.gapTree.Insert(utils.ByteInterval{Start: end, End: startGapEnd})
+		} else if !startGapEqualsEndGap {
+			s.gapTree.Delete(endGap)
+			endGap.Start = end
+			// Re-insert the gap, but with the new start.
+			s.gapTree.Insert(endGap)
+		}
+	}
+
+	if wasCut && len(data) < protocol.MinStreamFrameBufferSize {
+		newData := make([]byte, len(data))
+		copy(newData, data)
+		data = newData
+		if releaser != nil {
+			releaser.PutBack()
+			releaser = nil
+		}
+	}
+
+	if s.gapTree.Len() > protocol.MaxStreamFrameSorterGaps {
+		if releaser != nil {
+			releaser.PutBack()
+		}
+		return errors.New("too many gaps in received data")
+	}
+
+	s.queue[start] = frameSorterEntry{Data: data, Releaser: releaser}
+	return nil
+}
+
+// deleteConsecutive deletes consecutive frames from the queue, starting at pos
+func (s *frameSorter) deleteConsecutive(pos protocol.ByteCount) {
+	for {
+		oldEntry, ok := s.queue[pos]
+		if !ok {
+			break
+		}
+		oldEntryLen := protocol.ByteCount(len(oldEntry.Data))
+		delete(s.queue, pos)
+		if oldEntry.Releaser != nil {
+			oldEntry.Releaser.PutBack()
+		}
+		pos += oldEntryLen
+	}
+}
+
+func (s *frameSorter) Pop() (protocol.ByteCount, []byte, frameReleaser) {
+	entry, ok := s.queue[s.readPos]
+	if !ok {
+		return s.readPos, nil, nil
+	}
+	delete(s.queue, s.readPos)
+	offset := s.readPos
+	s.readPos += protocol.ByteCount(len(entry.Data))
+	return offset, entry.Data, entry.Releaser
+}
+
+// HasMoreData says if there is any more data queued at *any* offset.
+func (s *frameSorter) HasMoreData() bool {
+	return len(s.queue) > 0
+}
+
+// releaseAll returns every queued frame to its pool, including frames sitting
+// at unread gaps that Pop (which only yields the contiguous next frame) would
+// not reach. Used on abrupt stream close so out-of-order frames are not
+// stranded in the sorter.
+func (s *frameSorter) releaseAll() {
+	for pos, entry := range s.queue {
+		if entry.Releaser != nil {
+			entry.Releaser.PutBack()
+		}
+		delete(s.queue, pos)
+	}
+}
