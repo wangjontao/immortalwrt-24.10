@@ -665,10 +665,10 @@ body.jl-tech-theme .f252 .f25-tabs button[aria-selected=true] .f25-nav-count{
       </div>
     </div>
     <nav class="f25-tabs" role="tablist" aria-label="FastACL 功能菜单">
-      <button type="button" role="tab" data-f25-view="overview" aria-selected="true">概览</button>
+      <button type="button" role="tab" data-f25-view="overview" aria-selected="false">概览</button>
       <button type="button" role="tab" data-f25-view="nodes" aria-selected="false">节点与订阅 <span class="f25-nav-count" id="f25-nav-nodes">0</span></button>
       <button type="button" role="tab" data-f25-view="devices" aria-selected="false">单 WiFi 多设备分配模式 <span class="f25-nav-count" id="f25-nav-devices">0</span></button>
-      <button type="button" role="tab" data-f25-view="wifi" aria-selected="false">Live WiFi 设置 <span class="f25-nav-count" id="f25-nav-wifi">0</span></button>
+      <button type="button" role="tab" data-f25-view="wifi" aria-selected="true">Live WiFi 设置 <span class="f25-nav-count" id="f25-nav-wifi">0</span></button>
       <button type="button" role="tab" data-f25-view="settings" aria-selected="false">全局设置</button>
     </nav>
     <div id="f25-msg" class="msg" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -931,12 +931,12 @@ async function exportNodes(){
  }catch(e){msg(e.message,true)}
  finally{button.disabled=false;button.textContent=label}
 }
-let currentView='overview',nodeView='nodes',settingView='dns';const validViews=new Set(['overview','devices','nodes','wifi','settings']);
+let currentView='wifi',nodeView='nodes',settingView='dns';const validViews=new Set(['overview','devices','nodes','wifi','settings']);
 function syncSubtab(group,view){document.querySelectorAll('[data-f25-subnav="'+group+'"] button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset[group==='nodes'?'f25NodeView':'f25SettingView']===view)))}
 function applyView(view,updateHash=true){if(!validViews.has(view))view='overview';currentView=view;document.querySelectorAll('[data-f25-tab]').forEach(card=>{let show=card.dataset.f25Tab===view;if(show&&view==='nodes')show=card.dataset.f25Subview===nodeView;if(show&&view==='settings')show=card.dataset.f25Subview===settingView;card.hidden=!show});document.querySelectorAll('.f25-tabs>[data-f25-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.f25View===view)));document.querySelectorAll('[data-f25-subnav]').forEach(box=>box.hidden=box.dataset.f25Subnav!==view);syncSubtab('nodes',nodeView);syncSubtab('settings',settingView);if(updateHash){const hash=view==='overview'?'':('#'+view);try{history.replaceState(null,'',location.pathname+location.search+hash)}catch(e){}}}
 function goView(view){applyView(view)}
 function setupCollapse(id,key){const panel=$(id);if(!panel)return;try{const saved=localStorage.getItem(key);if(saved!==null)panel.open=saved==='1'}catch(e){}panel.addEventListener('toggle',()=>{try{localStorage.setItem(key,panel.open?'1':'0')}catch(e){}})}
-function setupLayout(){document.querySelectorAll('.f25-tabs>[data-f25-view]').forEach(b=>b.onclick=()=>goView(b.dataset.f25View));document.querySelectorAll('[data-f25-go]').forEach(b=>b.onclick=()=>goView(b.dataset.f25Go));document.querySelectorAll('[data-f25-node-view]').forEach(b=>b.onclick=()=>{nodeView=b.dataset.f25NodeView;applyView('nodes',false)});document.querySelectorAll('[data-f25-setting-view]').forEach(b=>b.onclick=()=>{settingView=b.dataset.f25SettingView;applyView('settings',false)});let initial=String(location.hash||'').replace(/^#/,'');if(!validViews.has(initial)){try{initial=localStorage.getItem('f253-workspace-view')||'overview'}catch(e){initial='overview'}}applyView(initial,false);document.querySelectorAll('.f25-tabs [data-f25-view]').forEach(b=>b.addEventListener('click',()=>{try{localStorage.setItem('f253-workspace-view',b.dataset.f25View)}catch(e){}}));window.addEventListener('hashchange',()=>{const view=String(location.hash||'').replace(/^#/,'');if(validViews.has(view)&&view!==currentView)applyView(view,false)})}
+function setupLayout(){document.querySelectorAll('.f25-tabs>[data-f25-view]').forEach(b=>b.onclick=()=>goView(b.dataset.f25View));document.querySelectorAll('[data-f25-go]').forEach(b=>b.onclick=()=>goView(b.dataset.f25Go));document.querySelectorAll('[data-f25-node-view]').forEach(b=>b.onclick=()=>{nodeView=b.dataset.f25NodeView;applyView('nodes',false)});document.querySelectorAll('[data-f25-setting-view]').forEach(b=>b.onclick=()=>{settingView=b.dataset.f25SettingView;applyView('settings',false)});let initial=String(location.hash||'').replace(/^#/,'');if(!validViews.has(initial)){try{initial=localStorage.getItem('f253-workspace-view-v15')||'wifi'}catch(e){initial='wifi'}}applyView(initial,false);document.querySelectorAll('.f25-tabs [data-f25-view]').forEach(b=>b.addEventListener('click',()=>{try{localStorage.setItem('f253-workspace-view-v15',b.dataset.f25View)}catch(e){}}));window.addEventListener('hashchange',()=>{const view=String(location.hash||'').replace(/^#/,'');if(validViews.has(view)&&view!==currentView)applyView(view,false)})}
 function splitFields(x,f,node,path){
  const panel=el('div','split-panel'),controls=el('div','split-controls'),editors=el('div','split-editors');
  const mode=document.createElement('select'),rules=document.createElement('textarea');

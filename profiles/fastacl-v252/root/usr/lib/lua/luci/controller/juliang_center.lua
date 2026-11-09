@@ -1,6 +1,5 @@
 module('luci.controller.juliang_center',package.seeall)
 function index()
-  local p=entry({'admin','juliang'},firstchild(),_('JuLiang OS 控制面板'),1); p.dependent=false; p.acl_depends={'juliang-center'}
   local h=entry({'admin','juliang','home'},template('juliang_center/home'),_('JuLiang OS 监测中心'),1); h.leaf=true; h.acl_depends={'juliang-center'}
   local w=entry({'admin','juliang','wireless'},template('juliang_center/wireless'),_('无线设备管理'),2); w.leaf=true; w.acl_depends={'juliang-center'}
   local a=entry({'admin','juliang','status'},call('status'),nil); a.leaf=true; a.acl_depends={'juliang-center'}
@@ -162,5 +161,5 @@ function status()
   end
   counters.timestamp=tonumber(sys.exec('cat /proc/uptime'):match('^[%d.]+')) or up
   counters.device=dev
- reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),system=system_health(),traffic=counters,traffic_totals=traffic_totals(),hostname=sys.hostname() or 'JuLiang-OS',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='JuLiang OS 2.8.6 sing-box'})
+ reply({ok=true,reboot=can_reboot() and require('juliang_reboot').service().status() or nil,ports=wired_ports(),system=system_health(),traffic=counters,traffic_totals=traffic_totals(),hostname=sys.hostname() or 'JuLiang-OS',uptime=up,wan_up=wan.up==true,wan_ip=ip,wan_device=wan.l3_device or wan.device or '',wifi_count=wifi,managed_wifi=managed,fastacl=fast,version='JuLiang OS 1.5 sing-box'})
 end
