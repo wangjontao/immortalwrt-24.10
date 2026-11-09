@@ -7,7 +7,7 @@ boot() {
 
 	# A preserved overlay can shadow the managed UI files from the new
 	# read-only rootfs. Refresh them once per UI asset revision.
-	if [ "$(uci -q get fastacl252.main.ui_assets)" != 'fix6' ]; then
+	if [ "$(uci -q get fastacl252.main.ui_assets)" != 'juliang-1.5-r1' ]; then
 		for file in \
 			/usr/share/luci/menu.d/luci-base.json \
 			/usr/share/ucode/luci/template/themes/juliang/header.ut \
@@ -26,7 +26,7 @@ boot() {
 			mkdir -p "$(dirname "$file")"
 			cp -f "/rom$file" "$file"
 		done
-		uci -q set fastacl252.main.ui_assets='fix6'
+		uci -q set fastacl252.main.ui_assets='juliang-1.5-r1'
 		uci -q commit fastacl252
 	fi
 
