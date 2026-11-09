@@ -8,6 +8,9 @@ dts = (
 nps = (
     ROOT / "profiles/fastacl-v252/root/usr/libexec/nps-wan-mac"
 ).read_text(encoding="utf-8")
+overlay_nps = (
+    ROOT / "custom/rax3000m-nand/files/usr/libexec/nps-wan-mac"
+).read_text(encoding="utf-8")
 
 assert "label-mac-device = &gmac0;" in dts
 assert "macaddr_factory_4: macaddr@4" in dts
@@ -16,5 +19,6 @@ assert "nvmem-cells = <&macaddr_factory_4>;" in dts
 assert 'nvmem-cell-names = "mac-address";' in dts
 assert 'CURRENT_KEY="$(uci -q get nps.@nps[0].vkey' in nps
 assert '[ "$CURRENT_KEY" != "$NPS_KEY" ]' in nps
+assert overlay_nps == nps
 
 print("SR503 label MAC binding and NPS key refresh: OK")
