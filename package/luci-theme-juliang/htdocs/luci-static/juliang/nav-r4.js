@@ -66,4 +66,59 @@
 		if (event.key === 'Escape')
 			body.classList.remove('nav-open');
 	});
+
+	function renderPageTabs() {
+		var container = document.getElementById('tabmenu');
+		var path = window.L && L.env && L.env.dispatchpath;
+		if (!container || !path || path.length < 3 || !window.L.require)
+			return;
+
+		L.require('ui').then(function (ui) {
+			ui.menu.load().then(function (tree) {
+				var node = tree;
+				var url = '';
+				var index;
+
+				for (index = 0; index < 3 && node; index++) {
+					node = node.children ? node.children[path[index]] : null;
+					url += (url ? '/' : '') + path[index];
+				}
+				if (!node)
+					return;
+
+				function appendLevel(parent, baseUrl, level) {
+					var children = ui.menu.getChildren(parent);
+					if (!children.length)
+						return;
+
+					var list = document.createElement('ul');
+					var activeNode = null;
+					list.className = 'tabs';
+					children.forEach(function (child) {
+						var active = path[3 + level] === child.name;
+						var item = document.createElement('li');
+						var link = document.createElement('a');
+						item.className = 'tabmenu-item-' + child.name +
+							(active ? ' active' : '');
+						link.href = L.url(baseUrl, child.name);
+						link.textContent = typeof _ === 'function'
+							? _(child.title) : child.title;
+						item.appendChild(link);
+						list.appendChild(item);
+						if (active)
+							activeNode = child;
+					});
+					container.appendChild(list);
+					container.style.display = '';
+					if (activeNode)
+						appendLevel(activeNode, baseUrl + '/' + activeNode.name, level + 1);
+				}
+
+				container.textContent = '';
+				appendLevel(node, url, 0);
+			});
+		});
+	}
+
+	renderPageTabs();
 })();

@@ -546,6 +546,18 @@ textarea {
 	margin-left: var(--jl-sidebar);
 }
 
+@media (min-width: 901px) {
+	body[data-page^="admin-services-passwall2"] .juliang-sidebar {
+		display: flex !important;
+		visibility: visible !important;
+		transform: none !important;
+	}
+
+	body[data-page^="admin-services-passwall2"] .juliang-shell {
+		margin-left: var(--jl-sidebar) !important;
+	}
+}
+
 .juliang-appbar {
 	position: sticky;
 	top: 0;

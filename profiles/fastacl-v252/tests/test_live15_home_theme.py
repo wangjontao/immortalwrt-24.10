@@ -80,6 +80,8 @@ for label in (
 ):
     assert label in header, label
 assert "dropdown-menu" in nav and "aria-expanded" in nav
+assert "renderPageTabs" in nav and "ui.menu.load" in nav
+assert "getElementById('tabmenu')" in nav
 assert "admin/home_status" in status and "egress" in status
 assert "primary.items" in status and "renderEgress" in status
 assert not list(theme_root.rglob("menu-juliang*.js"))
@@ -87,6 +89,7 @@ assert (theme_root / "htdocs/luci-static/juliang/nav-r4.js").is_file()
 assert (theme_root / "htdocs/luci-static/juliang/status-r4.js").is_file()
 assert "JuLiang Live hard theme" in css
 assert "color:#67e9ac" in css
+assert 'data-page^="admin-services-passwall2"' in css
 assert "background:#0a1b29!important" in css
 assert "background:#163246!important" in css
 assert "#f25-wifi-count" in css
