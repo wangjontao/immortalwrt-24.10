@@ -1,10 +1,11 @@
 #!/bin/sh
 set -eu
 
-device=ruijie_sr503
-tag=SR503
-dts=mt7981b-ruijie-sr503
-compatible=ruijie,sr503
+device=${JULIANG_DEVICE:-ruijie_sr503}
+tag=${JULIANG_TAG:-SR503}
+dts=${JULIANG_DTS:-mt7981b-ruijie-sr503}
+compatible=${JULIANG_COMPATIBLE:-ruijie,sr503}
+config_override=${JULIANG_CONFIG:-}
 nps_domain=${NPS_DOMAIN:-nps.jontao.top}
 
 case "$nps_domain" in
@@ -114,13 +115,28 @@ sed -i "s/192\\.168\\.[0-9]*\\.[0-9]*/192.168.7.1/g" package/base-files/files/bi
 sed -i "s/hostname='.*'/hostname='JuLiang-OS'/g" package/base-files/files/bin/config_generate
 sed -i "s/template(\"juliang_dashboard\/home\"), _(\"首页\"), 5/template(\"juliang_dashboard\/home\"), _(\"首页\"), 0/" \
   files/usr/lib/lua/luci/controller/juliang_dashboard.lua
-cp build-configs/JuLiang-OS-Live1.3-SR503.txt .config
+if [ -n "$config_override" ] && [ -f "$config_override" ]; then
+  cp "$config_override" .config
+else
+  cp build-configs/JuLiang-OS-Live1.3-SR503.txt .config
+  sed -i \
+    -e '/^CONFIG_TARGET_mediatek_filogic_DEVICE_.*=y$/d' \
+    -e '/^# CONFIG_TARGET_mediatek_filogic_DEVICE_.* is not set$/d' \
+    -e '/^CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_/d' \
+    .config
+  printf 'CONFIG_TARGET_mediatek_filogic_DEVICE_%s=y\n' "$device" >> .config
+fi
+sed -i \
+  -e '/^CONFIG_PACKAGE_luci-theme-argon=/d' \
+  -e '/^CONFIG_PACKAGE_luci-app-argon-config=/d' \
+  -e '/^CONFIG_PACKAGE_luci-i18n-argon-config-zh-cn=/d' \
+  .config
 make defconfig
 sed -i '/^CONFIG_PACKAGE_juliangtk-sing-box=/d' .config
 
 sed -i \
-  -e 's/^CONFIG_VERSION_HWREV=.*/CONFIG_VERSION_HWREV="SR503"/' \
-  -e 's/^CONFIG_VERSION_CODE=.*/CONFIG_VERSION_CODE="SR503-1.5-Live"/' \
+  -e "s/^CONFIG_VERSION_HWREV=.*/CONFIG_VERSION_HWREV=\"${tag}\"/" \
+  -e "s/^CONFIG_VERSION_CODE=.*/CONFIG_VERSION_CODE=\"${tag}-1.5-Live\"/" \
   -e 's/^CONFIG_VERSION_NUMBER=.*/CONFIG_VERSION_NUMBER="v1.5"/' \
   -e 's/^CONFIG_VERSION_PRODUCT=.*/CONFIG_VERSION_PRODUCT="JuLiang OS"/' \
   .config
@@ -142,7 +158,7 @@ if grep -q '^CONFIG_PACKAGE_luci-theme-argon=y$' .config; then
 fi
 
 grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y$" .config || {
-  echo "SR503 target missing from .config" >&2
+  echo "${tag} target missing from .config" >&2
   exit 1
 }
 grep -Fq "\"$compatible\"" "target/linux/mediatek/dts/$dts.dts"
