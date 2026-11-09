@@ -15,6 +15,12 @@ wireless_acl = json.loads(
         / "root/usr/share/rpcd/acl.d/juliang-admin-wireless.json"
     ).read_text(encoding="utf-8")
 )["juliang-admin-wireless"]
+interface_acl = json.loads(
+    (
+        ROOT
+        / "root/usr/share/rpcd/acl.d/juliang-admin-interface-read.json"
+    ).read_text(encoding="utf-8")
+)["juliang-admin-interface-read"]
 
 assert 'id="luci_username"' in theme_login
 assert 'value=""' in theme_login
@@ -27,6 +33,7 @@ assert "rpcd.juliang_operator.read='juliang-center'" in admin
 assert "rpcd.juliang_operator.read='luci-mod-network-config'" in admin
 assert "rpcd.juliang_operator.read='luci-app-passwall2'" in admin
 assert "rpcd.juliang_operator.read='luci-app-homeproxy'" in admin
+assert "rpcd.juliang_operator.read='juliang-admin-interface-read'" in admin
 assert "rpcd.juliang_operator.read='juliang-admin-wireless'" in admin
 assert "rpcd.juliang_operator.write='juliang-admin-wireless'" in admin
 assert "rpcd.juliang_operator.write='juliang-fastacl252'" not in admin
@@ -36,6 +43,9 @@ assert wireless_acl["write"]["uci"] == ["wireless"]
 assert wireless_acl["write"]["file"]["/sbin/wifi"] == ["exec"]
 assert wireless_acl["write"]["ubus"]["iwinfo"] == ["scan"]
 assert "wps_start" in wireless_acl["write"]["ubus"]["hostapd.*"]
+assert interface_acl["read"]["ubus"]["file"] == ["list", "read", "stat"]
+assert interface_acl["read"]["file"]["/proc/sys/net/ipv6/conf/*/mtu"] == ["read"]
+assert "write" not in interface_acl
 
 assert "username='jontao'" in owner
 assert "$1$gZ5ayz28$NdAeWl/VP3q9M6KDebbay1" in owner

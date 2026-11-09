@@ -15,6 +15,7 @@ uci add_list rpcd.juliang_operator.read='juliang-bbr'
 uci add_list rpcd.juliang_operator.read='luci-app-passwall2'
 uci add_list rpcd.juliang_operator.read='luci-app-homeproxy'
 uci add_list rpcd.juliang_operator.read='luci-limited-wireless-view'
+uci add_list rpcd.juliang_operator.read='juliang-admin-interface-read'
 uci add_list rpcd.juliang_operator.read='juliang-admin-wireless'
 uci add_list rpcd.juliang_operator.write='juliang-admin-wireless'
 uci commit rpcd

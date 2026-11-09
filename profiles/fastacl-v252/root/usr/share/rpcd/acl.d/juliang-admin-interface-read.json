@@ -1,0 +1,28 @@
+{
+  "juliang-admin-interface-read": {
+    "description": "JuLiang OS admin interface read-only access",
+    "read": {
+      "file": {
+        "/etc/iproute2/rt_tables": [
+          "read"
+        ],
+        "/proc/sys/net/ipv[46]/conf/*": [
+          "read"
+        ],
+        "/proc/sys/net/ipv6/conf/*/hop_limit": [
+          "read"
+        ],
+        "/proc/sys/net/ipv6/conf/*/mtu": [
+          "read"
+        ]
+      },
+      "ubus": {
+        "file": [
+          "list",
+          "read",
+          "stat"
+        ]
+      }
+    }
+  }
+}
