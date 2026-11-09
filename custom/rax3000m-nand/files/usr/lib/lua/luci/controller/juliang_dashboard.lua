@@ -12,7 +12,7 @@ function index()
 	local home = entry({"admin", "home"}, template("juliang_dashboard/home"), _("首页"), 5)
 	home.leaf = true
 
-	local status = entry({"admin", "home", "status"}, call("dashboard_status"), nil)
+	local status = entry({"admin", "home_status"}, call("dashboard_status"), nil)
 	status.leaf = true
 end
 

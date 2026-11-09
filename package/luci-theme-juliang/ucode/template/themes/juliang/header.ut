@@ -31,7 +31,7 @@
 		<meta name="theme-color" content="#07131f">
 		<title>{{ pageTitle }} - JuLiang OS</title>
 		<link rel="stylesheet" href="{{ media }}/cascade.css">
-		<link rel="stylesheet" href="{{ media }}/juliang.css?v=285-r2">
+		<link rel="stylesheet" href="{{ media }}/juliang.css?v=fix7">
 		<link rel="icon" href="{{ media }}/logo.svg" sizes="any">
 		{% if (node?.css): %}
 		<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">

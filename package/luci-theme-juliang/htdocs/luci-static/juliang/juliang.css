@@ -2104,3 +2104,134 @@ html body .jc .jc-health-head {
 		animation-iteration-count: 1 !important;
 	}
 }
+
+/* JuLiang Live hard theme: inline Live styles must never fall back to white. */
+html body.juliang-theme .f252,
+html body.juliang-theme .f252 .f25-content,
+html body.juliang-theme .f252 > .card,
+html body.juliang-theme .f252 .card,
+html body.juliang-theme .f252 .section-body,
+html body.juliang-theme .f252 .f25-overview,
+html body.juliang-theme .f252 .f25-overview-body,
+html body.juliang-theme .f252 .f25-existing-body,
+html body.juliang-theme .f252 details.split-editor,
+html body.juliang-theme .f252 .wifi-create-panel,
+html body.juliang-theme .f252 .f25-main-lan-panel,
+html body.juliang-theme .f252 .f25-existing-panel{
+	background:#091a27!important;
+	color:var(--jl-text-soft)!important;
+	border-color:var(--jl-line)!important
+}
+html body.juliang-theme .f252>.card,
+html body.juliang-theme .f252 .card{
+	background:#0a1b29!important;
+	box-shadow:0 8px 24px rgba(0,6,11,0.14)!important
+}
+html body.juliang-theme .f252 .item,
+html body.juliang-theme .f252 .node-row,
+html body.juliang-theme .f252 .device-row,
+html body.juliang-theme .f252 .subscription-row,
+html body.juliang-theme .f252 .f25-metric,
+html body.juliang-theme .f252 .f25-quickbar,
+html body.juliang-theme .f252 .f25-subtabs,
+html body.juliang-theme .f252 .wifi-bulk-toolbar,
+html body.juliang-theme .f252 .split-editor,
+html body.juliang-theme .f252 details.split-editor>summary{
+	background:#0c2030!important;
+	color:var(--jl-text-soft)!important;
+	border-color:#244456!important
+}
+html body.juliang-theme .f252 .pill,
+html body.juliang-theme .f252 .f25-nav-count,
+html body.juliang-theme .f252 .f25-version,
+html body.juliang-theme .f252 .f25-tools #f25-health{
+	background:#163246!important;
+	color:#dff6ff!important;
+	border-color:#34586c!important
+}
+html body.juliang-theme .f252 input,
+html body.juliang-theme .f252 select,
+html body.juliang-theme .f252 textarea,
+html body.juliang-theme .f252 .cbi-input-text,
+html body.juliang-theme .f252 .cbi-input-select,
+html body.juliang-theme .f252 .cbi-dropdown,
+html body.juliang-theme .f252 .cbi-select{
+	background:#071521!important;
+	color:#d9e8f0!important;
+	border-color:#2a4b5e!important;
+	color-scheme:dark!important;
+	box-shadow:none!important
+}
+html body.juliang-theme .f252 select option,
+html body.juliang-theme .f252 .cbi-dropdown>ul,
+html body.juliang-theme .f252 .cbi-dropdown>ul>li{
+	background:#0b1d2b!important;
+	color:#d9e8f0!important
+}
+html body.juliang-theme .f252 input[type="checkbox"],
+html body.juliang-theme .f252 input[type="radio"]{
+	background:#071521!important;
+	border-color:#5f8798!important;
+	accent-color:var(--jl-cyan)!important;
+	color-scheme:dark!important
+}
+html body.juliang-theme .f252 .check,
+html body.juliang-theme .f252 .wifi-choice,
+html body.juliang-theme .f252 .split-platform-chip,
+html body.juliang-theme .f252 .split-platforms label{
+	background:#0c2030!important;
+	color:#c7dce6!important;
+	border-color:#2a4b5e!important;
+	box-shadow:none!important
+}
+html body.juliang-theme .f252 .split-platform-chip:hover,
+html body.juliang-theme .f252 .split-platforms label:hover{
+	background:#123044!important;
+	color:var(--jl-cyan-bright)!important;
+	border-color:#43768c!important
+}
+html body.juliang-theme .f252 .split-platform-chip:has(input:checked){
+	background:#123a4b!important;
+	color:var(--jl-cyan-bright)!important;
+	border-color:#4c91a4!important
+}
+html body.juliang-theme .f252 .section-heading,
+html body.juliang-theme .f252 .f25-overview-head,
+html body.juliang-theme .f252 .f25-content>.card>.head,
+html body.juliang-theme .f252 .f25-content>.card>h3{
+	background:linear-gradient(90deg,rgba(34,100,119,0.28),#0b1e2c)!important;
+	color:var(--jl-cyan-bright)!important;
+	border-color:var(--jl-line)!important
+}
+html body.juliang-theme .f252 .note,
+html body.juliang-theme .f252 .meta,
+html body.juliang-theme .f252 .sub,
+html body.juliang-theme .f252 .field label{
+	color:var(--jl-muted)!important
+}
+html body.juliang-theme .f252 button,
+html body.juliang-theme .f252 .btn,
+html body.juliang-theme .f252 .cbi-button{
+	background:#0d2333!important;
+	color:#b7ced9!important;
+	border-color:#315267!important;
+	text-shadow:none!important
+}
+html body.juliang-theme .f252 .cbi-button-apply,
+html body.juliang-theme .f252 .cbi-button-positive,
+html body.juliang-theme .f252 .cbi-button-action{
+	background:linear-gradient(100deg,#267f91,#316f93)!important;
+	color:#f5fdff!important;
+	border-color:#5fcbd6!important
+}
+html body.juliang-theme .f252 .pill,
+html body.juliang-theme .f252 .f25-nav-count,
+html body.juliang-theme .f252 #f25-node-count,
+html body.juliang-theme .f252 #f25-device-total,
+html body.juliang-theme .f252 #f25-wifi-count,
+html body.juliang-theme .f252 #f25-nav-subscriptions{
+	background:#163246!important;
+	background-color:#163246!important;
+	color:#dff6ff!important;
+	border-color:#34586c!important
+}

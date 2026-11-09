@@ -40,6 +40,7 @@ sed -i "s/entry({'admin','juliang'},firstchild(),_('JuLiang OS 控制面板'),1)
 rm -rf files
 mkdir -p files
 cp -a custom/rax3000m-nand/files/. files/
+rm -rf files/usr/share/ucode/luci/template/themes/argon files/www/luci-static/argon
 
 ROOT_HASH=$(openssl passwd -1 '@password@')
 cp package/base-files/files/etc/shadow files/etc/shadow
@@ -47,7 +48,7 @@ sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" files/etc/shadow
 printf '%s\n' "$ROOT_HASH" > files/etc/dulwifi-root.hash
 chmod 600 files/etc/shadow files/etc/dulwifi-root.hash
 
-# The Live 1.5 shell is the JuLiang-branded Argon layout.
+# The Live 1.5 shell uses the independent JuLiang theme.
 sed -i "s/HOSTNAME='JuLiang-OS'/HOSTNAME='JuLiang-OS'/" files/etc/uci-defaults/99-zz-dulwifi
 
 # Live WiFi is intentionally not client-isolated in the confirmed layout.
@@ -59,8 +60,7 @@ cat > files/etc/uci-defaults/99-zzzz-live13-defaults <<'EOF'
 uci set system.@system[0].hostname='JuLiang-OS'
 uci set system.@system[0].timezone='CST-8'
 uci set system.@system[0].zonename='Asia/Shanghai'
-uci set luci.main.mediaurlbase='/luci-static/argon'
-uci set argon.@global[0].mode='dark'
+uci set luci.main.mediaurlbase='/luci-static/juliang'
 uci set dropbear.@dropbear[0].Port='22'
 uci commit system
 uci commit luci
@@ -125,7 +125,7 @@ sed -i \
   .config
 
 for pkg in \
-  luci-theme-juliang luci-theme-argon luci-app-passwall2 luci-app-homeproxy \
+  luci-theme-juliang luci-app-passwall2 luci-app-homeproxy \
   luci-app-filetransfer luci-app-arpbind luci-app-upnp \
   luci-app-sqm sqm-scripts kmod-sched-cake kmod-ifb tc-tiny \
   luci-app-nps npc fastacl252 sing-box kmod-tcp-bbr
@@ -135,6 +135,10 @@ do
     exit 1
   }
 done
+if grep -q '^CONFIG_PACKAGE_luci-theme-argon=y$' .config; then
+  echo "Argon must not be selected in the independent JuLiang theme build" >&2
+  exit 1
+fi
 
 grep -q "^CONFIG_TARGET_mediatek_filogic_DEVICE_${device}=y$" .config || {
   echo "SR503 target missing from .config" >&2
