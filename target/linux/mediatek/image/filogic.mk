@@ -189,6 +189,24 @@ define Device/acer_vero-w6m
 endef
 TARGET_DEVICES += acer_vero-w6m
 
+define Device/gielink_g33pro
+  DEVICE_VENDOR := GIE-LINK
+  DEVICE_MODEL := G33 Pro
+  DEVICE_DTS := mt7981b-gielink-g33pro
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+  SUPPORTED_DEVICES += gielink,g33pro
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 116736k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += gielink_g33pro
+
 define Device/aigo_ags21
   DEVICE_VENDOR := Aigo
   DEVICE_MODEL := AGS21

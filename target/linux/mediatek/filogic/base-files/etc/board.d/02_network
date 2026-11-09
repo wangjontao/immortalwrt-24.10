@@ -48,6 +48,7 @@ mediatek_setup_interfaces()
 	cmcc,a10-ubootmod|\
 	confiabits,mt7981|\
 	cudy,wr3000-v1|\
+	gielink,g33pro|\
 	jcg,q30-pro|\
 	keenetic,kn3811|\
 	livinet,zr-3020|\
