@@ -6,6 +6,12 @@ ROOT = Path(__file__).resolve().parents[3]
 controller = (
     ROOT / "custom/rax3000m-nand/files/usr/lib/lua/luci/controller/juliang_dashboard.lua"
 ).read_text(encoding="utf-8")
+egress_probe = (
+    ROOT / "custom/rax3000m-nand/files/usr/libexec/juliang-egress-probe"
+).read_text(encoding="utf-8")
+dashboard_init = (
+    ROOT / "custom/rax3000m-nand/files/etc/init.d/juliang-dashboard"
+).read_text(encoding="utf-8")
 home = (
     ROOT / "custom/rax3000m-nand/files/usr/lib/lua/luci/view/juliang_dashboard/home.htm"
 ).read_text(encoding="utf-8")
@@ -39,6 +45,14 @@ assert 'entry({"admin", "home_status"}, call("dashboard_status"), nil)' in contr
 assert 'build_url("admin", "home_status")' in home
 assert "admin/home/status" not in controller
 assert "admin/home/status" not in home
+assert "/tmp/juliang-dashboard-egress.state" in controller
+assert "/tmp/fastacl252/singbox.json" in controller
+assert "outbounds[*].tag" in controller
+assert 'mode = tag and "proxy" or "direct"' in controller
+assert "sing-box tools fetch" in egress_probe
+assert "cdn-cgi/trace" in egress_probe
+assert "juliang-dashboard-egress.state" in egress_probe
+assert "procd_set_param command /usr/libexec/juliang-egress-probe" in dashboard_init
 
 assert "mediaurlbase='/luci-static/juliang'" in theme
 assert "mediaurlbase='/luci-static/argon'" not in theme

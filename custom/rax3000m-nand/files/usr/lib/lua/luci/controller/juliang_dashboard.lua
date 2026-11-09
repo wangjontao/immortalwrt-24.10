@@ -6,7 +6,7 @@ local sys = require "luci.sys"
 local util = require "luci.util"
 
 local TRAFFIC_STATE = "/etc/juliang-dashboard/traffic.json"
-local EGRESS_CACHE = "/tmp/juliang-dashboard-egress.json"
+local EGRESS_CACHE = "/tmp/juliang-dashboard-egress.state"
 
 function index()
 	local home = entry({"admin", "home"}, template("juliang_dashboard/home"), _("首页"), 5)
@@ -105,44 +105,56 @@ local function wired_ports()
 	return rows
 end
 
-local function read_egress()
-	local now = os.time()
-	local cached = jsonc.parse(fs.readfile(EGRESS_CACHE) or "") or {}
-	local result = {
-		ip = cached.ip or "",
-		country = cached.country or "",
-		colo = cached.colo or "",
-		updated = tonumber(cached.updated) or 0
-	}
+local function fastacl_egress_tag()
+	if sys.call("pidof sing-box >/dev/null 2>&1") ~= 0 or
+	   not fs.access("/tmp/fastacl252/singbox.json") then
+		return nil
+	end
 
-	if not result.ip or not result.updated or now - result.updated >= 300 then
-		local trace = sys.exec("curl -4 -m 5 -s https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null") or ""
-		local ip = trace:match("ip=([%x%.:]+)")
-		local country = trace:match("loc=(%u%u)")
-		local colo = trace:match("colo=(%u%u%u)")
-
-		if ip and country then
-			result = {
-				ip = ip,
-				country = country,
-				colo = colo or "",
-				updated = now
-			}
-			fs.writefile(EGRESS_CACHE, jsonc.stringify(result))
+	local tags = sys.exec(
+		"jsonfilter -i /tmp/fastacl252/singbox.json " ..
+		"-e '@.outbounds[*].tag' 2>/dev/null"
+	) or ""
+	local active
+	for tag in tags:gmatch("[^\r\n]+") do
+		tag = tag:gsub("^%s+", ""):gsub("%s+$", "")
+		if tag:match("^node%-[%w_%.%-]+$") then
+			active = tag
 		end
 	end
+	return active
+end
 
-	local proxy_active = (
-		sys.call("pidof sing-box >/dev/null 2>&1") == 0 or
-		sys.call("pidof xray >/dev/null 2>&1") == 0 or
-		sys.call("pidof mihomo >/dev/null 2>&1") == 0
-	)
-	local node = sys.exec("uci -q get passwall.@global[0].node 2>/dev/null") or ""
-	if node == "" then
-		node = sys.exec("uci -q get passwall2.@global[0].node 2>/dev/null") or ""
+local function read_egress()
+	local tag = fastacl_egress_tag()
+	local source = tag and ("proxy:" .. tag) or "direct"
+	local cached = {}
+	for key, value in (fs.readfile(EGRESS_CACHE) or ""):gmatch("([%w_]+)=([^\r\n]+)") do
+		cached[key] = value
 	end
-	result.mode = proxy_active and "proxy" or "direct"
-	result.node = node:gsub("[\r\n]+", "")
+	local result = {
+		ip = cached.source == source and (cached.ip or "") or "",
+		country = cached.source == source and (cached.country or "") or "",
+		colo = cached.source == source and (cached.colo or "") or "",
+		updated = cached.source == source and (tonumber(cached.updated) or 0) or 0,
+		source = source,
+		mode = tag and "proxy" or "direct"
+	}
+
+	if tag then
+		result.node = tag:gsub("^node%-", "")
+		if result.node:match("^[%w_%.%-]+$") then
+			local name = sys.exec(
+				"uci -q get 'fastacl252." .. result.node .. ".name' 2>/dev/null"
+			) or ""
+			name = name:gsub("[\r\n]+", "")
+			if name ~= "" then
+				result.node = name
+			end
+		end
+	else
+		result.node = ""
+	end
 	return result
 end
 

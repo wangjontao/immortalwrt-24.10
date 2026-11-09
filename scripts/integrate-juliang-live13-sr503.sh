@@ -77,6 +77,7 @@ for f in \
   files/usr/libexec/dulwifi-firstboot \
   files/usr/libexec/nps-wan-mac \
   files/usr/libexec/wan-lease-guard \
+  files/usr/libexec/juliang-egress-probe \
   files/usr/bin/juliang-traffic-daemon \
   files/usr/bin/juliang-traffic-sample
 do

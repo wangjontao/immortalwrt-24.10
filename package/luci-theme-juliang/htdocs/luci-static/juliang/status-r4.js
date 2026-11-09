@@ -25,8 +25,9 @@
 			if (!data.ok)
 				throw new Error(data.error || '状态读取失败');
 			var egress = data.egress || {};
-			setText('juliang-proxy-ip', egress.ip || data.wan?.ip || '暂不可用');
-			var location = [egress.country || '未知地区'];
+			var proxy = egress.mode === 'proxy';
+			setText('juliang-proxy-ip', egress.ip || (proxy ? '代理出口检测中' : data.wan?.ip) || '暂不可用');
+			var location = [egress.country || (proxy ? '代理已启用' : '未知地区')];
 			if (egress.mode)
 				location.push(String(egress.mode).toUpperCase());
 			setText('juliang-proxy-location', location.join(' · '));
