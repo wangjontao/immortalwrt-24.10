@@ -69,12 +69,20 @@ jobs:
         run: |
           set -euo pipefail
           cat >> feeds.conf.default <<FEEDS
-          src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git^${PASSWALL2_TAG}
-          src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git^${PASSWALL_PACKAGES_COMMIT}
           src-git lede_luci https://github.com/coolsnowwolf/luci.git^98d8a72ea2f55755c4608ef913867ff1d841889b
           FEEDS
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+          rm -rf package/luci-app-passwall2 package/passwall-packages
+          git clone --depth=1 --branch "$PASSWALL2_TAG" \
+            https://github.com/Openwrt-Passwall/openwrt-passwall2.git \
+            /tmp/openwrt-passwall2
+          mv /tmp/openwrt-passwall2/luci-app-passwall2 package/
+          git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git \
+            package/passwall-packages
+          git -C package/passwall-packages checkout "$PASSWALL_PACKAGES_COMMIT"
+          rm -rf package/passwall-packages/.git
 
           rm -rf package/homeproxy package/luci-app-homeproxy
           git clone https://github.com/immortalwrt/homeproxy.git package/homeproxy
