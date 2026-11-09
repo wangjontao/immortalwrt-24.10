@@ -15,7 +15,7 @@ overlay_nps = (
 assert "label-mac-device = &gmac0;" in dts
 assert "macaddr_factory_4: macaddr@4" in dts
 assert "reg = <0x4 0x6>;" in dts
-assert "nvmem-cells = <&macaddr_factory_4>;" in dts
+assert "nvmem-cells = <&macaddr_factory_4 0>;" in dts
 assert 'nvmem-cell-names = "mac-address";' in dts
 assert 'CURRENT_KEY="$(uci -q get nps.@nps[0].vkey' in nps
 assert '[ "$CURRENT_KEY" != "$NPS_KEY" ]' in nps

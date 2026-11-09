@@ -66,7 +66,7 @@ assert "include $(TOPDIR)/feeds/luci/luci.mk" in makefile
 assert "luci.themes.JuLiang='/luci-static/juliang'" in theme_defaults
 assert "No related RPC reply" in login and "clearPreauthRpcNotice" in login
 assert "PKG_UPGRADE" not in theme_defaults
-assert "luci.sauth.sessiontime='86400'" in luci_session
+assert "luci.sauth.sessiontime='604800'" in luci_session
 assert 'current="$(uci -q get luci.main.mediaurlbase)"' in theme_migration
 assert '[ -f "/www${current}/cascade.css" ] && return 0' in theme_migration
 assert "mediaurlbase='/luci-static/juliang'" in theme_migration

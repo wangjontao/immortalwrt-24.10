@@ -2,7 +2,7 @@
 
 uci -q set luci.sauth=internal
 uci -q set luci.sauth.sessionpath='/tmp/luci-sessions'
-uci -q set luci.sauth.sessiontime='86400'
+uci -q set luci.sauth.sessiontime='604800'
 uci commit luci
 
 exit 0
