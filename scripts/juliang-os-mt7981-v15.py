@@ -10,6 +10,23 @@ ROOT = Path(__file__).resolve().parents[1]
 FILOGIC = ROOT / "target/linux/mediatek/image/filogic.mk"
 SINGLE_TARGET_PREFIX = "CONFIG_TARGET_mediatek_filogic_DEVICE_"
 MULTI_TARGET_PREFIX = "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_"
+MIN_IMAGE_KIB = 65536
+
+
+def image_size_kib(body):
+    match = re.search(
+        r"^\s*IMAGE_SIZE\s*:=\s*([^\r\n]+)", body, re.MULTILINE
+    )
+    if not match:
+        return None
+    value = match.group(1).strip()
+    kib = re.fullmatch(r"(\d+)k", value)
+    if kib:
+        return int(kib.group(1))
+    mib = re.fullmatch(r"(\d+)m", value)
+    if mib:
+        return int(mib.group(1)) * 1024
+    return None
 
 
 def load_devices():
@@ -28,6 +45,9 @@ def load_devices():
         dts = dts_match.group(1).strip()
         if not dts.startswith("mt7981"):
             continue
+        size = image_size_kib(body)
+        if size is not None and size < MIN_IMAGE_KIB:
+            continue
         model_match = re.search(
             r"^\s*DEVICE_MODEL\s*:=\s*([^\r\n]+)", body, re.MULTILINE
         )
@@ -41,6 +61,7 @@ def load_devices():
                 "device": device,
                 "dts": dts,
                 "label": f"{vendor} {model}".strip(),
+                "image_size_kib": size,
             }
         )
 
